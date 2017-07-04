@@ -1,5 +1,7 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.0;
+
 import "./NameAddressLibrary.sol";
+
 /*
 This contract serves as Registry contract for Name to Address mappings of TLTokens
 */

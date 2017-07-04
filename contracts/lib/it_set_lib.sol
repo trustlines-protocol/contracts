@@ -1,20 +1,21 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.0;
+
 /**
 @dev Library for a Set that can be iterated over
 */
 library ItSet {
     struct SetEntry {
-        uint index; // index of the entry, starting at 1
+    uint index; // index of the entry, starting at 1
     }
 
     struct AddressSet {
-        mapping(address=>SetEntry) addressToEntry;
-        address[] list;
+    mapping (address => SetEntry) addressToEntry;
+    address[] list;
     }
 
     function insert(AddressSet storage self, address address_) internal {
         var entry = self.addressToEntry[address_];
-        if(entry.index == 0) {
+        if (entry.index == 0) {
             entry.index = self.list.length + 1;
             self.list.push(address_);
         }
@@ -26,7 +27,7 @@ library ItSet {
 
     function remove(AddressSet storage self, address address_) internal {
         var entry = self.addressToEntry[address_];
-        if(entry.index > 0) {
+        if (entry.index > 0) {
             // remove from list
             var last_address = self.list[self.list.length - 1];
             self.list[entry.index - 1] = last_address;

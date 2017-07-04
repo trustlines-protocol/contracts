@@ -1,21 +1,23 @@
 /*
 This library serves as storage for the name address mappings of TLToken Names and their addresses
 */
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.0;
+
+
 library NameAddressLibrary {
     struct NameAddressMapEntry {
-        address tlTokenAddress;
-        uint idx;
+    address tlTokenAddress;
+    uint idx;
     }
 
     struct NameAddressMap {
-        mapping(bytes32 => NameAddressMapEntry) entries;
-        bytes32[] keys;
+    mapping (bytes32 => NameAddressMapEntry) entries;
+    bytes32[] keys;
     }
 
     function set(NameAddressMap storage self, bytes32 name, address addr) internal returns (bool){
         var entry = self.entries[name];
-        if(entry.idx == 0) {
+        if (entry.idx == 0) {
             entry.idx = self.keys.length + 1;
             entry.tlTokenAddress = addr;
             self.keys.push(name);
@@ -34,7 +36,7 @@ library NameAddressLibrary {
 
     function remove(NameAddressMap storage self, bytes32 name) internal returns (bool){
         var entry = self.entries[name];
-        if(entry.idx > 0){
+        if (entry.idx > 0) {
             var otherkey = self.keys[self.keys.length - 1];
             self.keys[entry.idx - 1] = otherkey;
             self.keys.length -= 1;
@@ -57,7 +59,7 @@ library NameAddressLibrary {
 
     function getAllTLTokens(NameAddressMap storage self) internal constant returns (address[]){
         address[] memory tlTokens = new address[](self.keys.length);
-        for(uint i = 0;i < self.keys.length;i++){
+        for (uint i = 0; i < self.keys.length; i++) {
             tlTokens[i] = self.entries[self.keys[i]].tlTokenAddress;
         }
         return tlTokens;
