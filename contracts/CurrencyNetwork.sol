@@ -31,16 +31,10 @@ contract CurrencyNetwork is ERC20 {
     using SafeMath for int256;
     using SafeMath for uint16;
     using SafeMath for uint32;
+
     using Trustline for Trustline.Account;
-
-    // MODIFIER
-
-    // check value is inbounds for accounting to prevent overflows
-    modifier valueWithinIntX(uint256 value, uint8 exp)
-    {
-        require(value < 2**exp);
-        _;
-    }
+    using InterestCalculator for Trustline.Account;
+    using FeeCalculator for Trustline.Account;
 
     // FEE GLOBAL DEFAULTS
     
@@ -99,7 +93,7 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the init was successful or not
      */
-    function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) returns (bool success) {
+    function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) {
         calculated_paths[sha3(msg.sender, _to, _value)] = 
             Path({expiresOn : uint16(calculateMtime().add16(1)), maxFee : _maxFee, path : _path});
     }
@@ -110,7 +104,7 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the init was successful or not
      */
-    function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) returns (bool success) {
+    function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) {
         calculated_paths[sha3(_from, _to, _value)] = 
             Path({expiresOn : uint16(calculateMtime().add16(1)), maxFee : _maxFee, path : _path});
     }
@@ -121,7 +115,8 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of wei to be approved for transfer
      * @return Whether the approval was successful or not
      */
-    function approve(address _spender, uint _value) valueWithinIntX(_value, 32) {
+    function approve(address _spender, uint _value) {
+        require(_value < 2**32);
         uint32 value = uint32(_value);
         address creditor = msg.sender;
         users.insert(creditor);
@@ -147,7 +142,8 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint _value) valueWithinIntX(_value, 32) {
+    function transfer(address _to, uint _value) {
+        require(_value < 2**32);
         uint32 value = uint32(_value);
         bytes32 pathId = sha3(msg.sender, _to, _value);
         _transferOnValidPath(pathId, _to, value);
@@ -159,7 +155,8 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transferFrom(address _from, address _to, uint _value) valueWithinIntX(_value, 32) {
+    function transferFrom(address _from, address _to, uint _value) {
+        require(value < 2**32);
         uint32 value = uint32(_value);
         if (getCreditline(_from, msg.sender) > 0) {
             bytes32 pathId = sha3(_from, _to, _value);
@@ -167,9 +164,10 @@ contract CurrencyNetwork is ERC20 {
         }
     }
 
-    function _transferOnValidPath(bytes32 _pathId, address _to, uint _value) valueWithinIntX(_value, 32) internal {
+    function _transferOnValidPath(bytes32 _pathId, address _to, uint _value) internal {
+        require(_value < 2**32);
         Path path = calculated_paths[_pathId];
-        uint32 value = uint32(value);
+        uint32 value = uint32(_value);
         if (path.expiresOn > 0) {
             // is path still valid?
             if (calculateMtime() > path.expiresOn) {
@@ -200,9 +198,9 @@ contract CurrencyNetwork is ERC20 {
             _to = _path[i];
             Trustline.Account account = accounts[keyBalance(sender, _to)];
             if (i == 0) {
-                FeeCalculator.applyNetworkFee(account, sender, _to, _value, network_fee_divisor);
+                account.applyNetworkFee(sender, _to, _value, network_fee_divisor);
             } else {
-                fees = FeeCalculator.deductedTransferFees(account, sender, _to, _value, capacity_fee_divisor, imbalance_fee_divisor);
+                fees = account.deductedTransferFees(sender, _to, _value, capacity_fee_divisor, imbalance_fee_divisor);
                 value -= uint32(fees);
             }
             success = _transfer(account, sender, _to, value, mtime);
@@ -216,7 +214,7 @@ contract CurrencyNetwork is ERC20 {
 
     function _transfer(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _mtime) internal returns (bool success) {
         // necessary? if(value <= 0) return false;
-        InterestCalculator.applyInterest(_account, _sender, _receiver, _mtime);
+        _account.applyInterest(_mtime);
         if (_sender < _receiver) {
             // cast to int48 might be wrong, check range first
             if (_value.sub(_account.balanceAB) > int48(_account.creditlineBA.mul32(base_unit_multiplier))) {
@@ -240,7 +238,8 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The maximum amount of tokens that can be spend
      * @return Whether the credit was successful or not
      */
-    function updateCreditline(address _debtor, uint256 _value) valueWithinIntX(_value, 192) returns (bool success) {
+    function updateCreditline(address _debtor, uint256 _value) returns (bool success) {
+        require(value < 2**192);
         int256 value = int256(_value);
         address _creditor = msg.sender;
 

@@ -25,11 +25,10 @@ library InterestCalculator {
      * @param receiver User receiving the funds, the beneficiary of the interest
      * @param mtime the current day since system start
      */
-    function applyInterest(Trustline.Account storage _account, address _sender, address _receiver, uint16 _mtime) internal {
+    function applyInterest(Trustline.Account storage _account, uint16 _mtime) internal {
         // Check whether request came from msg.sender otherwise anyone can call and change the mtime of the account
         if (_mtime == _account.mtime)
             return;
-        //int interestFromByte = occurredInterest(sender, receiver, mtime);
         int elapsed = _mtime.sub16(_account.mtime);
         uint16 interestByte = 0;
         if (_account.balanceAB > 0) { // netted balance, value B owes to A(if positive)
@@ -46,7 +45,7 @@ library InterestCalculator {
      * @notice returns the linear interest on the imbalance since last account update.
      * @notice negative if A is indebted to B, positive otherwise
      */
-    function occurredInterest(Trustline.Account storage _account, address _sender, address _receiver, uint16 _mtime) public returns (int) {
+    function occurredInterest(Trustline.Account storage _account, uint16 _mtime) public returns (int) {
         int elapsed = _mtime - _account.mtime;
         uint16 interest = 0;
         if (_account.balanceAB > 0) { // netted balance, value B owes to A(if positive)
@@ -69,7 +68,7 @@ library InterestCalculator {
     }
 
     // Only test functions here will be removed in the final release
-    function occurredInterestTest(Trustline.Account storage _account, address _sender, address _receiver, uint16 _mtime) public returns (int, int) {
+    function occurredInterestTest(Trustline.Account storage _account, uint16 _mtime) public returns (int, int) {
         int elapsed = _mtime.sub16(_account.mtime);
         uint16 di = 0;
         if(_account.balanceAB > 0){

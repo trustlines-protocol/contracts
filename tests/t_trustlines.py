@@ -10,9 +10,9 @@ trustlines = [(0, 1, 100, 150),
 
 @pytest.fixture()
 def trustlines_contract(chain):
-    Trustlines = chain.provider.get_contract_factory('Trustlines')
+    Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
     deploy_txn_hash = Trustlines.deploy(args=[
-        "Testcoin", "T", 2
+        "Testcoin", "T"
     ])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     trustlines_contract = Trustlines(address=contract_address)

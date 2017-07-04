@@ -39,7 +39,7 @@ def calc_system_fee(value):
 
 @pytest.fixture()
 def trustlines_contract(chain):
-    Trustlines = chain.provider.get_contract_factory('TLTokenBusiness')
+    Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
     deploy_txn_hash = Trustlines.deploy(args=[
         "Testcoin", "T"
     ])
