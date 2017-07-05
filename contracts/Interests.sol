@@ -4,13 +4,13 @@ import "./Trustline.sol";
 import "./lib/SafeMath.sol";
 
 /*
- * InterestCalculator
+ * Interests
  *
  * Calculates all interests for the path of a transaction in CurrencyNetwork.
  * Fees can be set at creation of CurrencyNetwork, and can be omitted (default).
  *
  */
-library InterestCalculator {
+library Interests {
 
     using SafeMath for int48;
     using SafeMath for int256;

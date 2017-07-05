@@ -1,12 +1,100 @@
 pragma solidity ^0.4.0;
 
-import "./lib/it_set_lib.sol";      // Library for Set iteration
-import "./lib/ERC20.sol";           // modified version of "zeppelin": "1.0.5": token/ERC20
-import "./lib/SafeMath.sol";        // modified version of "zeppelin": "1.0.5": SafeMath
-import "./Trustline.sol";           // data structure and functionality for a Trustline
-import "./FeeCalculator.sol";       // fee calculator for path in CurrencyNetwork
-import "./InterestCalculator.sol";  // interest calculator for path in CurrencyNetwork
+import "./lib/it_set_lib.sol";  // Library for Set iteration
+import "./lib/ERC20.sol";       // modified version of "zeppelin": "1.0.5": token/ERC20
+import "./lib/SafeMath.sol";    // modified version of "zeppelin": "1.0.5": SafeMath
+import "./lib/ECVerify.sol";    // Library for safer ECRecovery
+import "./Trustline.sol";       // data structure and functionality for a Trustline
+import "./Interests.sol";       // interest calculator for path in CurrencyNetwork
 
+library Fees {
+
+    using SafeMath for int48;
+    using SafeMath for int256;
+    using SafeMath for uint16;
+    using SafeMath for uint32;
+
+    /*
+     * @notice The network fee is payable by the inititator of a transfer.
+     * @notice It is tracked in the outgoing account to avoid updating a user global storage slot.
+     * @notice The system fee is splitted between the onboarders and the investors.
+     * @param sender User wishing to send funds to receiver, incurring the fee
+     * @param receiver User receiving the funds
+     * @param value Amount of tokens being transferred
+     */
+    function applyNetworkFee(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _network_fee_divisor) internal {
+        //Account account = accounts[hashFunc(sender, receiver)];
+        int fee = calculateNetworkFee(int(_value), _network_fee_divisor);
+        if (_sender < _receiver) {
+            _account.feesOutstandingA += uint16(fee);
+        } else {
+            _account.feesOutstandingB += uint16(fee);
+        }
+
+    }
+
+    /*
+     * @notice Calculates the system fee from the value being transferred
+     * @param value being transferred
+     */
+    function calculateNetworkFee(int _value, uint16 _network_fee_divisor) returns (int) {
+        return int(_value.div(_network_fee_divisor));
+    }
+
+    /*
+     * @notice The fees deducted from the value while being transferred from second hop onwards in the mediated transfer
+     */
+    function deductedTransferFees(Trustline.Account storage _account, address _sender, address _receiver, int _value, uint16 _capacity_fee_divisor, uint16 _imbalance_fee_divisor) public returns (int) {
+        return capacityFee(_value, _capacity_fee_divisor).add(_imbalanceFee(_account, _sender, _receiver, _value, _imbalance_fee_divisor));
+    }
+
+    /*
+     * @notice reward for providing the edge with sufficient capacity
+     * @notice beneficiary: sender (because receiver will receive if he's the next hop)
+     */
+    function capacityFee(int _value, uint16 _capacity_fee_divisor) public returns (int) {
+        return int(_value.div(_capacity_fee_divisor));
+    }
+
+    /*
+     * @notice penality for increasing account imbalance
+     * @notice beneficiary: sender (because receiver will receive if he's the next hop)
+     * @notice NOTE: It should also incorporate the interest as users will favor being indebted in
+     */
+    function _imbalanceFee(Trustline.Account storage _account, address _sender, address _receiver, int _value, uint16 _imbalance_fee_divisor) internal returns (int) {
+        //Account account = accounts[hashFunc(sender, receiver)];
+        int addedImbalance = 0;
+        int newBalance = 0;
+        if (_sender < _receiver) {
+            // negative hence sender indebted to receiver so addedImbalace is the incoming value
+            if (_account.balanceAB <= 0) {
+                addedImbalance = _value;
+            } else {
+            // positive hence receiver indebted to sender so if the newBalance is smaller then zero we introduce imbalance
+                newBalance = _account.balanceAB.sub(_value);
+                if (newBalance < 0)
+                    addedImbalance = -newBalance;
+            }
+        } else {
+            //sender address is greater, here semantics will be opposite of the one above
+            // positive hence sender is indebted to receiver so addedImbalance is the incoming value
+            if (_account.balanceAB >= 0) {
+                addedImbalance = _value;
+            } else {
+            // negative hence receiver is indebted to the sender so if the newBalance is greater than zero we introduce imbalance
+                newBalance = _account.balanceAB.add(_value);
+                if (newBalance > 0)
+                    addedImbalance = newBalance;
+            }
+        }
+        return (addedImbalance / _imbalance_fee_divisor);
+    }
+
+    function imbalanceFee(Trustline.Account storage _account, address _sender, address _receiver, int _value, uint16 _imbalance_fee_divisor) public returns (int) {
+        return _imbalanceFee(_account, _sender, _receiver, _value, _imbalance_fee_divisor);
+    }
+
+}
 /*
  * CurrencyNetwork
  *
@@ -33,8 +121,8 @@ contract CurrencyNetwork is ERC20 {
     using SafeMath for uint32;
 
     using Trustline for Trustline.Account;
-    using InterestCalculator for Trustline.Account;
-    using FeeCalculator for Trustline.Account;
+    using Interests for Trustline.Account;
+    using Fees for Trustline.Account;
 
     // FEE GLOBAL DEFAULTS
     
@@ -57,6 +145,7 @@ contract CurrencyNetwork is ERC20 {
     // currently deactivated due to gas costs
     // event Balance(address indexed _from, address indexed _to, int256 _value);
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event CreditlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint256 _value);
     event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint256 _value);
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
@@ -75,6 +164,10 @@ contract CurrencyNetwork is ERC20 {
     mapping (address => ItSet.AddressSet) friends;
     // sha3 hash to Path for planned transfer
     mapping (bytes32 => Path) calculated_paths;
+    // sha3 hash of Creditline updates, in 2PA
+    mapping (bytes32 => uint16) proposedCreditlineUpdates;
+    // mapping (sha3(_from, _to, _value, _expiresOn)) => depositedOn
+    mapping(bytes32 => uint16) cheques;
 
     //list of all users of the system
     ItSet.AddressSet users;
@@ -134,6 +227,26 @@ contract CurrencyNetwork is ERC20 {
      */
     function allowance(address _owner, address _spender) constant returns (uint) {
         return getCreditline(_owner, _spender);
+    }
+
+    /*
+     * @notice cashCheque required a signature which must be provided by the UI
+     */
+    function cashCheque(address _from, address _to, uint _value, uint16 _expiresOn, bytes _signature) returns (bool success) {
+        bytes32 chequeId = sha3(_from, _to, _value, _expiresOn);
+        // derive address from signature
+        address signer = ECVerify.ecverify(chequeId, _signature);
+        // signer is address _from?
+        assert(signer == _from);
+        // already processed?
+        assert(cheques[chequeId] == 0);
+        // still valid?
+        assert(_expiresOn >= calculateMtime());
+        // transfer
+        transferFrom(_from, _to, _value);
+        // set processed
+        cheques[chequeId] = calculateMtime();
+        success = true;
     }
 
     /*
@@ -232,16 +345,26 @@ contract CurrencyNetwork is ERC20 {
         return true;
     }
 
+    function updateCreditline(address _debtor, uint256 _value) returns (bool success) {
+        require(_value < 2**192);
+        var acceptId = sha3(msg.sender, _debtor, _value);
+        proposedCreditlineUpdates[acceptId] = calculateMtime();
+    }
+
     /*
      * @notice `msg.sender` sets a creditline for `_debtor` of `_value` tokens
      * @param _debtor The account that can spend tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
      * @return Whether the credit was successful or not
      */
-    function updateCreditline(address _debtor, uint256 _value) returns (bool success) {
+    function acceptCreditline(address _debtor, uint256 _value) returns (bool success) {
         require(value < 2**192);
         int256 value = int256(_value);
         address _creditor = msg.sender;
+
+        var acceptId = sha3(msg.sender, _debtor, _value);
+        assert(proposedCreditlineUpdates[acceptId] > 0);
+        delete proposedCreditlineUpdates[acceptId];
 
         Trustline.Account account = accounts[keyCreditline(_creditor, _debtor)];
         var balance = account.loadBalance(_creditor, _debtor);
