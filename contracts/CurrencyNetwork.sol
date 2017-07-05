@@ -345,24 +345,30 @@ contract CurrencyNetwork is ERC20 {
         return true;
     }
 
-    function updateCreditline(address _debtor, uint256 _value) returns (bool success) {
+    /*
+     * @notice `msg.sender` gives a creditline to `_debtor` of `_value` tokens, must be accepted by debtor
+     * @param _debtor The account that can spend tokens up to the given amount
+     * @param _value The maximum amount of tokens that can be spend
+     */
+    function updateCreditline(address _debtor, uint256 _value) {
         require(_value < 2**192);
-        var acceptId = sha3(msg.sender, _debtor, _value);
+        bytes32 acceptId = sha3(msg.sender, _debtor, _value);
         proposedCreditlineUpdates[acceptId] = calculateMtime();
     }
 
     /*
-     * @notice `msg.sender` sets a creditline for `_debtor` of `_value` tokens
-     * @param _debtor The account that can spend tokens up to the given amount
+     * @notice `msg.sender` accepts a creditline from `_creditor` of `_value` tokens
+     * @param _creditor The account that spends tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
      * @return Whether the credit was successful or not
      */
-    function acceptCreditline(address _debtor, uint256 _value) returns (bool success) {
+    function acceptCreditline(address _creditor, uint256 _value) returns (bool success) {
         require(value < 2**192);
         int256 value = int256(_value);
-        address _creditor = msg.sender;
+        address _debtor = msg.sender;
 
-        var acceptId = sha3(msg.sender, _debtor, _value);
+        // change _debtor/_creditor
+        bytes32 acceptId = sha3(_creditor, _debtor, _value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
         delete proposedCreditlineUpdates[acceptId];
 
