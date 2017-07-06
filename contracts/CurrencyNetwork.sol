@@ -222,7 +222,7 @@ contract CurrencyNetwork is ERC20 {
         friends[creditor].insert(_spender);
         friends[_spender].insert(creditor);
         // store in account object
-        Trustline.Account account = accounts[keyCreditline(creditor, _spender)];
+        Trustline.Account account = accounts[keyBalance(creditor, _spender)];
         account.storeCreditline(creditor, _spender, value);
         Approval(creditor, _spender, _value);
     }
@@ -357,8 +357,9 @@ contract CurrencyNetwork is ERC20 {
      */
     function updateCreditline(address _debtor, uint256 _value) notSender(_debtor) {
         require(_value < 2**192);
+        int256 value = int256(_value);
         
-        bytes32 acceptId = sha3(msg.sender, _debtor, _value);
+        bytes32 acceptId = sha3(msg.sender, _debtor, value);
         proposedCreditlineUpdates[acceptId] = calculateMtime();
     }
 
@@ -372,13 +373,13 @@ contract CurrencyNetwork is ERC20 {
         require(value < 2**192);
         int256 value = int256(_value);
         address _debtor = msg.sender;
-    
+
         bytes32 acceptId = sha3(_creditor, _debtor, _value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
-        //doesn't work in testrpc
+        //doesnt work with testrpc
         //delete proposedCreditlineUpdates[acceptId];
 
-        Trustline.Account account = accounts[keyCreditline(_creditor, _debtor)];
+        Trustline.Account account = accounts[keyBalance(_creditor, _debtor)];
         var balance = account.loadBalance(_creditor, _debtor);
 
         // onboard users and debtors
@@ -392,7 +393,7 @@ contract CurrencyNetwork is ERC20 {
         require(value >= balance);
         account.storeCreditline(_creditor, _debtor, uint32(_value));
         CreditlineUpdate(_creditor, _debtor, _value);
-        success = true;
+        success = true;    
     }
 
     /*
@@ -416,7 +417,7 @@ contract CurrencyNetwork is ERC20 {
      */    
     function spendableTo(address _spender, address _receiver) constant returns (uint256 remaining) {
         // returns the current trustline given by A to B
-        Trustline.Account account = accounts[keyCreditline(_spender, _receiver)];
+        Trustline.Account account = accounts[keyBalance(_spender, _receiver)];
 
         var balance = uint(account.loadBalance(_spender, _receiver));
         var creditline = uint(account.loadCreditline(_receiver, _spender));
@@ -449,7 +450,7 @@ contract CurrencyNetwork is ERC20 {
      * @return the creditline given from A to B, the creditline given from B to A, the balance from the point of A
      */
     function trustline(address _A, address _B) constant returns (int creditlineAB, int creditlineBA, int balanceAB) {
-        Trustline.Account account = accounts[keyCreditline(_A, _B)];
+        Trustline.Account account = accounts[keyBalance(_A, _B)];
         creditlineAB = account.loadCreditline(_A, _B);
         creditlineBA = account.loadCreditline(_B, _A);
         balanceAB = account.loadBalance(_A, _B);
@@ -594,14 +595,6 @@ contract CurrencyNetwork is ERC20 {
             // A == B not allowed
             throw;
         }
-    }
-
-    // key to look up the the creditline given from _A to _B
-    function keyCreditline(address _A, address _B) internal constant returns (bytes32) {
-        if (_A == _B) {
-            throw;
-        }
-        return sha3(_A, _B);
     }
 
 }

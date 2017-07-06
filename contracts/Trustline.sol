@@ -58,14 +58,6 @@ library Trustline {
         }
     }
 
-    // key to look up the the creditline given from _A to _B
-    function keyCreditline(address _A, address _B) internal constant returns (bytes32) {
-        if (_A == _B) {
-            throw;
-        }
-        return sha3(_A, _B);
-    }
-
     // load the Creditline given from _A to _B from storage
     function loadCreditline(Account storage _self, address _A, address _B) internal constant returns (uint32 creditline) {
         if (_A < _B) {
