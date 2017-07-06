@@ -54,6 +54,30 @@
         "$ref": "web3.GethIPC"
       }
     },
+    "testrpclocal": {
+      "chain": {
+        "class": "populus.chain.ExternalChain"
+      },
+      "contracts": {
+        "backends": {
+          "JSONFile": {
+            "$ref": "contracts.backends.JSONFile"
+          },
+          "Memory": {
+            "$ref": "contracts.backends.Memory"
+          },
+          "ProjectContracts": {
+            "$ref": "contracts.backends.ProjectContracts"
+          },
+          "TestContracts": {
+            "$ref": "contracts.backends.TestContracts"
+          }
+        }
+      },
+      "web3": {
+        "$ref": "web3.TestRPCLocal"
+      }
+    },
     "temp": {
       "chain": {
         "class": "populus.chain.geth.TemporaryGethChain"
@@ -216,6 +240,14 @@
         "class": "web3.providers.rpc.HTTPProvider",
         "settings": {
           "endpoint_uri": "https://ropsten.infura.io"
+        }
+      }
+    },
+    "TestRPCLocal": {
+      "provider": {
+        "class": "web3.providers.rpc.HTTPProvider",
+        "settings": {
+          "endpoint_uri": "http://127.0.0.1:8545"
         }
       }
     },

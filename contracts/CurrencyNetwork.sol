@@ -141,13 +141,13 @@ contract CurrencyNetwork is ERC20 {
     uint8 public decimals = 5;
 
     // Events
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Approval(address _owner, address _spender, uint256 _value);
     // currently deactivated due to gas costs
     // event Balance(address indexed _from, address indexed _to, int256 _value);
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event CreditlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint256 _value);
-    event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint256 _value);
-    event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
+    event Transfer(address _from, address _to, uint256 _value);
+    event CreditlineUpdateRequest(address _creditor, address _debtor, uint256 _value);
+    event CreditlineUpdate(address _creditor, address _debtor, uint256 _value);
+    event BalanceUpdate(address _from, address _to, int256 _value);
 
     struct Path {
         // set expiration date for Path
@@ -171,6 +171,11 @@ contract CurrencyNetwork is ERC20 {
 
     //list of all users of the system
     ItSet.AddressSet users;
+    
+    modifier notSender(address _sender) {
+        assert(_sender != msg.sender);
+        _;
+    }
 
     function CurrencyNetwork(
         bytes29 tokenName,
@@ -350,8 +355,9 @@ contract CurrencyNetwork is ERC20 {
      * @param _debtor The account that can spend tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
      */
-    function updateCreditline(address _debtor, uint256 _value) {
+    function updateCreditline(address _debtor, uint256 _value) notSender(_debtor) {
         require(_value < 2**192);
+        
         bytes32 acceptId = sha3(msg.sender, _debtor, _value);
         proposedCreditlineUpdates[acceptId] = calculateMtime();
     }
@@ -366,11 +372,11 @@ contract CurrencyNetwork is ERC20 {
         require(value < 2**192);
         int256 value = int256(_value);
         address _debtor = msg.sender;
-
-        // change _debtor/_creditor
+    
         bytes32 acceptId = sha3(_creditor, _debtor, _value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
-        delete proposedCreditlineUpdates[acceptId];
+        //doesn't work in testrpc
+        //delete proposedCreditlineUpdates[acceptId];
 
         Trustline.Account account = accounts[keyCreditline(_creditor, _debtor)];
         var balance = account.loadBalance(_creditor, _debtor);
