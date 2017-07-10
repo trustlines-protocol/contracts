@@ -26,15 +26,8 @@ def main():
         web3 = chain.web3
         print("Web3 provider is", web3.currentProvider)
 
-#        identity_factory = chain.provider.get_contract_factory("SafeMath")
-#        txhash = identity_factory.deploy()
-#        receipt = check_succesful_tx(chain.web3, txhash)
-#        id_address = receipt["contractAddress"]
-#        print(identity_factory, " contract address is", id_address)
-
-
         identity_factory = chain.provider.get_contract_factory("CurrencyNetwork")
-        txhash = identity_factory.deploy(transaction={"gas": 8000000}, args=["Trustline", "T"])
+        txhash = identity_factory.deploy(transaction={"gas": 4000000}, args=["Trustline", "T"])
         receipt = check_succesful_tx(chain.web3, txhash)
         id_address = receipt["contractAddress"]
         print(identity_factory, " contract address is", id_address)

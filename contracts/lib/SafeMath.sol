@@ -31,6 +31,20 @@ library SafeMath {
     return c;
   }
 
+  function div24(uint24 a, uint16 b) internal returns (uint24) {
+    assert(b > 0);
+    uint24 c = a / b;
+    assert(a == b * c + a % b);
+    return c;
+  }
+
+  function div4824(int48 a, uint24 b) internal returns (uint24) {
+    assert(b > 0);
+    uint24 c = uint24(a) / b;
+    assert(a == b * c + a % b);
+    return c;
+  }
+
   function div(int a, int b) internal returns (int) {
     assert(b > 0);
     int c = a / b;
@@ -48,9 +62,21 @@ library SafeMath {
     return a - b;
   }
 
-  function sub(int a, int b) internal returns (int) {
+  function sub24(uint24 a, uint24 b) internal returns (uint24) {
     assert(b <= a);
     return a - b;
+  }
+
+  function sub(int a, int b) internal returns (int) {
+    int c = a - b;
+    assert(c + b == a);
+    return c;
+  }
+
+  function sub48(int48 a, int48 b) internal returns (int48) {
+    int48 c = a - b;
+    assert(c + b == a);
+    return c;
   }
 
   function add(uint a, uint b) internal returns (uint) {

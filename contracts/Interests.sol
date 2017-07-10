@@ -45,7 +45,7 @@ library Interests {
      * @notice returns the linear interest on the imbalance since last account update.
      * @notice negative if A is indebted to B, positive otherwise
      */
-    function occurredInterest(Trustline.Account storage _account, uint16 _mtime) public returns (int) {
+    function occurredInterest(Trustline.Account storage _account, uint16 _mtime) internal returns (int) {
         int elapsed = _mtime - _account.mtime;
         uint16 interest = 0;
         if (_account.balanceAB > 0) { // netted balance, value B owes to A(if positive)
@@ -61,14 +61,14 @@ library Interests {
      * @param interest byte representation of annual interest rate
      * @param balance current balance value in the account
      */
-    function calculateInterest(int _interest, int _balance) public returns (int) {
-        if(_interest == 0 && _interest > 255)
+    function calculateInterest(int _interest, int _balance) internal returns (int) {
+        if(_interest == 0 || _interest > 255)
             return 0;
         return _balance.div(_interest.mul(256));
     }
 
     // Only test functions here will be removed in the final release
-    function occurredInterestTest(Trustline.Account storage _account, uint16 _mtime) public returns (int, int) {
+    function occurredInterestTest(Trustline.Account storage _account, uint16 _mtime) internal returns (int, int) {
         int elapsed = _mtime.sub16(_account.mtime);
         uint16 di = 0;
         if(_account.balanceAB > 0){
@@ -85,7 +85,7 @@ library Interests {
      * @param Ethereum addresses of A and B
      * @return Interest rate set by A for the debt of B
      */
-    function getInterestRate(Trustline.Account storage _account, address _A, address _B) constant returns (uint256 interestrate) {
+    function getInterestRate(Trustline.Account storage _account, address _A, address _B) internal constant returns (uint256 interestrate) {
         if (_A < _B) {
             return _account.interestAB;
         } else {

@@ -43,6 +43,30 @@ def test_trustlines(trustlines_contract, web3):
     for (A, B, tlAB, tlBA) in trustlines:
         assert trustlines_contract.call().trustline(web3.eth.accounts[A], web3.eth.accounts[B]) == [tlAB, tlBA, 0]
 
+def test_spendable(trustlines_contract, web3):
+    (A, B) = accounts(web3)(2)
+    assert trustlines_contract.call().spendableTo(A, B) == 150
+    assert trustlines_contract.call().spendableTo(B, A) == 100
+    txid = trustlines_contract.transact({"from":A}).transfer(B, 40)
+    check_successful_tx(web3, txid)
+    print(trustlines_contract.call().spendableTo(A, B))
+    assert trustlines_contract.call().spendableTo(A, B) == 110
+    assert trustlines_contract.call().spendableTo(B, A) == 140
+
+def test_balance_of(trustlines_contract, web3):
+    (A, B, C, D, E) = accounts(web3)(5)
+    print(trustlines_contract.call().balanceOf(A))
+    assert trustlines_contract.call().balanceOf(A) == 700
+    trustlines_contract.transact({"from":A}).transfer(B, 40)
+    assert trustlines_contract.call().balanceOf(A) == 660
+    trustlines_contract.transact({"from":A}).mediatedTransfer(C, 20, [E, D, C])
+    assert trustlines_contract.call().balanceOf(A) == 640
+    trustlines_contract.transact({"from":E}).transfer(A, 70)
+    assert trustlines_contract.call().balanceOf(A) == 710
+#    with pytest.raises(tester.TransactionFailed):
+#        trustlines_contract.transact({"from":A}).transfer(B, 1000)
+    assert trustlines_contract.call().balanceOf(A) == 710
+
 def abi():
     with open('./build/contracts/CurrencyNetwork.json') as data_file:
         data = data_file.read()
@@ -58,7 +82,9 @@ def main():
     assert(ctri.call().spendable(addr) == 0)
     # start integration tests
     trustlines_contract(ctri, web3)
-    test_trustlines(ctri, web3)
+    #test_trustlines(ctri, web3)
+    #test_spendable(ctri, web3)
+    test_balance_of(ctri, web3)
 
 if __name__ == "__main__":
     main()

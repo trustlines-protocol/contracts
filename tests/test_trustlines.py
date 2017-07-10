@@ -9,7 +9,7 @@ trustlines = [(0, 1, 100, 150),
               ]  # (A, B, tlAB, tlBA)
 
 @pytest.fixture()
-def trustlines_contract(chain):
+def trustlines_contract(chain, web3):
     Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
     deploy_txn_hash = Trustlines.deploy(args=[
         "Testcoin", "T"
@@ -17,8 +17,11 @@ def trustlines_contract(chain):
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     trustlines_contract = Trustlines(address=contract_address)
     for (A, B, tlAB, tlBA) in trustlines:
-        trustlines_contract.transact({"from":chain.web3.eth.accounts[A]}).updateCreditline(chain.web3.eth.accounts[B], tlAB)
-        trustlines_contract.transact({"from":chain.web3.eth.accounts[B]}).updateCreditline(chain.web3.eth.accounts[A], tlBA)
+        print((A, B, tlAB, tlBA))
+        trustlines_contract.transact({"from":web3.eth.accounts[A]}).updateCreditline(web3.eth.accounts[B], tlAB)
+        trustlines_contract.transact({"from":web3.eth.accounts[B]}).acceptCreditline(web3.eth.accounts[A], tlAB)
+        trustlines_contract.transact({"from":web3.eth.accounts[B]}).updateCreditline(web3.eth.accounts[A], tlBA)
+        trustlines_contract.transact({"from":web3.eth.accounts[A]}).acceptCreditline(web3.eth.accounts[B], tlBA)
     return trustlines_contract
 
 @pytest.fixture
@@ -45,7 +48,8 @@ def test_balance_of(trustlines_contract, web3, accounts):
     assert trustlines_contract.call().balanceOf(A) == 700
     trustlines_contract.transact({"from":A}).transfer(B, 40)
     assert trustlines_contract.call().balanceOf(A) == 660
-    trustlines_contract.transact({"from":A}).mediatedTransfer(C, 20, [E, D, C])
+    trustlines_contract.transact({"from":A}).prepare(C, 20, 100, [E, D, C])
+    trustlines_contract.transact({"from":A}).mediatedTransfer(C, 20)
     assert trustlines_contract.call().balanceOf(A) == 640
     trustlines_contract.transact({"from":E}).transfer(A, 70)
     assert trustlines_contract.call().balanceOf(A) == 710

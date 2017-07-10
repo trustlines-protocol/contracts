@@ -6,95 +6,8 @@ import "./lib/SafeMath.sol";    // modified version of "zeppelin": "1.0.5": Safe
 import "./lib/ECVerify.sol";    // Library for safer ECRecovery
 import "./Trustline.sol";       // data structure and functionality for a Trustline
 import "./Interests.sol";       // interest calculator for path in CurrencyNetwork
+import "./Fees.sol";            // fees calculator for path in CurrencyNetwork
 
-library Fees {
-
-    using SafeMath for int48;
-    using SafeMath for int256;
-    using SafeMath for uint16;
-    using SafeMath for uint32;
-
-    /*
-     * @notice The network fee is payable by the inititator of a transfer.
-     * @notice It is tracked in the outgoing account to avoid updating a user global storage slot.
-     * @notice The system fee is splitted between the onboarders and the investors.
-     * @param sender User wishing to send funds to receiver, incurring the fee
-     * @param receiver User receiving the funds
-     * @param value Amount of tokens being transferred
-     */
-    function applyNetworkFee(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _network_fee_divisor) internal {
-        //Account account = accounts[hashFunc(sender, receiver)];
-        int fee = calculateNetworkFee(int(_value), _network_fee_divisor);
-        if (_sender < _receiver) {
-            _account.feesOutstandingA += uint16(fee);
-        } else {
-            _account.feesOutstandingB += uint16(fee);
-        }
-
-    }
-
-    /*
-     * @notice Calculates the system fee from the value being transferred
-     * @param value being transferred
-     */
-    function calculateNetworkFee(int _value, uint16 _network_fee_divisor) returns (int) {
-        return int(_value.div(_network_fee_divisor));
-    }
-
-    /*
-     * @notice The fees deducted from the value while being transferred from second hop onwards in the mediated transfer
-     */
-    function deductedTransferFees(Trustline.Account storage _account, address _sender, address _receiver, int _value, uint16 _capacity_fee_divisor, uint16 _imbalance_fee_divisor) public returns (int) {
-        return capacityFee(_value, _capacity_fee_divisor).add(_imbalanceFee(_account, _sender, _receiver, _value, _imbalance_fee_divisor));
-    }
-
-    /*
-     * @notice reward for providing the edge with sufficient capacity
-     * @notice beneficiary: sender (because receiver will receive if he's the next hop)
-     */
-    function capacityFee(int _value, uint16 _capacity_fee_divisor) public returns (int) {
-        return int(_value.div(_capacity_fee_divisor));
-    }
-
-    /*
-     * @notice penality for increasing account imbalance
-     * @notice beneficiary: sender (because receiver will receive if he's the next hop)
-     * @notice NOTE: It should also incorporate the interest as users will favor being indebted in
-     */
-    function _imbalanceFee(Trustline.Account storage _account, address _sender, address _receiver, int _value, uint16 _imbalance_fee_divisor) internal returns (int) {
-        //Account account = accounts[hashFunc(sender, receiver)];
-        int addedImbalance = 0;
-        int newBalance = 0;
-        if (_sender < _receiver) {
-            // negative hence sender indebted to receiver so addedImbalace is the incoming value
-            if (_account.balanceAB <= 0) {
-                addedImbalance = _value;
-            } else {
-            // positive hence receiver indebted to sender so if the newBalance is smaller then zero we introduce imbalance
-                newBalance = _account.balanceAB.sub(_value);
-                if (newBalance < 0)
-                    addedImbalance = -newBalance;
-            }
-        } else {
-            //sender address is greater, here semantics will be opposite of the one above
-            // positive hence sender is indebted to receiver so addedImbalance is the incoming value
-            if (_account.balanceAB >= 0) {
-                addedImbalance = _value;
-            } else {
-            // negative hence receiver is indebted to the sender so if the newBalance is greater than zero we introduce imbalance
-                newBalance = _account.balanceAB.add(_value);
-                if (newBalance > 0)
-                    addedImbalance = newBalance;
-            }
-        }
-        return (addedImbalance / _imbalance_fee_divisor);
-    }
-
-    function imbalanceFee(Trustline.Account storage _account, address _sender, address _receiver, int _value, uint16 _imbalance_fee_divisor) public returns (int) {
-        return _imbalanceFee(_account, _sender, _receiver, _value, _imbalance_fee_divisor);
-    }
-
-}
 /*
  * CurrencyNetwork
  *
@@ -118,6 +31,7 @@ contract CurrencyNetwork is ERC20 {
     using SafeMath for int48;
     using SafeMath for int256;
     using SafeMath for uint16;
+    using SafeMath for uint24;
     using SafeMath for uint32;
 
     using Trustline for Trustline.Account;
@@ -144,7 +58,7 @@ contract CurrencyNetwork is ERC20 {
     event Approval(address _owner, address _spender, uint256 _value);
     // currently deactivated due to gas costs
     // event Balance(address indexed _from, address indexed _to, int256 _value);
-    event Transfer(address _from, address _to, uint256 _value);
+    event Transfer(address _from, address _to, uint _value);
     event CreditlineUpdateRequest(address _creditor, address _debtor, uint256 _value);
     event CreditlineUpdate(address _creditor, address _debtor, uint256 _value);
     event BalanceUpdate(address _from, address _to, int256 _value);
@@ -191,7 +105,7 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the init was successful or not
      */
-    function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) {
+    function prepare(address _to, uint24 _value, uint16 _maxFee, address[] _path) {
         calculated_paths[sha3(msg.sender, _to, _value)] = 
             Path({expiresOn : uint16(calculateMtime().add16(1)), maxFee : _maxFee, path : _path});
     }
@@ -202,7 +116,7 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the init was successful or not
      */
-    function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) {
+    function prepareFrom(address _from, address _to, uint24 _value, uint16 _maxFee, address[] _path) {
         calculated_paths[sha3(_from, _to, _value)] = 
             Path({expiresOn : uint16(calculateMtime().add16(1)), maxFee : _maxFee, path : _path});
     }
@@ -214,17 +128,7 @@ contract CurrencyNetwork is ERC20 {
      * @return Whether the approval was successful or not
      */
     function approve(address _spender, uint _value) {
-        require(_value < 2**32);
-        uint32 value = uint32(_value);
-        address creditor = msg.sender;
-        users.insert(creditor);
-        users.insert(_spender);
-        friends[creditor].insert(_spender);
-        friends[_spender].insert(creditor);
-        // store in account object
-        Trustline.Account account = accounts[keyBalance(creditor, _spender)];
-        account.storeCreditline(creditor, _spender, value);
-        Approval(creditor, _spender, _value);
+        throw;
     }
 
     /*
@@ -260,11 +164,14 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint _value) {
-        require(_value < 2**32);
-        uint32 value = uint32(_value);
-        bytes32 pathId = sha3(msg.sender, _to, _value);
-        _transferOnValidPath(pathId, _to, value);
+    function transfer(address _to, uint256 _value)  {
+        require(_value < 2**24);
+        uint24 value = uint24(_value);
+        Trustline.Account account = accounts[keyBalance(msg.sender, _to)];
+        if (!_transfer(account, msg.sender, _to, value, calculateMtime())) {
+            throw;
+        }
+        Transfer(msg.sender, _to, value);
     }
 
     /*
@@ -274,8 +181,8 @@ contract CurrencyNetwork is ERC20 {
      * @return Whether the transfer was successful or not
      */
     function transferFrom(address _from, address _to, uint _value) {
-        require(value < 2**32);
-        uint32 value = uint32(_value);
+        require(value < 2**24);
+        uint24 value = uint24(_value);
         if (getCreditline(_from, msg.sender) > 0) {
             bytes32 pathId = sha3(_from, _to, _value);
             _transferOnValidPath(pathId, _to, value);
@@ -283,15 +190,15 @@ contract CurrencyNetwork is ERC20 {
     }
 
     function _transferOnValidPath(bytes32 _pathId, address _to, uint _value) internal {
-        require(_value < 2**32);
+        require(_value < 2**24);
         Path path = calculated_paths[_pathId];
-        uint32 value = uint32(_value);
+        uint24 value = uint24(_value);
         if (path.expiresOn > 0) {
             // is path still valid?
             if (calculateMtime() > path.expiresOn) {
                 throw;
             } else {
-                mediatedTransfer(_to, value, _pathId);
+                mediatedTransfer(_to, value);
             }
         }
 
@@ -303,23 +210,25 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @param _path The path over which the token is sent
      */
-    function mediatedTransfer(address _to, uint32 _value, bytes32 _pathId) returns (bool success) {
+    function mediatedTransfer(address _to, uint24 _value) returns (bool success) {
+        require(_value < 2**24);
         address sender = msg.sender;
-        uint32 value = _value;
-        int fees = 0;
+        uint24 value = uint24(_value);
+        uint16 fees = 0;
         uint16 mtime = uint16(calculateMtime()); // The day from system start on which transaction performed
-        address[] _path = calculated_paths[_pathId].path;
+        bytes32 pathId = sha3(msg.sender, _to, _value);
+        address[] _path = calculated_paths[pathId].path;
         if (_path.length == 0 || _to != _path[_path.length - 1]) {
-            return false;
+            throw;
         }
         for (uint i = 0;i < _path.length; i++) {
             _to = _path[i];
             Trustline.Account account = accounts[keyBalance(sender, _to)];
             if (i == 0) {
-                account.applyNetworkFee(sender, _to, _value, network_fee_divisor);
+                account.applyNetworkFee(sender, _to, value, network_fee_divisor);
             } else {
-                fees = account.deductedTransferFees(sender, _to, _value, capacity_fee_divisor, imbalance_fee_divisor);
-                value -= uint32(fees);
+                fees = account.deductedTransferFees(sender, _to, uint24(value), uint16(capacity_fee_divisor), uint16(imbalance_fee_divisor));
+                value = value.sub24(uint24(fees));
             }
             success = _transfer(account, sender, _to, value, mtime);
             // have to throw here to adhere to specification (ERC20 interface)
@@ -330,18 +239,18 @@ contract CurrencyNetwork is ERC20 {
         Transfer(msg.sender, _to, _value);
     }
 
-    function _transfer(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _mtime) internal returns (bool success) {
+    function _transfer(Trustline.Account storage _account, address _sender, address _receiver, uint24 _value, uint16 _mtime) internal returns (bool success) {
         // necessary? if(value <= 0) return false;
         _account.applyInterest(_mtime);
         if (_sender < _receiver) {
-            // cast to int48 might be wrong, check range first
-            if (_value.sub(_account.balanceAB) > int48(_account.creditlineBA.mul32(base_unit_multiplier))) {
+            // cast to int48 might be wrong, check range firs
+            if (_value.sub(_account.balanceAB) > int48(_account.creditlineBA)) {
                 return false;
             }
 
-            _account.balanceAB = _account.balanceAB.add48(_value);
+            _account.balanceAB = _account.balanceAB.sub48(_value);
         } else {
-            if (_value.add(_account.balanceAB) > int48(_account.creditlineAB.mul32(base_unit_multiplier))) {
+            if (_value.add(_account.balanceAB) > int48(_account.creditlineAB)) {
                 return false;
             }
 
@@ -355,9 +264,9 @@ contract CurrencyNetwork is ERC20 {
      * @param _debtor The account that can spend tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
      */
-    function updateCreditline(address _debtor, uint256 _value) notSender(_debtor) {
-        require(_value < 2**192);
-        int256 value = int256(_value);
+    function updateCreditline(address _debtor, uint32 _value) notSender(_debtor) {
+        require(_value < 2**32);
+        uint32 value = uint32(_value);
         
         bytes32 acceptId = sha3(msg.sender, _debtor, value);
         proposedCreditlineUpdates[acceptId] = calculateMtime();
@@ -369,12 +278,12 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The maximum amount of tokens that can be spend
      * @return Whether the credit was successful or not
      */
-    function acceptCreditline(address _creditor, uint256 _value) returns (bool success) {
-        require(value < 2**192);
-        int256 value = int256(_value);
+    function acceptCreditline(address _creditor, uint32 _value) returns (bool success) {
+        require(_value < 2**32);
+        uint32 value = uint32(_value);
         address _debtor = msg.sender;
 
-        bytes32 acceptId = sha3(_creditor, _debtor, _value);
+        bytes32 acceptId = sha3(_creditor, _debtor, value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
         //doesnt work with testrpc
         //delete proposedCreditlineUpdates[acceptId];
@@ -391,8 +300,8 @@ contract CurrencyNetwork is ERC20 {
 
         assert(value >= 0);
         require(value >= balance);
-        account.storeCreditline(_creditor, _debtor, uint32(_value));
-        CreditlineUpdate(_creditor, _debtor, _value);
+        account.storeCreditline(_creditor, _debtor, value);
+        CreditlineUpdate(_creditor, _debtor, value);
         success = true;    
     }
 

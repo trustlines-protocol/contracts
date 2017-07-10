@@ -20,7 +20,7 @@ library ECVerify {
         return (ret, addr);
     }
 
-    function ecrecovery(bytes32 hash, bytes sig) returns (bool, address) {
+    function ecrecovery(bytes32 hash, bytes sig) internal returns (bool, address) {
         bytes32 r;
         bytes32 s;
         uint8 v;
@@ -44,7 +44,7 @@ library ECVerify {
         return safer_ecrecover(hash, v, r, s);
     }
 
-    function ecverify(bytes32 hash, bytes sig) returns (address addr) {
+    function ecverify(bytes32 hash, bytes sig) internal returns (address addr) {
         bool ret;
         (ret, addr) = ecrecovery(hash, sig);
     }
