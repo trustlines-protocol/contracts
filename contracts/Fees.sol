@@ -5,10 +5,10 @@ import "./Trustline.sol";
 
 library Fees {
 
-    using SafeMath for int48;
+    using SafeMath for int64;
     using SafeMath for int256;
     using SafeMath for uint16;
-    using SafeMath for uint24;
+    using SafeMath for uint32;
     using SafeMath for uint192;
 
     /*
@@ -34,14 +34,14 @@ library Fees {
      * @notice Calculates the system fee from the value being transferred
      * @param value being transferred
      */
-    function calculateNetworkFee(int48 _value, uint16 _network_fee_divisor) internal returns (int48) {
-        return int48(_value.div(_network_fee_divisor));
+    function calculateNetworkFee(int64 _value, uint16 _network_fee_divisor) internal returns (int64) {
+        return int64(_value.div(_network_fee_divisor));
     }
 
     /*
      * @notice The fees deducted from the value while being transferred from second hop onwards in the mediated transfer
      */
-    function deductedTransferFees(Trustline.Account storage _account, address _sender, address _receiver, uint24 _value, uint16 _capacity_fee_divisor, uint16 _imbalance_fee_divisor) internal returns (uint16) {
+    function deductedTransferFees(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _capacity_fee_divisor, uint16 _imbalance_fee_divisor) internal returns (uint16) {
         return capacityFee(_value, _capacity_fee_divisor).add16(uint16(_imbalanceFee(_account, _sender, _receiver, _value, _imbalance_fee_divisor)));
     }
 
@@ -49,8 +49,8 @@ library Fees {
      * @notice reward for providing the edge with sufficient capacity
      * @notice beneficiary: sender (because receiver will receive if he's the next hop)
      */
-    function capacityFee(uint24 _value, uint16 _capacity_fee_divisor) internal returns (uint16) {
-        return uint16(_value.div24(_capacity_fee_divisor));
+    function capacityFee(uint32 _value, uint16 _capacity_fee_divisor) internal returns (uint16) {
+        return uint16(_value.div32(_capacity_fee_divisor));
     }
 
     /*
@@ -58,17 +58,17 @@ library Fees {
      * @notice beneficiary: sender (because receiver will receive if he's the next hop)
      * @notice NOTE: It should also incorporate the interest as users will favor being indebted in
      */
-    function _imbalanceFee(Trustline.Account storage _account, address _sender, address _receiver, uint24 _value, uint16 _imbalance_fee_divisor) internal returns (uint24) {
+    function _imbalanceFee(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _imbalance_fee_divisor) internal returns (uint24) {
         //Account account = accounts[hashFunc(sender, receiver)];
-        int48 addedImbalance = 0;
-        int48 newBalance = 0;
+        int64 addedImbalance = 0;
+        int64 newBalance = 0;
         if (_sender < _receiver) {
             // negative hence sender indebted to receiver so addedImbalace is the incoming value
             if (_account.balanceAB <= 0) {
                 addedImbalance = _value;
             } else {
             // positive hence receiver indebted to sender so if the newBalance is smaller then zero we introduce imbalance
-                newBalance = int48(_account.balanceAB.sub(_value));
+                newBalance = int64(_account.balanceAB.sub(_value));
                 if (newBalance < 0)
                     addedImbalance = -newBalance;
             }
@@ -79,12 +79,12 @@ library Fees {
                 addedImbalance = _value;
             } else {
             // negative hence receiver is indebted to the sender so if the newBalance is greater than zero we introduce imbalance
-                newBalance = int48(_account.balanceAB.add(_value));
+                newBalance = int64(_account.balanceAB.add(_value));
                 if (newBalance > 0)
                     addedImbalance = newBalance;
             }
         }
-        return (addedImbalance.div4824(_imbalance_fee_divisor));
+        return (addedImbalance.div6424(_imbalance_fee_divisor));
     }
 
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.4.0;
 library Trustline {
 
     // for accounting balance and trustline between two users introducing fees and interests
-    // currently uses 192 bits, 64 remaining
+    // currently uses 208 bits, 48 remaining
     struct Account {
         // A < B (A is the lower address)
         uint16 interestAB;          //  interest rate set by A for debt of B
@@ -17,7 +17,7 @@ library Trustline {
         uint32 creditlineAB;        //  creditline given by A to B, always positive
         uint32 creditlineBA;        //  creditline given by B to A, always positive
 
-        int48 balanceAB;            //  balance between A and B, A->B (x(-1) for B->A)
+        int64 balanceAB;            //  balance between A and B, A->B (x(-1) for B->A)
     }
 
     /*
@@ -39,8 +39,8 @@ library Trustline {
     }
 
     // load balance from storage
-    function loadBalance(Account storage _self, address _A, address _B) internal constant returns (int256) {
-        int48 balance;
+    function loadBalance(Account storage _self, address _A, address _B) internal constant returns (int64) {
+        int64 balance;
         balance = _self.balanceAB;
         if (_A > _B) {
             balance = - balance;
@@ -49,7 +49,7 @@ library Trustline {
     }
 
     // store balance to storage
-    function storeBalance(Account storage _self, address _A, address _B, int48 _balance) internal {
+    function storeBalance(Account storage _self, address _A, address _B, int64 _balance) internal {
         if (_A < _B) {
             _self.balanceAB = _balance;
         }
