@@ -261,9 +261,9 @@ def test_too_high_value_mediatedTransfer(trustlines_contract, accounts):
     trustlines_contract.transact({"from": C}).acceptCreditline(B, 2**32 - 1)
     trustlines_contract.transact({"from": C}).updateCreditline(B, 0)
     trustlines_contract.transact({"from": B}).acceptCreditline(C, 0)
-    trustlines_contract.transact({"from": C}).prepare(A, 2**32-1, 10000, [B, A])
-    trustlines_contract.transact({"from": C}).mediatedTransfer(A, 2**32-1)
-    assert trustlines_contract.call().trustline(C, B) == [0, 2**32 - 1, -(2**32 - 1)]
+    trustlines_contract.transact({"from": C}).prepare(A, 2**16-1, 50000, [B, A])
+    trustlines_contract.transact({"from": C}).mediatedTransfer(A, 2**16-1)
+    assert trustlines_contract.call().trustline(C, B) == [0, 2**32 - 1, -(2**16 - 1)]
 
 
 def test_negative_value_transfer_credit(trustlines_contract, accounts):

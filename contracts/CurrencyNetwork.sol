@@ -241,6 +241,7 @@ contract CurrencyNetwork is ERC20 {
     function _transfer(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _mtime) internal returns (bool success) {
         // necessary? if(value <= 0) return false;
         _account.applyInterest(_mtime);
+        //why??? should be _spender, _receiver
         int64 balance = _account.loadBalance(_receiver, _sender);
         uint32 creditline = _account.loadCreditline(_receiver, _sender);
         require(_value + balance <= creditline);
