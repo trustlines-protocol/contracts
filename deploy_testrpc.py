@@ -8,6 +8,26 @@ from web3.utils.compat import (
     Timeout,
 )
 
+trustlines = [(0, 1, 100, 150),
+              (1, 2, 200, 250),
+              (2, 3, 300, 350),
+              (3, 4, 400, 450),
+              (0, 4, 500, 550)
+              ]  # (A, B, tlAB, tlBA)
+
+def trustlines_contract(trustlines_contract, web3):
+    for (A, B, tlAB, tlBA) in trustlines:
+        print((A, B, tlAB, tlBA))
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[A]}).updateCreditline(web3.eth.accounts[B], tlAB)
+        receipt = check_succesful_tx(web3, txid)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[B]}).acceptCreditline(web3.eth.accounts[A], tlAB)
+        receipt = check_succesful_tx(web3, txid)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[B]}).updateCreditline(web3.eth.accounts[A], tlBA)
+        receipt = check_succesful_tx(web3, txid)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[A]}).acceptCreditline(web3.eth.accounts[B], tlBA)
+    receipt = check_succesful_tx(web3, txid)
+    return trustlines_contract
+
 def check_succesful_tx(web3: Web3, txid: str, timeout=180) -> dict:
     """See if transaction went through (Solidity code did not throw).
     :return: Transaction receipt
@@ -17,6 +37,14 @@ def check_succesful_tx(web3: Web3, txid: str, timeout=180) -> dict:
     assert txinfo["gas"] != receipt["gasUsed"]
     return receipt
 
+def deploy(contract_name, chain):
+    contract = chain.provider.get_contract_factory(contract_name)
+    txhash = contract.deploy(args=['Trustlines','TL'])
+    receipt = check_succesful_tx(chain.web3, txhash)
+    id_address = receipt["contractAddress"]
+    print(contract_name, " contract address is", id_address)
+    return contract(id_address)
+
 def main():
     project = Project()
     chain_name = "testrpclocal"
@@ -24,13 +52,10 @@ def main():
 
     with project.get_chain(chain_name) as chain:
         web3 = chain.web3
-        print("Web3 provider is", web3.currentProvider)
 
-        identity_factory = chain.provider.get_contract_factory("CurrencyNetwork")
-        txhash = identity_factory.deploy(transaction={"gas": 4000000}, args=["Trustline", "T"])
-        receipt = check_succesful_tx(chain.web3, txhash)
-        id_address = receipt["contractAddress"]
-        print(identity_factory, " contract address is", id_address)
+    print("Web3 provider is", web3.currentProvider)
+    currencyNetwork = deploy("CurrencyNetwork", chain)
+    trustlines_contract(currencyNetwork, web3)
 
 if __name__ == "__main__":
     main()

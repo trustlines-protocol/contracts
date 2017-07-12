@@ -25,20 +25,13 @@ library Interests {
      * @param receiver User receiving the funds, the beneficiary of the interest
      * @param mtime the current day since system start
      */
-    function applyInterest(Trustline.Account storage _account, uint16 _mtime) internal {
+    function applyInterest(int64 _balanceAB, uint16 _interest, uint16 _mtime, uint16 _amtime) internal returns (uint16, int64){
         // Check whether request came from msg.sender otherwise anyone can call and change the mtime of the account
-        if (_mtime == _account.mtime)
+        if (_mtime == _amtime)
             return;
-        int elapsed = _mtime.sub16(_account.mtime);
-        uint16 interestByte = 0;
-        if (_account.balanceAB > 0) { // netted balance, value B owes to A(if positive)
-            interestByte = _account.interestAB; // interest rate set by A for debt of B
-        } else {
-            interestByte = _account.interestBA; // interest rate set by B for debt of A
-        }
-        int interest = calculateInterest(interestByte, _account.balanceAB).mul(elapsed);
-        _account.mtime = _mtime;
-        _account.balanceAB += int48(interest);
+        int elapsed = _mtime.sub16(_amtime);
+        int interest = calculateInterest(_interest, _balanceAB).mul(elapsed);
+        return (_mtime, _balanceAB + int48(interest));
     }
 
     /*
@@ -92,6 +85,5 @@ library Interests {
             return _account.interestBA;
         }
     }
-
 
 }

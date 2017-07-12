@@ -7,6 +7,7 @@ import "./lib/ECVerify.sol";    // Library for safer ECRecovery
 import "./Trustline.sol";       // data structure and functionality for a Trustline
 import "./Interests.sol";       // interest calculator for path in CurrencyNetwork
 import "./Fees.sol";            // fees calculator for path in CurrencyNetwork
+import "./EternalStorage.sol"; // eternal storage for upgrade purposes
 
 /*
  * CurrencyNetwork
@@ -34,10 +35,6 @@ contract CurrencyNetwork is ERC20 {
     using SafeMath for uint24;
     using SafeMath for uint32;
 
-    using Trustline for Trustline.Account;
-    using Interests for Trustline.Account;
-    using Fees for Trustline.Account;
-
     // FEE GLOBAL DEFAULTS
     
     // Divides current value being transferred to calculate the Network fee
@@ -54,14 +51,15 @@ contract CurrencyNetwork is ERC20 {
     bytes3 public symbol;
     uint8 public decimals = 5;
 
+    address eternalStorage;
+
     // Events
     event Approval(address _owner, address _spender, uint256 _value);
-    // currently deactivated due to gas costs
-    // event Balance(address indexed _from, address indexed _to, int256 _value);
     event Transfer(address _from, address _to, uint _value);
     event CreditlineUpdateRequest(address _creditor, address _debtor, uint256 _value);
     event CreditlineUpdate(address _creditor, address _debtor, uint256 _value);
-    event BalanceUpdate(address _from, address _to, int256 _value);
+    // currently deactivated due to gas costs
+    // event BalanceUpdate(address _from, address _to, int256 _value);
 
     struct Path {
         // set expiration date for Path
@@ -72,10 +70,6 @@ contract CurrencyNetwork is ERC20 {
         address[] path;
     }
 
-    // sha3 hash to account, see key-functions and Account
-    mapping (bytes32 => Trustline.Account) accounts;
-    // friends, useers address has an account with
-    mapping (address => ItSet.AddressSet) friends;
     // sha3 hash to Path for planned transfer
     mapping (bytes32 => Path) calculated_paths;
     // sha3 hash of Creditline updates, in 2PA
@@ -83,6 +77,8 @@ contract CurrencyNetwork is ERC20 {
     // mapping (sha3(_from, _to, _value, _expiresOn)) => depositedOn
     mapping(bytes32 => uint16) cheques;
 
+    // friends, useers address has an account with
+    mapping (address => ItSet.AddressSet) friends;
     //list of all users of the system
     ItSet.AddressSet users;
     
@@ -92,11 +88,12 @@ contract CurrencyNetwork is ERC20 {
     }
 
     function CurrencyNetwork(
-        bytes32 tokenName,
-        bytes3 tokenSymbol
+        bytes32 _tokenName,
+        bytes3 _tokenSymbol
     ) {
-        name = tokenName;  // Set the name for display purposes
-        symbol = tokenSymbol;  // Set the symbol for display purposes
+        name = _tokenName;       // Set the name for display purposes
+        symbol = _tokenSymbol;   // Set the symbol for display purposes
+        eternalStorage = new EternalStorage();
     }
 
     /*
@@ -167,8 +164,10 @@ contract CurrencyNetwork is ERC20 {
     function transfer(address _to, uint256 _value)  {
         require(_value < 2**32);
         uint32 value = uint32(_value);
-        Trustline.Account account = accounts[keyBalance(msg.sender, _to)];
-        if (!_transfer(account, msg.sender, _to, value, calculateMtime())) {
+
+        // get unique Trustline between msg.sender and _to
+        //Trustline.Account account = store().[uniqueIdentifier(msg.sender, _to)];
+        if (!_transfer(msg.sender, _to, value, calculateMtime())) {
             throw;
         }
         Transfer(msg.sender, _to, value);
@@ -191,8 +190,9 @@ contract CurrencyNetwork is ERC20 {
 
     function _transferOnValidPath(bytes32 _pathId, address _to, uint _value) internal {
         require(_value < 2**32);
+        uint32 value = uint32(_value);
+        // check Path exists and is still valid
         Path path = calculated_paths[_pathId];
-        uint24 value = uint24(_value);
         if (path.expiresOn > 0) {
             // is path still valid?
             if (calculateMtime() > path.expiresOn) {
@@ -215,21 +215,24 @@ contract CurrencyNetwork is ERC20 {
         uint32 value = uint32(_value);
         uint16 fees = 0;
         uint16 mtime = uint16(calculateMtime()); // The day from system start on which transaction performed
+
         bytes32 pathId = sha3(msg.sender, _to, _value);
         address[] _path = calculated_paths[pathId].path;
         if (_path.length == 0 || _to != _path[_path.length - 1]) {
             throw;
         }
+
         for (uint i = 0;i < _path.length; i++) {
             _to = _path[i];
-            Trustline.Account account = accounts[keyBalance(sender, _to)];
+            int64 balance = store().getBalance(sender, _to);
             if (i == 0) {
-                account.applyNetworkFee(sender, _to, value, network_fee_divisor);
+                fees = Fees.applyNetworkFee(sender, _to, value, network_fee_divisor);
+                _updateFees(sender, _to, fees);
             } else {
-                fees = account.deductedTransferFees(sender, _to, uint32(value), uint16(capacity_fee_divisor), uint16(imbalance_fee_divisor));
+                fees = Fees.deductedTransferFees(balance, sender, _to, value, capacity_fee_divisor, imbalance_fee_divisor);
                 value = value.sub32(fees);
             }
-            success = _transfer(account, sender, _to, value, mtime);
+            success = _transfer(sender, _to, value, mtime);
             // have to throw here to adhere to specification (ERC20 interface)
             if (!success)
                 throw;
@@ -238,14 +241,28 @@ contract CurrencyNetwork is ERC20 {
         Transfer(msg.sender, _to, _value);
     }
 
-    function _transfer(Trustline.Account storage _account, address _sender, address _receiver, uint32 _value, uint16 _mtime) internal returns (bool success) {
+    function _balance(int64 _balanceAB) internal returns (int64 balance){
+        if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
+            balance = _balanceAB; // interest rate set by A for debt of B
+        } else {
+            balance = -_balanceAB; // interest rate set by B for debt of A
+        }
+    }
+
+    function _updateFees(address _sender, address _receiver, uint16 fees) internal {
+        store().updateOutstandingFees(_sender, _receiver, fees);
+    }
+
+    function _transfer(address _sender, address _receiver, uint32 _value, uint16 _mtime) internal returns (bool success) {
         // necessary? if(value <= 0) return false;
-        _account.applyInterest(_mtime);
-        //why??? should be _spender, _receiver
-        int64 balance = _account.loadBalance(_receiver, _sender);
-        uint32 creditline = _account.loadCreditline(_receiver, _sender);
-        require(_value + balance <= creditline);
-        _account.storeBalance(_receiver, _sender, _value + balance);
+
+        //Interests.applyInterest(_mtime, );
+        // why??? should be _spender, _receiver
+        int64 balance = store().getBalance(_receiver, _sender);
+        uint32 creditline = store().getCreditline(_receiver, _sender);
+        // check that value = balance does not exceed creditline
+        assert(_value + balance <= creditline);
+        store().storeBalance(_receiver, _sender, _value + balance);
         return true;
     }
 
@@ -257,7 +274,7 @@ contract CurrencyNetwork is ERC20 {
     function updateCreditline(address _debtor, uint32 _value) notSender(_debtor) {
         require(_value < 2**32);
         uint32 value = uint32(_value);
-        
+
         bytes32 acceptId = sha3(msg.sender, _debtor, value);
         proposedCreditlineUpdates[acceptId] = calculateMtime();
     }
@@ -280,21 +297,26 @@ contract CurrencyNetwork is ERC20 {
         //doesnt work with testrpc
         //delete proposedCreditlineUpdates[acceptId];
 
-        Trustline.Account account = accounts[keyBalance(_creditor, _debtor)];
-        var balance = account.loadBalance(_creditor, _debtor);
-
+        int64 balance = store().getBalance(_creditor, _debtor);
+        // do not allow creditline below balance
         assert(value >= balance);
 
-        // onboard users and debtors
-        // what if they already exist? => approve(...)
-        users.insert(_creditor);
-        users.insert(_debtor);
-        friends[_creditor].insert(_debtor);
-        friends[_debtor].insert(_creditor);
+        if (!users.contains(_creditor)) {
+            users.insert(_creditor);
+        }
+        if (!users.contains(_debtor)) {
+            users.insert(_debtor);
+        }
+        if (!friends[_creditor].contains(_debtor)) {
+            friends[_creditor].insert(_debtor);
+        }
+        if (!friends[_debtor].contains(_creditor)) {
+            friends[_debtor].insert(_creditor);
+        }
 
-        account.storeCreditline(_creditor, _debtor, value);
+        store().storeCreditline(_creditor, _debtor, value);
         CreditlineUpdate(_creditor, _debtor, value);
-        success = true;    
+        success = true;
     }
 
     /*
@@ -315,14 +337,15 @@ contract CurrencyNetwork is ERC20 {
      * @param _spender The account spending the tokens
      * @param _receiver the receiver that receives the tokens
      * @return Amount of remaining tokens allowed to spend
-     */    
+     */
     function spendableTo(address _spender, address _receiver) constant returns (uint256 remaining) {
-        // returns the current trustline given by A to B
-        Trustline.Account account = accounts[keyBalance(_spender, _receiver)];
+        var balance = store().getBalance(_spender, _receiver);
+        var creditline = store().getCreditline(_receiver, _spender);
+        remaining = uint256(creditline + balance);
+    }
 
-        var balance = uint(account.loadBalance(_spender, _receiver));
-        var creditline = uint(account.loadCreditline(_receiver, _spender));
-        remaining = creditline + balance;
+    function store() internal returns (EternalStorage es) {
+        es = EternalStorage(eternalStorage);
     }
 
     /*
@@ -351,10 +374,9 @@ contract CurrencyNetwork is ERC20 {
      * @return the creditline given from A to B, the creditline given from B to A, the balance from the point of A
      */
     function trustline(address _A, address _B) constant returns (int creditlineAB, int creditlineBA, int balanceAB) {
-        Trustline.Account account = accounts[keyBalance(_A, _B)];
-        creditlineAB = account.loadCreditline(_A, _B);
-        creditlineBA = account.loadCreditline(_B, _A);
-        balanceAB = account.loadBalance(_A, _B);
+        creditlineAB = store().getCreditline(_A, _B);
+        creditlineBA = store().getCreditline(_B, _A);
+        balanceAB = store().getBalance(_A, _B);
     }
 
     /*
@@ -364,13 +386,7 @@ contract CurrencyNetwork is ERC20 {
      */
     function updateInterestRate(address _debtor, uint16 _ir) returns (bool success) {
         address creditor = msg.sender;
-        Trustline.Account account = accounts[keyBalance(creditor, _debtor)];
-        if (creditor < _debtor) {
-            account.interestAB = _ir;
-        } else {
-            account.interestBA = _ir;
-        }
-        success = true;
+        store().updateInterest(creditor, _debtor, _ir);
     }
 
     /*
@@ -379,25 +395,19 @@ contract CurrencyNetwork is ERC20 {
      * @param Ethereum Addresses of A and B
      */
     function getFeesOutstanding(address _A, address _B) constant returns (int fees) {
-        Trustline.Account account = accounts[keyBalance(_A, _B)];
-        if (_A < _B) {
-            return account.feesOutstandingA;
-        } else {
-            return account.feesOutstandingB;
-        }
+        fees = store().getOutstandingFees(_A, _B);
     }
 
     // PUBLIC GETTERS
-    
+
     /*
      * @param _owner The address of the account owning tokens
      * @param _spender The address of the account able to transfer the tokens
      * @return Amount tokens allowed to spent
      */
-    function getCreditline(address _owner, address _spender) constant returns (uint256 creditline) {
+    function getCreditline(address _owner, address _spender) constant returns (uint32 creditline) {
         // returns the current creditline given by A to B
-        Trustline.Account account = accounts[keyBalance(_owner, _spender)];
-        creditline = account.loadCreditline(_owner, _spender);
+        creditline = store().getCreditline(_owner, _spender);
     }
 
     /*
@@ -405,41 +415,8 @@ contract CurrencyNetwork is ERC20 {
      * @dev If negative A owes B, if positive B owes A
      * @param Ethereum addresses A and B which have trustline relationship established between them
      */
-    function getBalance(address _A, address _B) constant returns (int balance) {
-        Trustline.Account account = accounts[keyBalance(_A, _B)];
-        balance = account.loadBalance(_A, _B);
-    }
-
-    /*
-     * @notice Gives a view of the current state of the account struct for the particular pair of A and B
-     * @dev Gives a view of the current state of the account struct for the particular pair of A and B
-     * @param Ethereum Addresses of A and B
-     */
-    function getAccount(address _A, address _B) constant returns (int, int, int, int, int, int, int, int) {
-        Trustline.Account account = accounts[keyBalance(_A, _B)];
-        if (_A < _B) {
-            // View of the Account if the address A < B
-            return (account.creditlineAB,
-                    account.creditlineBA,
-                    account.interestAB,
-                    account.interestBA,
-                    account.feesOutstandingA,
-                    account.feesOutstandingB,
-                    account.mtime,
-                    account.balanceAB);
-         }
-         else{
-            // View of the account if Address A > B
-            return (account.creditlineBA,
-                    account.creditlineAB,
-                    account.interestBA,
-                    account.interestAB,
-                    account.feesOutstandingB,
-                    account.feesOutstandingA,
-                    account.mtime,
-                    -account.balanceAB);
-         }
-
+    function getBalance(address _A, address _B) constant returns (int64 balance) {
+        balance = store().getBalance(_A, _B);
     }
 
     /*
@@ -459,32 +436,12 @@ contract CurrencyNetwork is ERC20 {
         return users.list;
     }
 
-    // ACCESS FOR TRUSTLINE-ACCOUNTS
-
     /*
      * @notice Calculates the current modification day since system start.
      * @notice now is an alias for block.timestamp gives the epoch time of the current block.
      */
     function calculateMtime() public returns (uint16 mtime){
         mtime = uint16((now/(24*60*60)) - ((2017 - 1970)* 365));
-    }
-
-    /*
-     * @notice hash to look up the account between A and B in accounts
-     * @dev hash to look up the account between A and B in accounts
-     * @param Two Ethereum addresses in the account pair
-     */
-    function keyBalance(address _A, address _B) internal constant returns (bytes32) {
-        if (_A < _B) {
-            return sha3(_A, _B);
-        }
-        else if (_A > _B) {
-            return sha3(_B, _A);
-        }
-        else {
-            // A == B not allowed
-            throw;
-        }
     }
 
 }
