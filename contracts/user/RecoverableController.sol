@@ -3,26 +3,17 @@ pragma solidity ^0.4.0;
 import "./Proxy.sol";
 
 contract RecoverableController {
+
     uint    public version;
-
     Proxy   public proxy;
-
     address public userKey;
-
     address public proposedUserKey;
-
     uint    public proposedUserKeyPendingUntil;
-
     address public recoveryKey;
-
     address public proposedRecoveryKey;
-
     uint    public proposedRecoveryKeyPendingUntil;
-
     address public proposedController;
-
     uint    public proposedControllerPendingUntil;
-
     uint    public shortTimeLock;// use 900 for 15 minutes
     uint    public longTimeLock; // use 259200 for 3 days
 
@@ -45,7 +36,7 @@ contract RecoverableController {
     }
 
     function transfer(address to, uint value) onlyUserKey {
-        return proxy.transfer(to, value);
+        proxy.transfer(to, value);
     }
 
     function allowance(address owner, address spender) constant returns (uint) {
@@ -53,11 +44,19 @@ contract RecoverableController {
     }
 
     function transferFrom(address from, address to, uint value) {
-        return proxy.transferFrom(from, to, value);
+        proxy.transferFrom(from, to, value);
     }
 
     function approve(address spender, uint value) {
-        return proxy.approve(spender, value);
+        proxy.approve(spender, value);
+    }
+
+    function updateCreditline(address _debtor, uint32 _value) {
+        proxy.updateCreditline(_debtor, _value);
+    }
+
+    function acceptCreditline(address _debtor, uint32 _value) returns (bool) {
+        return proxy.acceptCreditline(_debtor, _value);
     }
 
     //pass 0x0 to cancel

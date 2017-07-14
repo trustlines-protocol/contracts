@@ -1,13 +1,14 @@
 pragma solidity ^0.4.0;
 
-import "./lib/it_set_lib.sol";  // Library for Set iteration
-import "./lib/ERC20.sol";       // modified version of "zeppelin": "1.0.5": token/ERC20
-import "./lib/SafeMath.sol";    // modified version of "zeppelin": "1.0.5": SafeMath
-import "./lib/ECVerify.sol";    // Library for safer ECRecovery
-import "./Trustline.sol";       // data structure and functionality for a Trustline
-import "./Interests.sol";       // interest calculator for path in CurrencyNetwork
-import "./Fees.sol";            // fees calculator for path in CurrencyNetwork
-import "./EternalStorage.sol"; // eternal storage for upgrade purposes
+import "./lib/it_set_lib.sol";      // Library for Set iteration
+import "./lib/ERC20.sol";           // modified version of "zeppelin": "1.0.5": token/ERC20
+import "./lib/SafeMath.sol";        // modified version of "zeppelin": "1.0.5": SafeMath
+import "./lib/ECVerify.sol";        // Library for safer ECRecovery
+import "./Trustline.sol";           // data structure and functionality for a Trustline
+import "./Interests.sol";           // interest calculator for path in CurrencyNetwork
+import "./Fees.sol";                // fees calculator for path in CurrencyNetwork
+import "./EternalStorage.sol";      // eternal storage for upgrade purposes
+import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
 
 /*
  * CurrencyNetwork
@@ -26,6 +27,7 @@ import "./EternalStorage.sol"; // eternal storage for upgrade purposes
  *      uint16 _imbalance_fee_divisor,
  *      uint16 _maxInterestRate)
  */
+// add is ICurrencyNetwork here - doesnt work in populus
 contract CurrencyNetwork is ERC20 {
 
     using ItSet for ItSet.AddressSet;
@@ -89,47 +91,62 @@ contract CurrencyNetwork is ERC20 {
 
     function CurrencyNetwork(
         bytes32 _tokenName,
-        bytes3 _tokenSymbol
+        bytes3 _tokenSymbol,
+        address _eternalStorage
     ) {
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
-        eternalStorage = new EternalStorage();
+        eternalStorage = _eternalStorage;
     }
 
     /*
      * @notice initialize contract to send `_value` token to `_to` from `msg.sender` with calculated path
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
-     * @return Whether the init was successful or not
+     * @param _maxFee Maximum for fee which occurs when the path is used for transfer
+     * @param _path Path of Trustlines calculated by external service (relay server)
      */
     function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) {
         calculated_paths[sha3(msg.sender, _to, _value)] = 
-            Path({expiresOn : uint16(calculateMtime().add16(1)), maxFee : _maxFee, path : _path});
+            Path(
+                {expiresOn : uint16(calculateMtime().add16(1)),
+                 maxFee : _maxFee,
+                 path : _path
+                }
+            );
     }
     
-    /*
+   /*
      * @notice initialize contract to send `_value` token to `_to` from `_from` with calculated path
+     * @param _from The address of the sender
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
-     * @return Whether the init was successful or not
+     * @param _maxFee Maximum for fee which occurs when the path is used for transfer
+     * @param _path Path of Trustlines calculated by external service (relay server)
      */
-    function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) {
+     function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) {
         calculated_paths[sha3(_from, _to, _value)] = 
-            Path({expiresOn : uint16(calculateMtime().add16(1)), maxFee : _maxFee, path : _path});
+            Path(
+                {expiresOn : uint16(calculateMtime().add16(1)),
+                 maxFee : _maxFee,
+                 path : _path
+                }
+            );
     }
     
     /*
-     * @notice `msg.sender` approves `_spender` to spend `_value` tokens
+     * @notice `msg.sender` approves `_spender` to spend `_value` tokens, is currently not supported for Trustlines
      * @param _spender The address of the account able to transfer the tokens
      * @param _value The amount of wei to be approved for transfer
-     * @return Whether the approval was successful or not
      */
     function approve(address _spender, uint _value) {
+        // currently not supported, since there is no logical equivalent
         throw;
     }
 
     /*
      * @notice For Trustlines allowance equals the creditline
+     * @return Creditline between _owner and _spender
      */
     function allowance(address _owner, address _spender) constant returns (uint) {
         return getCreditline(_owner, _spender);
@@ -137,8 +154,14 @@ contract CurrencyNetwork is ERC20 {
 
     /*
      * @notice cashCheque required a signature which must be provided by the UI
+     * @param _from The address of the account able to transfer the tokens
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _expiresOn Days till the cheque expires
+     * @param _signature the values _from, _to, _value and _expiresOn signed by _from
+     * @return true, if there was no error in transfer
      */
-    function cashCheque(address _from, address _to, uint _value, uint16 _expiresOn, bytes _signature) returns (bool success) {
+    function cashCheque(address _from, address _to, uint32 _value, uint16 _expiresOn, bytes _signature) returns (bool success) {
         bytes32 chequeId = sha3(_from, _to, _value, _expiresOn);
         // derive address from signature
         address signer = ECVerify.ecverify(chequeId, _signature);
@@ -161,23 +184,22 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint256 _value)  {
+    function transfer(address _to, uint _value)  {
         require(_value < 2**32);
         uint32 value = uint32(_value);
 
         // get unique Trustline between msg.sender and _to
         //Trustline.Account account = store().[uniqueIdentifier(msg.sender, _to)];
-        if (!_transfer(msg.sender, _to, value, calculateMtime())) {
-            throw;
-        }
+        _transfer(msg.sender, _to, value);
         Transfer(msg.sender, _to, value);
     }
 
     /*
      * @notice send `_value` token to `_to` from `msg.sender`
+     * @param _from The address of the sender
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
-     * @return Whether the transfer was successful or not
+     * @return true, if the transfer was successful
      */
     function transferFrom(address _from, address _to, uint _value) {
         require(value < 2**32);
@@ -204,17 +226,15 @@ contract CurrencyNetwork is ERC20 {
     }
 
     /*
-     * @notice send `_value` token to `_to` from `msg.sender`
+     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
-     * @param _path The path over which the token is sent
      */
     function mediatedTransfer(address _to, uint32 _value) returns (bool success) {
         require(_value < 2**32);
         address sender = msg.sender;
         uint32 value = uint32(_value);
         uint16 fees = 0;
-        uint16 mtime = uint16(calculateMtime()); // The day from system start on which transaction performed
 
         bytes32 pathId = sha3(msg.sender, _to, _value);
         address[] _path = calculated_paths[pathId].path;
@@ -232,10 +252,7 @@ contract CurrencyNetwork is ERC20 {
                 fees = Fees.deductedTransferFees(balance, sender, _to, value, capacity_fee_divisor, imbalance_fee_divisor);
                 value = value.sub32(fees);
             }
-            success = _transfer(sender, _to, value, mtime);
-            // have to throw here to adhere to specification (ERC20 interface)
-            if (!success)
-                throw;
+            _transfer(sender, _to, value);
             sender = _to;
         }
         Transfer(msg.sender, _to, _value);
@@ -249,21 +266,35 @@ contract CurrencyNetwork is ERC20 {
         }
     }
 
+    function _interest(int64 _balanceAB, uint16 _interestAB, uint16 _interestBA) internal returns (uint16 interest){
+        if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
+            interest = _interestAB; // interest rate set by A for debt of B
+        } else {
+            interest = _interestBA; // interest rate set by B for debt of A
+        }
+    }
+
     function _updateFees(address _sender, address _receiver, uint16 fees) internal {
         store().updateOutstandingFees(_sender, _receiver, fees);
     }
 
-    function _transfer(address _sender, address _receiver, uint32 _value, uint16 _mtime) internal returns (bool success) {
-        // necessary? if(value <= 0) return false;
-
-        //Interests.applyInterest(_mtime, );
-        // why??? should be _spender, _receiver
+    function _transfer(address _sender, address _receiver, uint32 _value) internal  {
+        // why??? should be _sender, _receiver
         int64 balance = store().getBalance(_receiver, _sender);
+
+        // check Creditlines (value + balance must not exceed creditline)
         uint32 creditline = store().getCreditline(_receiver, _sender);
-        // check that value = balance does not exceed creditline
         assert(_value + balance <= creditline);
+
+        // apply Interests
+        uint16 timediff = calculateMtime() - store().getLastModification(_sender, _receiver);
+        uint16 interestAB = store().getInterest(_sender, _receiver);
+        uint16 interestBA = store().getInterest(_receiver, _sender);
+        int64 interest = Interests.applyInterest(_balance(balance), _interest(balance, interestAB, interestBA), timediff);
+        store().addToBalance(_sender, _receiver, interest);
+
+        // store new balance
         store().storeBalance(_receiver, _sender, _value + balance);
-        return true;
     }
 
     /*
@@ -283,15 +314,13 @@ contract CurrencyNetwork is ERC20 {
      * @notice `msg.sender` accepts a creditline from `_creditor` of `_value` tokens
      * @param _creditor The account that spends tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
-     * @return Whether the credit was successful or not
+     * @return true, if the credit was successful
      */
     function acceptCreditline(address _creditor, uint32 _value) returns (bool success) {
         require(_value < 2**32);
-        assert(_value >= 0);
-
         uint32 value = uint32(_value);
         address _debtor = msg.sender;
-
+        // retrieve acceptId to validate that updateCreditline has been called
         bytes32 acceptId = sha3(_creditor, _debtor, value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
         //doesnt work with testrpc
@@ -320,11 +349,11 @@ contract CurrencyNetwork is ERC20 {
     }
 
     /*
-     * @dev Checks for the spendable amount by spender
+     * @notice Checks for the spendable amount by spender
      * @param _spender The address from which the balance will be retrieved
      * @return spendable The spendable amount
      */
-    function spendable(address _spender) constant returns (uint256 spendable) {
+    function spendable(address _spender) constant returns (uint spendable) {
         spendable = 0;
         var myfriends = friends[_spender].list;
         for(uint i = 0; i < myfriends.length; i++) {
@@ -333,15 +362,15 @@ contract CurrencyNetwork is ERC20 {
     }
 
     /*
-     * @dev the maximum spendable amount by the spender to the receiver.
+     * @notice the maximum spendable amount by the spender to the receiver.
      * @param _spender The account spending the tokens
      * @param _receiver the receiver that receives the tokens
      * @return Amount of remaining tokens allowed to spend
      */
-    function spendableTo(address _spender, address _receiver) constant returns (uint256 remaining) {
+    function spendableTo(address _spender, address _receiver) constant returns (uint remaining) {
         var balance = store().getBalance(_spender, _receiver);
         var creditline = store().getCreditline(_receiver, _spender);
-        remaining = uint256(creditline + balance);
+        remaining = uint(creditline + balance);
     }
 
     function store() internal returns (EternalStorage es) {
@@ -358,7 +387,9 @@ contract CurrencyNetwork is ERC20 {
         return spendable(_owner);
     }
 
-    /// @return total amount of tokens. In Trustlines this is the sum of all creditlines
+    /*
+     * @return total amount of tokens. In Trustlines this is the sum of all creditlines
+     */
     function totalSupply() constant returns (uint256 supply) {
         supply = 0;
         var users_list = users.list;
@@ -368,10 +399,10 @@ contract CurrencyNetwork is ERC20 {
     }
 
     /*
-     * @dev Returns the trustline between A and B from the point of A
+     * @notice Returns the trustline between A and B from the point of A
      * @param _A The account spending the tokens
      * @param _B the receiver that receives the tokens
-     * @return the creditline given from A to B, the creditline given from B to A, the balance from the point of A
+     * @return the creditline given from A to B, the creditline given from B to A, the balance from the view of A
      */
     function trustline(address _A, address _B) constant returns (int creditlineAB, int creditlineBA, int balanceAB) {
         creditlineAB = store().getCreditline(_A, _B);
@@ -382,7 +413,8 @@ contract CurrencyNetwork is ERC20 {
     /*
      * @notice annual interest rate as byte(ir) is calculated outside and then set here.
      * @dev creditor sets the annual interestrate for outstanding amounts by debtor
-     * @param Ethereum address of debtor and the byte representation(ir) of the annual interest rate
+     * @param _debtor Ethereum address of debtor and the byte representation(ir) of the annual interest rate
+     * @param _ir new interest rate for Creditline
      */
     function updateInterestRate(address _debtor, uint16 _ir) returns (bool success) {
         address creditor = msg.sender;
@@ -405,7 +437,7 @@ contract CurrencyNetwork is ERC20 {
      * @param _spender The address of the account able to transfer the tokens
      * @return Amount tokens allowed to spent
      */
-    function getCreditline(address _owner, address _spender) constant returns (uint32 creditline) {
+    function getCreditline(address _owner, address _spender) constant returns (uint creditline) {
         // returns the current creditline given by A to B
         creditline = store().getCreditline(_owner, _spender);
     }
@@ -415,7 +447,7 @@ contract CurrencyNetwork is ERC20 {
      * @dev If negative A owes B, if positive B owes A
      * @param Ethereum addresses A and B which have trustline relationship established between them
      */
-    function getBalance(address _A, address _B) constant returns (int64 balance) {
+    function getBalance(address _A, address _B) constant returns (int balance) {
         balance = store().getBalance(_A, _B);
     }
 

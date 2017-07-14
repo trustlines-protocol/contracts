@@ -25,28 +25,23 @@ library Interests {
      * @param receiver User receiving the funds, the beneficiary of the interest
      * @param mtime the current day since system start
      */
-    function applyInterest(int64 _balanceAB, uint16 _interest, uint16 _mtime, uint16 _amtime) internal returns (uint16, int64){
+    function applyInterest(int64 _balance, uint16 _interest, uint16 _timediff) internal returns (int64){
         // Check whether request came from msg.sender otherwise anyone can call and change the mtime of the account
-        if (_mtime == _amtime)
+        if (_timediff == 0)
             return;
-        int elapsed = _mtime.sub16(_amtime);
-        int interest = calculateInterest(_interest, _balanceAB).mul(elapsed);
-        return (_mtime, _balanceAB + int48(interest));
+        int interest = calculateInterest(_interest, _balance).mul(_timediff);
+        return (_balance + int48(interest));
     }
 
     /*
      * @notice returns the linear interest on the imbalance since last account update.
      * @notice negative if A is indebted to B, positive otherwise
      */
-    function occurredInterest(Trustline.Account storage _account, uint16 _mtime) internal returns (int) {
-        int elapsed = _mtime - _account.mtime;
-        uint16 interest = 0;
-        if (_account.balanceAB > 0) { // netted balance, value B owes to A(if positive)
-            interest = _account.interestAB; // interest rate set by A for debt of B
-        } else {
-            interest = _account.interestBA; // interest rate set by B for debt of A
+    function occurredInterest(int64 _balance, uint16 _interest, uint16 _timediff) internal returns (int) {
+        if (_timediff == 0) {
+            return 0;
         }
-        return calculateInterest(interest, _account.balanceAB).mul(elapsed);
+        return calculateInterest(_interest, _balance).mul(_timediff);
     }
 
     /*
@@ -58,32 +53,6 @@ library Interests {
         if(_interest == 0 || _interest > 255)
             return 0;
         return _balance.div(_interest.mul(256));
-    }
-
-    // Only test functions here will be removed in the final release
-    function occurredInterestTest(Trustline.Account storage _account, uint16 _mtime) internal returns (int, int) {
-        int elapsed = _mtime.sub16(_account.mtime);
-        uint16 di = 0;
-        if(_account.balanceAB > 0){
-            di = _account.interestAB;
-        }else{
-            di = _account.interestBA;
-        }
-        return (calculateInterest(di, _account.balanceAB), elapsed);
-    }
-
-    /*
-     * @notice This function returns the annual interest rate as byte
-     * @dev need to converted to know the actual value of annual interest rate
-     * @param Ethereum addresses of A and B
-     * @return Interest rate set by A for the debt of B
-     */
-    function getInterestRate(Trustline.Account storage _account, address _A, address _B) internal constant returns (uint256 interestrate) {
-        if (_A < _B) {
-            return _account.interestAB;
-        } else {
-            return _account.interestBA;
-        }
     }
 
 }

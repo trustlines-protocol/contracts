@@ -2,8 +2,9 @@ pragma solidity ^0.4.0;
 
 import "../lib/Owned.sol";
 import "../lib/ERC20.sol";
+import "../ICurrencyNetwork.sol";
 
-contract Proxy is ERC20, Owned {
+contract Proxy is ERC20, Owned, ICurrencyNetwork {
 
     address destination;
 
@@ -22,7 +23,7 @@ contract Proxy is ERC20, Owned {
     }
 
     function transfer(address to, uint value)  {
-        return ERC20(destination).transfer(to, value);
+        ERC20(destination).transfer(to, value);
     }
 
     function allowance(address owner, address spender) constant returns (uint) {
@@ -30,11 +31,19 @@ contract Proxy is ERC20, Owned {
     }
 
     function transferFrom(address from, address to, uint value)  {
-        return ERC20(destination).transferFrom(from, to, value);
+        ERC20(destination).transferFrom(from, to, value);
     }
 
     function approve(address spender, uint value) {
-        return ERC20(destination).approve(spender, value);
+        ERC20(destination).approve(spender, value);
+    }
+
+    function updateCreditline(address _debtor, uint32 _value) {
+        ICurrencyNetwork(destination).updateCreditline(_debtor, _value);
+    }
+
+    function acceptCreditline(address _debtor, uint32 _value) returns (bool) {
+        return ICurrencyNetwork(destination).acceptCreditline(_debtor, _value);
     }
 
 }

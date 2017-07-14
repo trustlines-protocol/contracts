@@ -116,6 +116,11 @@ contract EternalStorage is Owned {
         }
     }
 
+    // store balance to storage
+    function addToBalance(address _A, address _B, int64 _diff) public {
+        accounts[uniqueIdentifier(_A, _B)].balanceAB += _diff;
+    }
+
     function storeCreditline(address _A, address _B, uint32 _creditline) public {
         Trustline.Account storage account = accounts[uniqueIdentifier(_A, _B)];
         if (_A < _B) {
