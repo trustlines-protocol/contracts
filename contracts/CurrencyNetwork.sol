@@ -27,7 +27,6 @@ import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
  *      uint16 _imbalance_fee_divisor,
  *      uint16 _maxInterestRate)
  */
-// add is ICurrencyNetwork here - doesnt work in populus
 contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
 
     using ItSet for ItSet.AddressSet;
