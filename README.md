@@ -19,4 +19,4 @@ The Smart Contracts can be installed separately from the other components of the
 
  * populus compile
  * pytest
- * populus deploy
+ * deploy to running testrpc: python deploy_testrpc.py
