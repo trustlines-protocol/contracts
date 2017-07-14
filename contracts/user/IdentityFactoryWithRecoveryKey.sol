@@ -7,7 +7,8 @@ contract IdentityFactoryWithRecoveryKey {
         address indexed userKey,
         address proxy,
         address controller,
-        address indexed recoveryKey);
+        address indexed recoveryKey
+    );
 
     mapping(address => address) public senderToProxy;
     mapping(address => address) public recoveryToProxy;

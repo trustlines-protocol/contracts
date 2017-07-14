@@ -10,9 +10,13 @@ trustlines = [(0, 1, 100, 150),
 
 @pytest.fixture()
 def trustlines_contract(chain, web3):
+    EternalStorage = chain.provider.get_contract_factory('EternalStorage')
+    deploy_txn_hash = EternalStorage.deploy()
+    eternalStorage_address = chain.wait.for_contract_address(deploy_txn_hash)
+
     Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
     deploy_txn_hash = Trustlines.deploy(args=[
-        "Testcoin", "T"
+        "Testcoin", "T", eternalStorage_address
     ])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     trustlines_contract = Trustlines(address=contract_address)

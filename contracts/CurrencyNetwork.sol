@@ -28,7 +28,7 @@ import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
  *      uint16 _maxInterestRate)
  */
 // add is ICurrencyNetwork here - doesnt work in populus
-contract CurrencyNetwork is ERC20 {
+contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
 
     using ItSet for ItSet.AddressSet;
     using SafeMath for int64;
@@ -86,6 +86,13 @@ contract CurrencyNetwork is ERC20 {
     
     modifier notSender(address _sender) {
         assert(_sender != msg.sender);
+        _;
+    }
+
+    // check value is inbounds for accounting to prevent overflows
+    modifier valueWithinInt32(uint _value)
+    {
+        require(_value < 2**32);
         _;
     }
 
@@ -184,12 +191,10 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint _value)  {
-        require(_value < 2**32);
+    function transfer(address _to, uint _value) valueWithinInt32(_value) {
         uint32 value = uint32(_value);
 
         // get unique Trustline between msg.sender and _to
-        //Trustline.Account account = store().[uniqueIdentifier(msg.sender, _to)];
         _transfer(msg.sender, _to, value);
         Transfer(msg.sender, _to, value);
     }
@@ -201,8 +206,7 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      * @return true, if the transfer was successful
      */
-    function transferFrom(address _from, address _to, uint _value) {
-        require(value < 2**32);
+    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) {
         uint32 value = uint32(_value);
         if (getCreditline(_from, msg.sender) > 0) {
             bytes32 pathId = sha3(_from, _to, _value);
@@ -231,28 +235,25 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The amount of token to be transferred
      */
     function mediatedTransfer(address _to, uint32 _value) returns (bool success) {
-        require(_value < 2**32);
-        address sender = msg.sender;
-        uint32 value = uint32(_value);
-        uint16 fees = 0;
-
         bytes32 pathId = sha3(msg.sender, _to, _value);
         address[] _path = calculated_paths[pathId].path;
         if (_path.length == 0 || _to != _path[_path.length - 1]) {
             throw;
         }
 
+        uint16 fees = 0;
+        address sender = msg.sender;
         for (uint i = 0;i < _path.length; i++) {
             _to = _path[i];
             int64 balance = store().getBalance(sender, _to);
             if (i == 0) {
-                fees = Fees.applyNetworkFee(sender, _to, value, network_fee_divisor);
-                _updateFees(sender, _to, fees);
+                fees = Fees.applyNetworkFee(sender, _to, _value, network_fee_divisor);
+                store().updateOutstandingFees(sender, _to, fees);
             } else {
-                fees = Fees.deductedTransferFees(balance, sender, _to, value, capacity_fee_divisor, imbalance_fee_divisor);
-                value = value.sub32(fees);
+                fees = Fees.deductedTransferFees(balance, sender, _to, _value, capacity_fee_divisor, imbalance_fee_divisor);
+                _value = _value.sub32(fees);
             }
-            _transfer(sender, _to, value);
+            _transfer(sender, _to, _value);
             sender = _to;
         }
         Transfer(msg.sender, _to, _value);
@@ -274,10 +275,6 @@ contract CurrencyNetwork is ERC20 {
         }
     }
 
-    function _updateFees(address _sender, address _receiver, uint16 fees) internal {
-        store().updateOutstandingFees(_sender, _receiver, fees);
-    }
-
     function _transfer(address _sender, address _receiver, uint32 _value) internal  {
         // why??? should be _sender, _receiver
         int64 balance = store().getBalance(_receiver, _sender);
@@ -290,7 +287,7 @@ contract CurrencyNetwork is ERC20 {
         uint16 timediff = calculateMtime() - store().getLastModification(_sender, _receiver);
         uint16 interestAB = store().getInterest(_sender, _receiver);
         uint16 interestBA = store().getInterest(_receiver, _sender);
-        int64 interest = Interests.applyInterest(_balance(balance), _interest(balance, interestAB, interestBA), timediff);
+        int64 interest = Interests.occurredInterest(_balance(balance), _interest(balance, interestAB, interestBA), timediff);
         store().addToBalance(_sender, _receiver, interest);
 
         // store new balance
@@ -303,11 +300,9 @@ contract CurrencyNetwork is ERC20 {
      * @param _value The maximum amount of tokens that can be spend
      */
     function updateCreditline(address _debtor, uint32 _value) notSender(_debtor) {
-        require(_value < 2**32);
-        uint32 value = uint32(_value);
-
-        bytes32 acceptId = sha3(msg.sender, _debtor, value);
+        bytes32 acceptId = sha3(msg.sender, _debtor, _value);
         proposedCreditlineUpdates[acceptId] = calculateMtime();
+        CreditlineUpdateRequest(msg.sender, _debtor, _value);
     }
 
     /*
@@ -317,18 +312,16 @@ contract CurrencyNetwork is ERC20 {
      * @return true, if the credit was successful
      */
     function acceptCreditline(address _creditor, uint32 _value) returns (bool success) {
-        require(_value < 2**32);
-        uint32 value = uint32(_value);
         address _debtor = msg.sender;
         // retrieve acceptId to validate that updateCreditline has been called
-        bytes32 acceptId = sha3(_creditor, _debtor, value);
+        bytes32 acceptId = sha3(_creditor, _debtor, _value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
         //doesnt work with testrpc
         //delete proposedCreditlineUpdates[acceptId];
 
         int64 balance = store().getBalance(_creditor, _debtor);
         // do not allow creditline below balance
-        assert(value >= balance);
+        assert(_value >= balance);
 
         if (!users.contains(_creditor)) {
             users.insert(_creditor);
@@ -343,8 +336,8 @@ contract CurrencyNetwork is ERC20 {
             friends[_debtor].insert(_creditor);
         }
 
-        store().storeCreditline(_creditor, _debtor, value);
-        CreditlineUpdate(_creditor, _debtor, value);
+        store().storeCreditline(_creditor, _debtor, _value);
+        CreditlineUpdate(_creditor, _debtor, _value);
         success = true;
     }
 

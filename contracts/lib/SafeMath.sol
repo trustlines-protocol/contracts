@@ -12,6 +12,12 @@ library SafeMath {
     return c;
   }
 
+  function mul16(uint16 a, uint16 b) internal returns (uint16) {
+    uint16 c = a * b;
+    assert(a == 0 || c / a == b);
+    return c;
+  }
+
   function mul32(uint32 a, uint32 b) internal returns (uint32) {
     uint32 c = a * b;
     assert(a == 0 || c / a == b);

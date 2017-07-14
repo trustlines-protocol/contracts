@@ -17,13 +17,13 @@ contract CurrencyNetworkFactory {
     //cost XXXXXXX gas
     function CreateCurrencyNetwork
     (
-    bytes29 _tokenName,
-    bytes3 _tokenSymbol,
-    address _delegates,
-    uint16 _network_fee_divisor,
-    uint16 _capacity_fee_divisor,
-    uint16 _imbalance_fee_divisor,
-    uint16 _maxInterestRate
+        bytes29 _tokenName,
+        bytes3 _tokenSymbol,
+        address _delegates,
+        uint16 _network_fee_divisor,
+        uint16 _capacity_fee_divisor,
+        uint16 _imbalance_fee_divisor,
+        uint16 _maxInterestRate
     ) {
         GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
         address tokenAddr = 0x0;//CurrencyNetwork(_tokenName, _tokenSymbol, _network_fee_divisor, _capacity_fee_divisor, _imbalance_fee_divisor);
