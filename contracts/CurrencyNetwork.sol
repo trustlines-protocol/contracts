@@ -129,7 +129,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
                  path : _path
                 }
             );
-        PathPrepared(_msg.sender, _to, _value);
+        PathPrepared(msg.sender, _to, _value);
     }
     
    /*
