@@ -57,8 +57,9 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     // Events
     event Approval(address _owner, address _spender, uint256 _value);
     event Transfer(address _from, address _to, uint _value);
-    event CreditlineUpdateRequest(address _creditor, address _debtor, uint256 _value);
-    event CreditlineUpdate(address _creditor, address _debtor, uint256 _value);
+    event CreditlineUpdateRequest(address _creditor, address _debtor, uint32 _value);
+    event CreditlineUpdate(address _creditor, address _debtor, uint32 _value);
+    event PathPrepared(address _sender, address _receiver, uint32 _value);
     // currently deactivated due to gas costs
     // event BalanceUpdate(address _from, address _to, int256 _value);
 
@@ -105,6 +106,14 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         eternalStorage = _eternalStorage;
     }
 
+    function getAccount(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int) {
+        return store().getAccount(_A, _B);
+    }
+
+    function getInterestRate(address _A, address _B) public constant returns (uint16) {
+        return store().getInterestRate(_A, _B);
+    }
+
     /*
      * @notice initialize contract to send `_value` token to `_to` from `msg.sender` with calculated path
      * @param _to The address of the recipient
@@ -120,6 +129,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
                  path : _path
                 }
             );
+        PathPrepared(_msg.sender, _to, _value);
     }
     
    /*
@@ -258,39 +268,34 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         Transfer(msg.sender, _to, _value);
     }
 
-    function _balance(int64 _balanceAB) internal returns (int64 balance){
+    function _getBalanceAndInterestRate(address _receiver, address _sender, int64 _balanceAB) internal returns (int64 balance, uint16 interestRate) {
         if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
             balance = _balanceAB; // interest rate set by A for debt of B
+            interestRate = store().getInterestRate(_receiver, _sender);
         } else {
             balance = -_balanceAB; // interest rate set by B for debt of A
-        }
-    }
-
-    function _interest(int64 _balanceAB, uint16 _interestAB, uint16 _interestBA) internal returns (uint16 interest){
-        if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
-            interest = _interestAB; // interest rate set by A for debt of B
-        } else {
-            interest = _interestBA; // interest rate set by B for debt of A
+            interestRate = store().getInterestRate(_sender, _receiver);
         }
     }
 
     function _transfer(address _sender, address _receiver, uint32 _value) internal  {
         // why??? should be _sender, _receiver
-        int64 balance = store().getBalance(_receiver, _sender);
+        int64 balanceAB = store().getBalance(_receiver, _sender);
 
         // check Creditlines (value + balance must not exceed creditline)
         uint32 creditline = store().getCreditline(_receiver, _sender);
-        assert(_value + balance <= creditline);
+        assert(_value + balanceAB <= creditline);
 
         // apply Interests
-        uint16 timediff = calculateMtime() - store().getLastModification(_sender, _receiver);
-        uint16 interestAB = store().getInterest(_sender, _receiver);
-        uint16 interestBA = store().getInterest(_receiver, _sender);
-        int64 interest = Interests.occurredInterest(_balance(balance), _interest(balance, interestAB, interestBA), timediff);
-        store().addToBalance(_sender, _receiver, interest);
+        //uint16 timediff = calculateMtime() - store().getLastModification(_receiver, _sender);
+        //int64 balance;
+        //uint16 interestRate;
+        //(balance, interestRate) = _getBalanceAndInterestRate(_receiver, _sender, balanceAB);
+        //int64 occurredInterest = Interests.occurredInterest(balance, interestRate, timediff);
+        //store().addToBalance(_receiver, _sender, occurredInterest);
 
         // store new balance
-        store().storeBalance(_receiver, _sender, _value + balance);
+        store().storeBalance(_receiver, _sender, _value + balanceAB);
     }
 
     /*
@@ -360,8 +365,8 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @return Amount of remaining tokens allowed to spend
      */
     function spendableTo(address _spender, address _receiver) constant returns (uint remaining) {
-        var balance = store().getBalance(_spender, _receiver);
-        var creditline = store().getCreditline(_receiver, _spender);
+        int64 balance = store().getBalance(_spender, _receiver);
+        uint32 creditline = store().getCreditline(_receiver, _spender);
         remaining = uint(creditline + balance);
     }
 

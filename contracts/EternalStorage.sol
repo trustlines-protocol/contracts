@@ -71,7 +71,7 @@ contract EternalStorage is Owned {
         }
     }
 
-    function getInterest(address _A, address _B) public constant returns (uint16 interest) {
+    function getInterestRate(address _A, address _B) public constant returns (uint16 interest) {
         if (_A < _B) {
             interest = accounts[uniqueIdentifier(_A, _B)].interestAB;
         } else {
