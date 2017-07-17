@@ -1,15 +1,15 @@
 ## Smart Contract API
 
 This document describes the API for all smart contracts of Trustlines.
-These smart contracts consist of the base contracts like "..." and supporting contracts like "..."
+These smart contracts consist of the base contracts like `CurrencyNetwork` and supporting contracts like `StableCoinHub`.
 
-The interactions of the contracts are described in ...
+The interactions of the contracts are described in a separate document.
 
 ## Terminology
 
-As part of the Trustlines protocol, entities are `capitalized` to show that certain functionality and specifications are referenced by this specific term.
+As part of the Trustlines protocol, entities are `code-styled` to show that certain functionality and specifications are referenced by this specific term.
 
-The terminology is defined in ...
+The terminology is defined in the glossary in the appendix.
 
 ### `CurrencyNetwork.sol`
 The main smart contract representing a network of one currency, which is realized as a collection of `Trustlines` between `UserAccounts`.
