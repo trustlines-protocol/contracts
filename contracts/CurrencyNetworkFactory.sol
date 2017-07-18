@@ -6,7 +6,8 @@ import "./user/Proxy.sol";
 import "./user/IdentityFactoryWithRecoveryKey.sol";
 
 contract CurrencyNetworkFactory {
-    event CurrencyNetworkCreated();
+
+    event CurrencyNetworkCreated(address _currencyNetworkContract);
 
     Registry private registry;
 
@@ -30,5 +31,6 @@ contract CurrencyNetworkFactory {
         registry.register(_tokenName, tokenAddr);
         Proxy proxy = new Proxy(tokenAddr);
         new IdentityFactoryWithRecoveryKey().CreateProxyWithControllerAndRecoveryKey(proxy, msg.sender, _delegates, 1000, 100);
+        CurrencyNetworkCreated(tokenAddr);
     }
 }

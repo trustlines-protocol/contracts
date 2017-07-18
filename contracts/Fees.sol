@@ -19,8 +19,7 @@ library Fees {
      * @param receiver User receiving the funds
      * @param value Amount of tokens being transferred
      */
-    function applyNetworkFee(address _sender, address _receiver, int48 _value, uint16 _network_fee_divisor) internal returns (uint16 fee) {
-        //Account account = accounts[hashFunc(sender, receiver)];
+    function applyNetworkFee(address _sender, address _receiver, int48 _value, uint16 _network_fee_divisor) internal constant returns (uint16 fee) {
         fee = uint16(calculateNetworkFee(_value, _network_fee_divisor));
     }
 
@@ -28,22 +27,22 @@ library Fees {
      * @notice Calculates the system fee from the value being transferred
      * @param value being transferred
      */
-    function calculateNetworkFee(int64 _value, uint16 _network_fee_divisor) internal returns (int64) {
+    function calculateNetworkFee(int64 _value, uint16 _network_fee_divisor) internal constant returns (int64) {
         return int64(_value.div(_network_fee_divisor));
     }
 
     /*
      * @notice The fees deducted from the value while being transferred from second hop onwards in the mediated transfer
      */
-    function deductedTransferFees(int64 _balance, address _sender, address _receiver, uint32 _value, uint16 _capacity_fee_divisor, uint16 _imbalance_fee_divisor) internal returns (uint16) {
-        return capacityFee(_value, _capacity_fee_divisor).add16(uint16(_imbalanceFee(_balance, _sender, _receiver, _value, _imbalance_fee_divisor)));
+    function deductedTransferFees(int64 _balance, address _sender, address _receiver, uint32 _value, uint16 _capacity_fee_divisor, uint16 _imbalance_fee_divisor) internal constant returns (uint16) {
+        return capacityFee(_value, _capacity_fee_divisor).add16(imbalanceFee(_balance, _sender, _receiver, _value, _imbalance_fee_divisor));
     }
 
     /*
      * @notice reward for providing the edge with sufficient capacity
      * @notice beneficiary: sender (because receiver will receive if he's the next hop)
      */
-    function capacityFee(uint32 _value, uint16 _capacity_fee_divisor) internal returns (uint16) {
+    function capacityFee(uint32 _value, uint16 _capacity_fee_divisor) internal constant returns (uint16) {
         return uint16(_value.div32(_capacity_fee_divisor));
     }
 
@@ -52,42 +51,22 @@ library Fees {
      * @notice beneficiary: sender (because receiver will receive if he's the next hop)
      * @notice NOTE: It should also incorporate the interest as users will favor being indebted in
      */
-    function _imbalanceFee(int64 _balanceAB, address _sender, address _receiver, uint32 _value, uint16 _imbalance_fee_divisor) internal returns (uint24) {
-        //Account account = accounts[hashFunc(sender, receiver)];
-        int64 addedImbalance = 0;
+    function imbalanceFee(int64 _balanceAB, address _sender, address _receiver, uint32 _value, uint16 _imbalance_fee_divisor) internal constant returns (uint16) {
+        uint32 addedImbalance = _value;
         int64 newBalance = 0;
-        if (_sender < _receiver) {
-            // negative hence sender indebted to receiver so addedImbalace is the incoming value
-            if (_balanceAB <= 0) {
-                addedImbalance = _value;
-            } else {
+        if (_balanceAB > 0) {
             // positive hence receiver indebted to sender so if the newBalance is smaller then zero we introduce imbalance
-                newBalance = int64(_balanceAB.sub(_value));
-                if (newBalance < 0)
-                    addedImbalance = -newBalance;
+            newBalance = _balanceAB.sub64(_value);
+            if (newBalance < 0) {
+                addedImbalance = uint32(-newBalance);
             }
         } else {
-            //sender address is greater, here semantics will be opposite of the one above
-            // positive hence sender is indebted to receiver so addedImbalance is the incoming value
-            if (_balanceAB >= 0) {
-                addedImbalance = _value;
-            } else {
-            // negative hence receiver is indebted to the sender so if the newBalance is greater than zero we introduce imbalance
-                newBalance = int64(_balanceAB.add(_value));
-                if (newBalance > 0) {
-                    addedImbalance = newBalance;
-                }
+            newBalance = _balanceAB.add64(_value);
+            if (newBalance > 0) {
+                addedImbalance = uint32(newBalance);
             }
         }
-        return (addedImbalance.div6424(_imbalance_fee_divisor));
-    }
-
-   function getOutstandingFees(Trustline.Account storage _account, address _A, address _B) internal returns (int fees) {
-        if (_A < _B) {
-            return _account.feesOutstandingA;
-        } else {
-            return _account.feesOutstandingB;
-        }
+        return uint16(addedImbalance / _imbalance_fee_divisor);
     }
 
 }

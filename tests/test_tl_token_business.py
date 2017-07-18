@@ -10,14 +10,14 @@ system_fee_divisor = 1 / 0.001
 capacity_fee_divisor = 1 / 0.002
 imbalance_fee_divisor = 1 / 0.004
 
-trustlines = [(0, 1, 100, 150, 15, 10),
-              (1, 2, 200, 250, 25, 20),
-              (2, 3, 100, 150, 15, 10),
-              (3, 4, 200, 250, 25, 20),
-              (4, 5, 100, 150, 15, 10),
-              (5, 6, 200, 250, 25, 20),
-              (6, 7, 100, 150, 15, 10),
-              (7, 8, 200, 250, 25, 20)
+trustlines = [(0, 1, 10000000, 15000000, 15, 10),
+              (1, 2, 20000000, 25000000, 25, 20),
+              (2, 3, 10000000, 15000000, 15, 10),
+              (3, 4, 20000000, 25000000, 25, 20),
+              (4, 5, 10000000, 15000000, 15, 10),
+              (5, 6, 20000000, 25000000, 25, 20),
+              (6, 7, 10000000, 15000000, 15, 10),
+              (7, 8, 20000000, 25000000, 25, 20)
               ]  # (A, B, tlAB, tlBA)
 
 def annual_interest_rate_from_byte(di):
@@ -34,20 +34,26 @@ def annual_interest_rate_as_byte(ir):
     return int(round(1 /((ir + 1)**(1/365.) -1) / 256))
 
 
-def calc_system_fee(value):
-    return int(value / system_fee_divisor)
+def calc_system_fee(value3):
+    return int(value3 / system_fee_divisor)
 
 @pytest.fixture()
 def trustlines_contract(chain):
+    EternalStorage = chain.provider.get_contract_factory('EternalStorage')
+    deploy_txn_hash = EternalStorage.deploy()
+    eternalStorage_address = chain.wait.for_contract_address(deploy_txn_hash)
+
     Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
     deploy_txn_hash = Trustlines.deploy(args=[
-        "Testcoin", "T"
+        "Testcoin", "T", eternalStorage_address
     ])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     trustlines_contract = Trustlines(address=contract_address)
     for (A, B, tlAB, tlBA, irA, irB) in trustlines:
-        trustlines_contract.transact({"from":chain.web3.eth.accounts[A]}).approve(chain.web3.eth.accounts[B], tlAB)
-        trustlines_contract.transact({"from":chain.web3.eth.accounts[B]}).approve(chain.web3.eth.accounts[A], tlBA)
+        trustlines_contract.transact({"from":chain.web3.eth.accounts[A]}).updateCreditline(chain.web3.eth.accounts[B], tlAB)
+        trustlines_contract.transact({"from":chain.web3.eth.accounts[B]}).acceptCreditline(chain.web3.eth.accounts[A], tlAB)
+        trustlines_contract.transact({"from":chain.web3.eth.accounts[B]}).updateCreditline(chain.web3.eth.accounts[A], tlBA)
+        trustlines_contract.transact({"from":chain.web3.eth.accounts[A]}).acceptCreditline(chain.web3.eth.accounts[B], tlBA)
         trustlines_contract.transact({"from":chain.web3.eth.accounts[A]}).updateInterestRate(chain.web3.eth.accounts[B], irA)
         trustlines_contract.transact({"from":chain.web3.eth.accounts[B]}).updateInterestRate(chain.web3.eth.accounts[A], irB)
     return trustlines_contract
@@ -70,7 +76,8 @@ def test_transfer(trustlines_contract, accounts):
     (A, B, C, D) = accounts(4)
     # look for value above
     sysfee = calc_system_fee(value)
-    assert trustlines_contract.transact({"from":A}).transfer(B, value)
+    print(value)
+    trustlines_contract.transact({"from":A}).transfer(B, value)
     assert trustlines_contract.call().getBalance(A, B) == -value
     assert trustlines_contract.call().getInterestRate(A, B) == 15
     assert trustlines_contract.call().getInterestRate(B, A) == 10
@@ -94,8 +101,8 @@ def test_transfer_with_interest(trustlines_contract, accounts):
     assert trustlines_contract.call().getBalance(A, B) == -value
     # Forwarding by a 100 days
     tester.state().block.timestamp += 100 * 24 * 60 * 60
-    #occurred_interest = trustlines_contract.call().occurredInterest(A, B, trustlines_contract.call().calculateMtime())
-    #assert occurred_interest == 7800
+    occurred_interest = trustlines_contract.call().occurredInterest(A, B, trustlines_contract.call().calculateMtime())
+    assert occurred_interest == 7800
     occurred_interest = 0
     # look for value1 above
     trustlines_contract.transact({"from":A}).transfer(B, value1)
@@ -117,7 +124,8 @@ def test_mediated_transfer_without_interest(trustlines_contract, accounts):
     new_value -= deducted_fee
     path = [B, C]
     assert deducted_fee == capacity_fee + imbalance_fee
-    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value, path)
+    trustlines_contract.transact({"from": A}).prepare(C, value, 100, path)
+    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value)
     assert trustlines_contract.call().getFeesOutstanding(A, B) == 2 * sysfee
     assert trustlines_contract.call().getBalance(A, B) == -2 * value
     assert trustlines_contract.call().getBalance(B, C) ==  -value - new_value
@@ -141,7 +149,8 @@ def test_mediated_transfer_imbalance_reduced(trustlines_contract, accounts):
     # This time imbalance between B--C hop is reduced hence imbalancefee should be zero
     assert imbalance_fee == 0
     path = [B, C]
-    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value, path)
+    trustlines_contract.transact({"from": A}).prepare(C, value, 100, path)
+    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value)
     assert trustlines_contract.call().getFeesOutstanding(A, B) == sysfee + sysfee1
     assert trustlines_contract.call().getBalance(A, B) == -value1 -value
     assert trustlines_contract.call().getBalance(B, C) == value1 - new_value
@@ -164,7 +173,8 @@ def test_mediated_transfer_imbalance_increased(trustlines_contract, accounts):
     new_value -= deducted_fee
     assert deducted_fee == capacity_fee + imbalance_fee
     path = [B, C]
-    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value1, path)
+    trustlines_contract.transact({"from": A}).prepare(C, value1, 100, path)
+    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value1)
     assert trustlines_contract.call().getFeesOutstanding(A, B) == sysfee + sysfee1
     assert trustlines_contract.call().getBalance(A, B) == -value - value1
     assert trustlines_contract.call().getBalance(B, C) == value - new_value
@@ -187,11 +197,12 @@ def test_mediated_transfer_with_interest(trustlines_contract, accounts):
     new_value = value
     new_value -= deducted_fee
     path = [B, C]
-    #occurred_interestAB = trustlines_contract.call().occurredInterest(A, B, contract.calculateMtime())
-    #occurred_interestBC = trustlines_contract.call().occurredInterest(B, C, contract.calculateMtime())
+    occurred_interestAB = trustlines_contract.call().occurredInterest(A, B, trustlines_contract.call().calculateMtime())
+    occurred_interestBC = trustlines_contract.call().occurredInterest(B, C, trustlines_contract.call().calculateMtime())
     occurred_interestAB = 0
     occurred_interestBC = 0
-    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value, path)
+    trustlines_contract.transact({"from": A}).prepare(C, value, 100, path)
+    trustlines_contract.transact({"from": A}).mediatedTransfer(C, value)
     assert trustlines_contract.call().getFeesOutstanding(A, B) == 2 * sysfee
     assert trustlines_contract.call().getBalance(A, B) == -value - value -occurred_interestAB
     assert trustlines_contract.call().getBalance(B, C) == -value -new_value + occurred_interestBC
@@ -211,35 +222,42 @@ def test_mediated_transfer_with_many_hops(trustlines_contract, accounts):
     tester.state().block.timestamp += 100 * 24 * 60 * 60
     num_hops = 0
     path = [B]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(B, value, path)
+    trustlines_contract.transact({"from": A}).prepare(B, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(B, value)
     assert res
 
     num_hops += 1
     path = [B, C]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(C, value, path)
+    trustlines_contract.transact({"from": A}).prepare(C, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(C, value,)
     assert res
 
     num_hops += 1
     path = [B, C, D]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(D, value, path)
+    trustlines_contract.transact({"from": A}).prepare(D, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(D, value,)
     assert res
 
     num_hops += 1
     path = [B, C, D, E]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(E, value, path)
+    trustlines_contract.transact({"from": A}).prepare(E, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(E, value)
     assert res
 
     num_hops += 1
     path = [B, C, D, E, F]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(F, value, path)
+    trustlines_contract.transact({"from": A}).prepare(F, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(F, value)
     assert res
 
     num_hops += 1
     path = [B, C, D, E, F, G]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(G, value, path)
+    trustlines_contract.transact({"from": A}).prepare(G, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(G, value)
     assert res
 
     num_hops += 1
     path = [B, C, D, E, F, G, H]
-    res = trustlines_contract.transact({"from": A}).mediatedTransfer(H, value, path)
+    trustlines_contract.transact({"from": A}).prepare(H, value, 100, path)
+    res = trustlines_contract.transact({"from": A}).mediatedTransfer(H, value)
     assert res

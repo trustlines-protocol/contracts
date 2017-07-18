@@ -106,14 +106,6 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         eternalStorage = _eternalStorage;
     }
 
-    function getAccount(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int) {
-        return store().getAccount(_A, _B);
-    }
-
-    function getInterestRate(address _A, address _B) public constant returns (uint16) {
-        return store().getInterestRate(_A, _B);
-    }
-
     /*
      * @notice initialize contract to send `_value` token to `_to` from `msg.sender` with calculated path
      * @param _to The address of the recipient
@@ -149,15 +141,39 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
                 }
             );
     }
-    
+
+    function addToUsersAndFriends(address _A, address _B) internal {
+        if (!users.contains(_A)) {
+            users.insert(_A);
+        }
+        if (!users.contains(_B)) {
+            users.insert(_B);
+        }
+        if (!friends[_A].contains(_B)) {
+            friends[_A].insert(_B);
+        }
+        if (!friends[_A].contains(_A)) {
+            friends[_B].insert(_A);
+        }
+    }
+
     /*
      * @notice `msg.sender` approves `_spender` to spend `_value` tokens, is currently not supported for Trustlines
      * @param _spender The address of the account able to transfer the tokens
      * @param _value The amount of wei to be approved for transfer
      */
-    function approve(address _spender, uint _value) {
-        // currently not supported, since there is no logical equivalent
-        throw;
+    function approve(address _spender,  uint _value) valueWithinInt32(_value) {
+        uint32 value = uint32(_value);
+        address creditor = msg.sender;
+
+        int64 balance = store().getBalance(creditor, _spender);
+        // do not allow creditline below balance
+        assert(value >= balance);
+
+        addToUsersAndFriends(creditor, _spender);
+
+        store().storeCreditline(creditor, _spender, value);
+        Approval(creditor, _spender, value);
     }
 
     /*
@@ -287,12 +303,15 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         assert(_value + balanceAB <= creditline);
 
         // apply Interests
-        //uint16 timediff = calculateMtime() - store().getLastModification(_receiver, _sender);
-        //int64 balance;
-        //uint16 interestRate;
-        //(balance, interestRate) = _getBalanceAndInterestRate(_receiver, _sender, balanceAB);
-        //int64 occurredInterest = Interests.occurredInterest(balance, interestRate, timediff);
-        //store().addToBalance(_receiver, _sender, occurredInterest);
+        uint16 timediff = calculateMtime() - store().getLastModification(_receiver, _sender);
+        int64 balance;
+        uint16 interestRate;
+        (balance, interestRate) = _getBalanceAndInterestRate(_receiver, _sender, balanceAB);
+        int64 occurredInterest = Interests.occurredInterest(balance, interestRate, timediff);
+        store().addToBalance(_receiver, _sender, occurredInterest);
+
+        uint16 fees = Fees.applyNetworkFee(_sender, _receiver, _value, network_fee_divisor);
+        store().updateOutstandingFees(_sender, _receiver, fees);
 
         // store new balance
         store().storeBalance(_receiver, _sender, _value + balanceAB);
@@ -316,32 +335,21 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @return true, if the credit was successful
      */
     function acceptCreditline(address _creditor, uint32 _value) returns (bool success) {
-        address _debtor = msg.sender;
+        address debtor = msg.sender;
         // retrieve acceptId to validate that updateCreditline has been called
-        bytes32 acceptId = sha3(_creditor, _debtor, _value);
+        bytes32 acceptId = sha3(_creditor, debtor, _value);
         assert(proposedCreditlineUpdates[acceptId] > 0);
         //doesnt work with testrpc
         //delete proposedCreditlineUpdates[acceptId];
 
-        int64 balance = store().getBalance(_creditor, _debtor);
+        int64 balance = store().getBalance(_creditor, debtor);
         // do not allow creditline below balance
         assert(_value >= balance);
 
-        if (!users.contains(_creditor)) {
-            users.insert(_creditor);
-        }
-        if (!users.contains(_debtor)) {
-            users.insert(_debtor);
-        }
-        if (!friends[_creditor].contains(_debtor)) {
-            friends[_creditor].insert(_debtor);
-        }
-        if (!friends[_debtor].contains(_creditor)) {
-            friends[_debtor].insert(_creditor);
-        }
+        addToUsersAndFriends(_creditor, debtor);
 
-        store().storeCreditline(_creditor, _debtor, _value);
-        CreditlineUpdate(_creditor, _debtor, _value);
+        store().storeCreditline(_creditor, debtor, _value);
+        CreditlineUpdate(_creditor, debtor, _value);
         success = true;
     }
 
@@ -471,6 +479,39 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      */
     function calculateMtime() public returns (uint16 mtime){
         mtime = uint16((now/(24*60*60)) - ((2017 - 1970)* 365));
+    }
+
+    function getAccount(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int) {
+        return store().getAccount(_A, _B);
+    }
+
+    function getInterestRate(address _A, address _B) public constant returns (uint16) {
+        return store().getInterestRate(_A, _B);
+    }
+
+    function imbalanceFee(address _A, address _B, uint32 _value) public constant returns (uint16 fees) {
+        int64 balance = store().getBalance(_A, _B);
+        fees = Fees.imbalanceFee(balance, _A, _B, _value, imbalance_fee_divisor);
+    }
+
+    function capacityFee(uint32 _value) public constant returns (uint16 fees) {
+        fees = Fees.capacityFee(_value, capacity_fee_divisor);
+    }
+
+    function deductedTransferFees(address _sender, address _receiver, uint32 _value) public constant returns (uint16 fees) {
+        int64 balance = store().getBalance(_sender, _receiver);
+        fees = Fees.deductedTransferFees(balance, _sender, _receiver, _value, capacity_fee_divisor, imbalance_fee_divisor);
+    }
+
+    /*
+     * @notice returns the linear interest on the imbalance since last account update.
+     * @notice negative if A is indebted to B, positive otherwise
+     */
+    function occurredInterest(address _sender, address _receiver, uint16 _mtime) public returns (int) {
+        uint16 elapsed = _mtime - store().getLastModification(_sender, _receiver);
+        int64 balance = store().getBalance(_sender, _receiver);
+        uint16 interest = store().getInterestRate(_sender, _receiver);
+        return Interests.occurredInterest(balance, interest, elapsed) * elapsed;
     }
 
 }

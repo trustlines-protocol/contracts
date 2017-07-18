@@ -44,9 +44,16 @@ library SafeMath {
     return c;
   }
 
-  function div6424(int64 a, uint24 b) internal returns (uint24) {
+  function div3216(uint32 a, uint16 b) internal returns (uint16) {
     assert(b > 0);
-    uint24 c = uint24(a) / b;
+    uint16 c = uint16(a) / b;
+    assert(a == b * c + a % b);
+    return c;
+  }
+
+  function div6416(int64 a, uint16 b) internal returns (uint16) {
+    assert(b > 0);
+    uint16 c = uint16(a) / b;
     assert(a == b * c + a % b);
     return c;
   }
