@@ -66,6 +66,7 @@ library Fees {
                 addedImbalance = uint32(newBalance);
             }
         }
+        // TODO: add safeMath here
         return uint16(addedImbalance / _imbalance_fee_divisor);
     }
 

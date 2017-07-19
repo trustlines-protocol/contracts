@@ -60,8 +60,8 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     event CreditlineUpdateRequest(address _creditor, address _debtor, uint32 _value);
     event CreditlineUpdate(address _creditor, address _debtor, uint32 _value);
     event PathPrepared(address _sender, address _receiver, uint32 _value);
-    // currently deactivated due to gas costs
-    // event BalanceUpdate(address _from, address _to, int256 _value);
+    // must be deactivated due to gas costs
+    event BalanceUpdate(address _from, address _to, int256 _value);
 
     struct Path {
         // set expiration date for Path
@@ -79,7 +79,8 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     // mapping (sha3(_from, _to, _value, _expiresOn)) => depositedOn
     mapping(bytes32 => uint16) cheques;
 
-    // friends, useers address has an account with
+    // TODO: this should be calculated by the relay server from events
+    // friends, users address has an account with
     mapping (address => ItSet.AddressSet) friends;
     //list of all users of the system
     ItSet.AddressSet users;
@@ -142,21 +143,6 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
             );
     }
 
-    function addToUsersAndFriends(address _A, address _B) internal {
-        if (!users.contains(_A)) {
-            users.insert(_A);
-        }
-        if (!users.contains(_B)) {
-            users.insert(_B);
-        }
-        if (!friends[_A].contains(_B)) {
-            friends[_A].insert(_B);
-        }
-        if (!friends[_A].contains(_A)) {
-            friends[_B].insert(_A);
-        }
-    }
-
     /*
      * @notice `msg.sender` approves `_spender` to spend `_value` tokens, is currently not supported for Trustlines
      * @param _spender The address of the account able to transfer the tokens
@@ -174,6 +160,21 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
 
         store().storeCreditline(creditor, _spender, value);
         Approval(creditor, _spender, value);
+    }
+
+    function addToUsersAndFriends(address _A, address _B) internal {
+        if (!users.contains(_A)) {
+            users.insert(_A);
+        }
+        if (!users.contains(_B)) {
+            users.insert(_B);
+        }
+        if (!friends[_A].contains(_B)) {
+            friends[_A].insert(_B);
+        }
+        if (!friends[_A].contains(_A)) {
+            friends[_B].insert(_A);
+        }
     }
 
     /*
@@ -262,6 +263,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     function mediatedTransfer(address _to, uint32 _value) returns (bool success) {
         bytes32 pathId = sha3(msg.sender, _to, _value);
         address[] _path = calculated_paths[pathId].path;
+        // check Path: is there a Path and is _to the last address? Otherwise throw
         if (_path.length == 0 || _to != _path[_path.length - 1]) {
             throw;
         }
@@ -280,11 +282,13 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
             }
             _transfer(sender, _to, _value);
             sender = _to;
+            // TODO: remove due to gas costs
+            BalanceUpdate(sender, _to, _value);
         }
         Transfer(msg.sender, _to, _value);
     }
 
-    function _getBalanceAndInterestRate(address _receiver, address _sender, int64 _balanceAB) internal returns (int64 balance, uint16 interestRate) {
+    function _getBalanceAndInterestRate(address _sender, address _receiver, int64 _balanceAB) internal returns (int64 balance, uint16 interestRate) {
         if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
             balance = _balanceAB; // interest rate set by A for debt of B
             interestRate = store().getInterestRate(_receiver, _sender);
@@ -306,10 +310,11 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         uint16 timediff = calculateMtime() - store().getLastModification(_receiver, _sender);
         int64 balance;
         uint16 interestRate;
-        (balance, interestRate) = _getBalanceAndInterestRate(_receiver, _sender, balanceAB);
+        (balance, interestRate) = _getBalanceAndInterestRate(_sender, _receiver, balanceAB);
         int64 occurredInterest = Interests.occurredInterest(balance, interestRate, timediff);
         store().addToBalance(_receiver, _sender, occurredInterest);
 
+        // apply Fees
         uint16 fees = Fees.applyNetworkFee(_sender, _receiver, _value, network_fee_divisor);
         store().updateOutstandingFees(_sender, _receiver, fees);
 
@@ -449,7 +454,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
 
     /*
      * @notice returns what B owes to A
-     * @dev If negative A owes B, if positive B owes A
+     * @dev If negative A owes B, if positive B owes A, delegates to EternalStorage
      * @param Ethereum addresses A and B which have trustline relationship established between them
      */
     function getBalance(address _A, address _B) constant returns (int balance) {
@@ -481,23 +486,28 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         mtime = uint16((now/(24*60*60)) - ((2017 - 1970)* 365));
     }
 
+    // delegates to EternalStorage
     function getAccount(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int) {
         return store().getAccount(_A, _B);
     }
 
+    // delegates to EternalStorage
     function getInterestRate(address _A, address _B) public constant returns (uint16) {
         return store().getInterestRate(_A, _B);
     }
 
+    // delegates to EternalStorage and Fees library
     function imbalanceFee(address _A, address _B, uint32 _value) public constant returns (uint16 fees) {
         int64 balance = store().getBalance(_A, _B);
         fees = Fees.imbalanceFee(balance, _A, _B, _value, imbalance_fee_divisor);
     }
 
+    // delegates to Fees library
     function capacityFee(uint32 _value) public constant returns (uint16 fees) {
         fees = Fees.capacityFee(_value, capacity_fee_divisor);
     }
 
+    // delegates to EternalStorage and Fees library
     function deductedTransferFees(address _sender, address _receiver, uint32 _value) public constant returns (uint16 fees) {
         int64 balance = store().getBalance(_sender, _receiver);
         fees = Fees.deductedTransferFees(balance, _sender, _receiver, _value, capacity_fee_divisor, imbalance_fee_divisor);
@@ -506,6 +516,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     /*
      * @notice returns the linear interest on the imbalance since last account update.
      * @notice negative if A is indebted to B, positive otherwise
+     * @dev delegates to EternalStorage and Interests library
      */
     function occurredInterest(address _sender, address _receiver, uint16 _mtime) public returns (int) {
         uint16 elapsed = _mtime - store().getLastModification(_sender, _receiver);

@@ -1,23 +1,21 @@
 from ethereum import tester
 import pytest, pprint, os
 
-base_unit_multiplier = 100000
-
 # setup accounts
-value = 2 * base_unit_multiplier
-value1 = 3 * base_unit_multiplier
+value = 2
+value1 = 3
 system_fee_divisor = 1 / 0.001
 capacity_fee_divisor = 1 / 0.002
 imbalance_fee_divisor = 1 / 0.004
 
-trustlines = [(0, 1, 10000000, 15000000, 15, 10),
-              (1, 2, 20000000, 25000000, 25, 20),
-              (2, 3, 10000000, 15000000, 15, 10),
-              (3, 4, 20000000, 25000000, 25, 20),
-              (4, 5, 10000000, 15000000, 15, 10),
-              (5, 6, 20000000, 25000000, 25, 20),
-              (6, 7, 10000000, 15000000, 15, 10),
-              (7, 8, 20000000, 25000000, 25, 20)
+trustlines = [(0, 1, 100, 150, 15, 10),
+              (1, 2, 200, 250, 25, 20),
+              (2, 3, 100, 150, 15, 10),
+              (3, 4, 200, 250, 25, 20),
+              (4, 5, 100, 150, 15, 10),
+              (5, 6, 200, 250, 25, 20),
+              (6, 7, 100, 150, 15, 10),
+              (7, 8, 200, 250, 25, 20)
               ]  # (A, B, tlAB, tlBA)
 
 def annual_interest_rate_from_byte(di):
