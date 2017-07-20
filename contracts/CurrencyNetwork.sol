@@ -211,6 +211,10 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         success = true;
     }
 
+    function shaOfValue(address _from, address _to, uint32 _value, uint16 _expiresOn) public constant returns (bytes32 data) {
+        return sha3(_from, _to, _value, _expiresOn);
+    }
+
     /*
      * @notice send `_value` token to `_to` from `msg.sender`
      * @param _to The address of the recipient
@@ -234,23 +238,24 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      */
     function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) {
         uint32 value = uint32(_value);
-        if (getCreditline(_from, msg.sender) > 0) {
-            bytes32 pathId = sha3(_from, _to, _value);
-            _transferOnValidPath(pathId, _to, value);
+        if (getCreditline(_from, _to) > 0) {
+            if (!_transferOnValidPath(_from, _to, value)) {
+                throw;
+            }
         }
     }
 
-    function _transferOnValidPath(bytes32 _pathId, address _to, uint _value) internal {
-        require(_value < 2**32);
+    function _transferOnValidPath(address _from, address _to, uint _value) valueWithinInt32(_value) internal returns (bool success){
         uint32 value = uint32(_value);
+        bytes32 pathId = sha3(_from, _to, value);
         // check Path exists and is still valid
-        Path path = calculated_paths[_pathId];
+        Path path = calculated_paths[pathId];
         if (path.expiresOn > 0) {
             // is path still valid?
             if (calculateMtime() > path.expiresOn) {
                 throw;
             } else {
-                mediatedTransfer(_to, value);
+                success = mediatedTransfer(_from, _to, value);
             }
         }
     }
@@ -261,7 +266,11 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _value The amount of token to be transferred
      */
     function mediatedTransfer(address _to, uint32 _value) returns (bool success) {
-        bytes32 pathId = sha3(msg.sender, _to, _value);
+        success = mediatedTransfer(msg.sender, _to, _value);
+    }
+
+    function mediatedTransfer(address _from, address _to, uint32 _value) returns (bool success) {
+        bytes32 pathId = sha3(_from, _to, _value);
         address[] _path = calculated_paths[pathId].path;
         // check Path: is there a Path and is _to the last address? Otherwise throw
         if (_path.length == 0 || _to != _path[_path.length - 1]) {
@@ -269,7 +278,8 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         }
 
         uint16 fees = 0;
-        address sender = msg.sender;
+        //TODO: is the sender checked?
+        address sender = _from;
         for (uint i = 0;i < _path.length; i++) {
             _to = _path[i];
             int64 balance = store().getBalance(sender, _to);
@@ -286,6 +296,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
             BalanceUpdate(sender, _to, _value);
         }
         Transfer(msg.sender, _to, _value);
+        success = true;
     }
 
     function _getBalanceAndInterestRate(address _sender, address _receiver, int64 _balanceAB) internal returns (int64 balance, uint16 interestRate) {
@@ -521,8 +532,11 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     function occurredInterest(address _sender, address _receiver, uint16 _mtime) public returns (int) {
         uint16 elapsed = _mtime - store().getLastModification(_sender, _receiver);
         int64 balance = store().getBalance(_sender, _receiver);
+        if (balance < 0) {
+            balance = -balance;
+        }
         uint16 interest = store().getInterestRate(_sender, _receiver);
-        return Interests.occurredInterest(balance, interest, elapsed) * elapsed;
+        return Interests.occurredInterest(balance, interest, elapsed);
     }
 
 }

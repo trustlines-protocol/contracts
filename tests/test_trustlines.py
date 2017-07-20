@@ -1,5 +1,6 @@
 import pytest
 from ethereum import tester
+import sign
 
 trustlines = [(0, 1, 100, 150),
               (1, 2, 200, 250),
@@ -7,6 +8,7 @@ trustlines = [(0, 1, 100, 150),
               (3, 4, 400, 450),
               (0, 4, 500, 550)
               ]  # (A, B, tlAB, tlBA)
+
 
 @pytest.fixture()
 def trustlines_contract(chain, web3):
@@ -28,6 +30,7 @@ def trustlines_contract(chain, web3):
         trustlines_contract.transact({"from":web3.eth.accounts[A]}).acceptCreditline(web3.eth.accounts[B], tlBA)
     return trustlines_contract
 
+
 @pytest.fixture
 def accounts(web3):
     def get(num):
@@ -35,9 +38,48 @@ def accounts(web3):
     return get
 
 
+def test_updateAndAcceptCreditline(trustlines_contract, accounts):
+    (A, B, C) = accounts(3)
+    with pytest.raises(tester.TransactionFailed):  # next should fail, no creditline to self
+        trustlines_contract.transact({"from": A}).updateCreditline(A, 100)
+    trustlines_contract.transact({"from": A}).updateCreditline(B, 100)
+    with pytest.raises(tester.TransactionFailed):  # next should fail, sender not allowed to accept
+        trustlines_contract.transact({"from": A}).acceptCreditline(A, 100)
+    trustlines_contract.transact({"from": B}).acceptCreditline(A, 100)
+    trustlines_contract.transact({"from": A}).updateCreditline(B, 100)
+    with pytest.raises(tester.TransactionFailed):  # next should fail, sender not allowed to accept
+        trustlines_contract.transact({"from": C}).acceptCreditline(A, 100)
+
+
+def test_cashCheque(trustlines_contract, accounts, web3):
+    (A, B) = accounts(2)
+    balA = trustlines_contract.call().balanceOf(A)
+    balB = trustlines_contract.call().balanceOf(B)
+    mtime = trustlines_contract.call().calculateMtime()
+    data = trustlines_contract.call().shaOfValue(A, B, 90, mtime + 1)
+    sig, addr = sign.check(bytes(data, "raw_unicode_escape"), tester.k0)
+    assert addr == A
+    trustlines_contract.transact({"from": A}).prepareFrom(A, B, 90, 100, [B])
+    assert(trustlines_contract.transact({"from": A}).cashCheque(A, B, 90, mtime + 1, sig))
+    assert trustlines_contract.call().balanceOf(A) == balA - 90
+    assert trustlines_contract.call().balanceOf(B) == balB + 90
+
+def test_preparePath(trustlines_contract, accounts):
+    return
+
+
+def test_prepareFrom(trustlines_contract, accounts):
+    return
+
+
+def test_approveUpdateAccept(trustlines_contract, accounts):
+    return
+
+
 def test_trustlines(trustlines_contract, web3):
     for (A, B, tlAB, tlBA) in trustlines:
         assert trustlines_contract.call().trustline(web3.eth.accounts[A], web3.eth.accounts[B]) == [tlAB, tlBA, 0]
+
 
 def test_spendable(trustlines_contract, accounts):
     (A, B) = accounts(2)
@@ -47,7 +89,8 @@ def test_spendable(trustlines_contract, accounts):
     assert trustlines_contract.call().spendableTo(A, B) == 110
     assert trustlines_contract.call().spendableTo(B, A) == 140
 
-def test_balance_of(trustlines_contract, web3, accounts):
+
+def test_balance_of(trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
     assert trustlines_contract.call().balanceOf(A) == 700
     trustlines_contract.transact({"from":A}).transfer(B, 40)
@@ -61,8 +104,10 @@ def test_balance_of(trustlines_contract, web3, accounts):
         trustlines_contract.transact({"from":A}).transfer(B, 1000)
     assert trustlines_contract.call().balanceOf(A) == 710
 
+
 def test_total_supply(trustlines_contract):
     assert trustlines_contract.call().totalSupply() == 3250
+
 
 def test_total_supply_after_credits(trustlines_contract, accounts):
     (A, B) = accounts(2)
@@ -76,6 +121,7 @@ def test_total_supply_after_credits(trustlines_contract, accounts):
     trustlines_contract.transact({"from":A}).acceptCreditline(B, 0)
     assert trustlines_contract.call().totalSupply() == 3000
 
+
 def test_transactions(trustlines_contract, accounts):
     (A, B) = accounts(2)
     assert trustlines_contract.call().trustline(A, B) == [100, 150, 0]
@@ -85,6 +131,7 @@ def test_transactions(trustlines_contract, accounts):
     assert trustlines_contract.call().trustline(A, B) == [100, 150, -20]
     assert trustlines_contract.call().trustline(B, A) == [150, 100, 20]
     trustlines_contract.transact({"from":B}).transfer(A, 20)
+
 
 def test_mediated_transfer(trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
@@ -129,6 +176,7 @@ def test_mediated_transfer(trustlines_contract, accounts):
     assert trustlines_contract.call().trustline(A, B)[2] == 0  # balanced
     assert trustlines_contract.call().trustline(D, E)[2] == -21  # unchanged
 
+
 def test_mediated_transfer_not_enough_balance(trustlines_contract, accounts):
     (A, B, C) = accounts(3)
     path = [B, C]
@@ -140,6 +188,7 @@ def test_mediated_transfer_not_enough_balance(trustlines_contract, accounts):
         trustlines_contract.transact({"from":A}).prepare(C, 1, 100, path)
         trustlines_contract.transact({"from":A}).mediatedTransfer(C, 1)
     assert trustlines_contract.call().trustline(A, B)[2] == -150  # should be unchanged
+
 
 def test_mediated_transfer_no_path(trustlines_contract, accounts):
     (A, B, C, D) = accounts(4)
@@ -156,6 +205,7 @@ def test_mediated_transfer_no_path(trustlines_contract, accounts):
     with pytest.raises(tester.TransactionFailed):  # next should fail because empty path
         trustlines_contract.transact({"from": A}).prepare(D, 1, 100, path)
         trustlines_contract.transact({"from": A}).mediatedTransfer(D, 1)
+
 
 def test_mediated_transfer_target_doesnt_match(trustlines_contract, accounts):
     (A, B, C, D) = accounts(4)
@@ -175,7 +225,6 @@ def test_trustlines_lt0(trustlines_contract, accounts):
     with pytest.raises(TypeError):
         trustlines_contract.transact({"from":A}).updateCreditline(B, -1)
         trustlines_contract.transact({"from":B}).acceptCreditline(A, -1)
-
 
 
 def test_trustlines_lt_balance(trustlines_contract, accounts):

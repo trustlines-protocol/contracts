@@ -68,3 +68,22 @@ The Cheque has an expiry date which is set in `_expiresOn`. These values are has
   ###### Events
 
         Transfer events according to mediatedTransfer(...)
+
+
+
+### mediatedTransfer
+
+Transfer amount value of `CurrencyNetwork` currency to recipient `_to`.
+
+_NOTE: A Path has to be prepared before this method can be used._
+
++ Parameters
+    + `_to` -  address of the recipient
+    + `_value` - value of transfer
+
+
++ Result on success
+
+  ###### Events
+
+        Transfer events according to mediatedTransfer(...)
