@@ -51,7 +51,7 @@ def deploy(contract_name, chain, *args):
     return contract(id_address)
 
 def main():
-    project = Project()
+    project = Project('populus.json')
     chain_name = "testrpclocal"
     print("Make sure {} chain is running, you can connect to it, or you'll get timeout".format(chain_name))
 
