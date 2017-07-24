@@ -12,38 +12,38 @@ contract Proxy is ERC20, Owned, ICurrencyNetwork {
 
     event Received (address indexed sender, uint value);
 
-    function() payable {Received(msg.sender, msg.value);}
-
     function Proxy(address _destination) {
         destination = _destination;
     }
 
-    function balanceOf(address who) constant returns (uint) {
-        return ERC20(destination).balanceOf(who);
-    }
+    function() payable {Received(msg.sender, msg.value);}
 
-    function transfer(address to, uint value)  {
-        ERC20(destination).transfer(to, value);
-    }
-
-    function allowance(address owner, address spender) constant returns (uint) {
-        return ERC20(destination).allowance(owner, spender);
-    }
-
-    function transferFrom(address from, address to, uint value)  {
-        ERC20(destination).transferFrom(from, to, value);
-    }
-
-    function approve(address spender, uint value) {
-        ERC20(destination).approve(spender, value);
-    }
-
-    function updateCreditline(address _debtor, uint32 _value) {
+    function updateCreditline(address _debtor, uint32 _value) external {
         ICurrencyNetwork(destination).updateCreditline(_debtor, _value);
     }
 
-    function acceptCreditline(address _debtor, uint32 _value) returns (bool) {
+    function acceptCreditline(address _debtor, uint32 _value) external returns (bool) {
         return ICurrencyNetwork(destination).acceptCreditline(_debtor, _value);
+    }
+
+    function transfer(address to, uint value) public {
+        ERC20(destination).transfer(to, value);
+    }
+
+    function transferFrom(address from, address to, uint value) public {
+        ERC20(destination).transferFrom(from, to, value);
+    }
+
+    function approve(address spender, uint value) public {
+        ERC20(destination).approve(spender, value);
+    }
+
+    function balanceOf(address who) public constant returns (uint) {
+        return ERC20(destination).balanceOf(who);
+    }
+
+    function allowance(address owner, address spender) public constant returns (uint) {
+        return ERC20(destination).allowance(owner, spender);
     }
 
 }

@@ -86,7 +86,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     ItSet.AddressSet users;
     
     modifier notSender(address _sender) {
-        assert(_sender != msg.sender);
+        require(_sender != msg.sender);
         _;
     }
 
@@ -114,7 +114,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _maxFee Maximum for fee which occurs when the path is used for transfer
      * @param _path Path of Trustlines calculated by external service (relay server)
      */
-    function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) {
+    function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) external {
         calculated_paths[sha3(msg.sender, _to, _value)] = 
             Path(
                 {expiresOn : uint16(calculateMtime().add16(1)),
@@ -133,7 +133,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _maxFee Maximum for fee which occurs when the path is used for transfer
      * @param _path Path of Trustlines calculated by external service (relay server)
      */
-     function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) {
+     function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) external {
         calculated_paths[sha3(_from, _to, _value)] = 
             Path(
                 {expiresOn : uint16(calculateMtime().add16(1)),
@@ -141,48 +141,6 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
                  path : _path
                 }
             );
-    }
-
-    /*
-     * @notice `msg.sender` approves `_spender` to spend `_value` tokens, is currently not supported for Trustlines
-     * @param _spender The address of the account able to transfer the tokens
-     * @param _value The amount of wei to be approved for transfer
-     */
-    function approve(address _spender,  uint _value) valueWithinInt32(_value) {
-        uint32 value = uint32(_value);
-        address creditor = msg.sender;
-
-        int64 balance = store().getBalance(creditor, _spender);
-        // do not allow creditline below balance
-        assert(value >= balance);
-
-        addToUsersAndFriends(creditor, _spender);
-
-        store().storeCreditline(creditor, _spender, value);
-        Approval(creditor, _spender, value);
-    }
-
-    function addToUsersAndFriends(address _A, address _B) internal {
-        if (!users.contains(_A)) {
-            users.insert(_A);
-        }
-        if (!users.contains(_B)) {
-            users.insert(_B);
-        }
-        if (!friends[_A].contains(_B)) {
-            friends[_A].insert(_B);
-        }
-        if (!friends[_A].contains(_A)) {
-            friends[_B].insert(_A);
-        }
-    }
-
-    /*
-     * @notice For Trustlines allowance equals the creditline
-     * @return Creditline between _owner and _spender
-     */
-    function allowance(address _owner, address _spender) constant returns (uint) {
-        return getCreditline(_owner, _spender);
     }
 
     /*
@@ -194,16 +152,16 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _signature the values _from, _to, _value and _expiresOn signed by _from
      * @return true, if there was no error in transfer
      */
-    function cashCheque(address _from, address _to, uint32 _value, uint16 _expiresOn, bytes _signature) returns (bool success) {
+    function cashCheque(address _from, address _to, uint32 _value, uint16 _expiresOn, bytes _signature) external returns (bool success) {
         bytes32 chequeId = sha3(_from, _to, _value, _expiresOn);
         // derive address from signature
         address signer = ECVerify.ecverify(chequeId, _signature);
         // signer is address _from?
-        assert(signer == _from);
+        require(signer == _from);
         // already processed?
-        assert(cheques[chequeId] == 0);
+        require(cheques[chequeId] == 0);
         // still valid?
-        assert(_expiresOn >= calculateMtime());
+        require(_expiresOn >= calculateMtime());
         // transfer
         transferFrom(_from, _to, _value);
         // set processed
@@ -211,8 +169,79 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         success = true;
     }
 
-    function shaOfValue(address _from, address _to, uint32 _value, uint16 _expiresOn) public constant returns (bytes32 data) {
-        return sha3(_from, _to, _value, _expiresOn);
+    /*
+     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     */
+    function mediatedTransfer(address _to, uint32 _value) external returns (bool success) {
+        success = mediatedTransfer(msg.sender, _to, _value);
+    }
+
+    /*
+     * @notice `msg.sender` gives a creditline to `_debtor` of `_value` tokens, must be accepted by debtor
+     * @param _debtor The account that can spend tokens up to the given amount
+     * @param _value The maximum amount of tokens that can be spend
+     */
+    function updateCreditline(address _debtor, uint32 _value) external notSender(_debtor) {
+        bytes32 acceptId = sha3(msg.sender, _debtor, _value);
+        proposedCreditlineUpdates[acceptId] = calculateMtime();
+        CreditlineUpdateRequest(msg.sender, _debtor, _value);
+    }
+
+    /*
+     * @notice `msg.sender` accepts a creditline from `_creditor` of `_value` tokens
+     * @param _creditor The account that spends tokens up to the given amount
+     * @param _value The maximum amount of tokens that can be spend
+     * @return true, if the credit was successful
+     */
+    function acceptCreditline(address _creditor, uint32 _value) external returns (bool success) {
+        address debtor = msg.sender;
+        // retrieve acceptId to validate that updateCreditline has been called
+        bytes32 acceptId = sha3(_creditor, debtor, _value);
+        require(proposedCreditlineUpdates[acceptId] > 0);
+        //doesnt work with testrpc
+        //delete proposedCreditlineUpdates[acceptId];
+
+        int64 balance = store().getBalance(_creditor, debtor);
+        // do not allow creditline below balance
+        require(_value >= balance);
+
+        addToUsersAndFriends(_creditor, debtor);
+
+        store().storeCreditline(_creditor, debtor, _value);
+        CreditlineUpdate(_creditor, debtor, _value);
+        success = true;
+    }
+
+    /*
+     * @notice annual interest rate as byte(ir) is calculated outside and then set here.
+     * @dev creditor sets the annual interestrate for outstanding amounts by debtor
+     * @param _debtor Ethereum address of debtor and the byte representation(ir) of the annual interest rate
+     * @param _ir new interest rate for Creditline
+     */
+    function updateInterestRate(address _debtor, uint16 _ir) external returns (bool success) {
+        address creditor = msg.sender;
+        store().updateInterest(creditor, _debtor, _ir);
+    }
+
+    /*
+     * @notice `msg.sender` approves `_spender` to spend `_value` tokens, is currently not supported for Trustlines
+     * @param _spender The address of the account able to transfer the tokens
+     * @param _value The amount of wei to be approved for transfer
+     */
+    function approve(address _spender,  uint _value) valueWithinInt32(_value) public {
+        uint32 value = uint32(_value);
+        address creditor = msg.sender;
+
+        int64 balance = store().getBalance(creditor, _spender);
+        // do not allow creditline below balance
+        require(value >= balance);
+
+        addToUsersAndFriends(creditor, _spender);
+
+        store().storeCreditline(creditor, _spender, value);
+        Approval(creditor, _spender, value);
     }
 
     /*
@@ -221,7 +250,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _value The amount of token to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint _value) valueWithinInt32(_value) {
+    function transfer(address _to, uint _value) valueWithinInt32(_value) public {
         uint32 value = uint32(_value);
 
         // get unique Trustline between msg.sender and _to
@@ -236,46 +265,18 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _value The amount of token to be transferred
      * @return true, if the transfer was successful
      */
-    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) {
+    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) public {
         uint32 value = uint32(_value);
         if (getCreditline(_from, _to) > 0) {
-            if (!_transferOnValidPath(_from, _to, value)) {
-                throw;
-            }
+            require(_transferOnValidPath(_from, _to, value));
         }
     }
 
-    function _transferOnValidPath(address _from, address _to, uint _value) valueWithinInt32(_value) internal returns (bool success){
-        uint32 value = uint32(_value);
-        bytes32 pathId = sha3(_from, _to, value);
-        // check Path exists and is still valid
-        Path path = calculated_paths[pathId];
-        if (path.expiresOn > 0) {
-            // is path still valid?
-            if (calculateMtime() > path.expiresOn) {
-                throw;
-            } else {
-                success = mediatedTransfer(_from, _to, value);
-            }
-        }
-    }
-
-    /*
-     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     */
-    function mediatedTransfer(address _to, uint32 _value) returns (bool success) {
-        success = mediatedTransfer(msg.sender, _to, _value);
-    }
-
-    function mediatedTransfer(address _from, address _to, uint32 _value) returns (bool success) {
+    function mediatedTransfer(address _from, address _to, uint32 _value) public returns (bool success) {
         bytes32 pathId = sha3(_from, _to, _value);
         address[] _path = calculated_paths[pathId].path;
         // check Path: is there a Path and is _to the last address? Otherwise throw
-        if (_path.length == 0 || _to != _path[_path.length - 1]) {
-            throw;
-        }
+        require ((_path.length > 0) && (_to == _path[_path.length - 1]));
 
         uint16 fees = 0;
         //TODO: is the sender checked?
@@ -288,7 +289,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
                 store().updateOutstandingFees(sender, _to, fees);
             } else {
                 fees = Fees.deductedTransferFees(balance, sender, _to, _value, capacity_fee_divisor, imbalance_fee_divisor);
-                _value = _value.sub32(fees);
+               _value = _value.sub32(fees);
             }
             _transfer(sender, _to, _value);
             sender = _to;
@@ -299,82 +300,12 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         success = true;
     }
 
-    function _getBalanceAndInterestRate(address _sender, address _receiver, int64 _balanceAB) internal returns (int64 balance, uint16 interestRate) {
-        if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
-            balance = _balanceAB; // interest rate set by A for debt of B
-            interestRate = store().getInterestRate(_receiver, _sender);
-        } else {
-            balance = -_balanceAB; // interest rate set by B for debt of A
-            interestRate = store().getInterestRate(_sender, _receiver);
-        }
-    }
-
-    function _transfer(address _sender, address _receiver, uint32 _value) internal  {
-        // why??? should be _sender, _receiver
-        int64 balanceAB = store().getBalance(_receiver, _sender);
-
-        // check Creditlines (value + balance must not exceed creditline)
-        uint32 creditline = store().getCreditline(_receiver, _sender);
-        assert(_value + balanceAB <= creditline);
-
-        // apply Interests
-        uint16 timediff = calculateMtime() - store().getLastModification(_receiver, _sender);
-        int64 balance;
-        uint16 interestRate;
-        (balance, interestRate) = _getBalanceAndInterestRate(_sender, _receiver, balanceAB);
-        int64 occurredInterest = Interests.occurredInterest(balance, interestRate, timediff);
-        store().addToBalance(_receiver, _sender, occurredInterest);
-
-        // apply Fees
-        uint16 fees = Fees.applyNetworkFee(_sender, _receiver, _value, network_fee_divisor);
-        store().updateOutstandingFees(_sender, _receiver, fees);
-
-        // store new balance
-        store().storeBalance(_receiver, _sender, _value + balanceAB);
-    }
-
-    /*
-     * @notice `msg.sender` gives a creditline to `_debtor` of `_value` tokens, must be accepted by debtor
-     * @param _debtor The account that can spend tokens up to the given amount
-     * @param _value The maximum amount of tokens that can be spend
-     */
-    function updateCreditline(address _debtor, uint32 _value) notSender(_debtor) {
-        bytes32 acceptId = sha3(msg.sender, _debtor, _value);
-        proposedCreditlineUpdates[acceptId] = calculateMtime();
-        CreditlineUpdateRequest(msg.sender, _debtor, _value);
-    }
-
-    /*
-     * @notice `msg.sender` accepts a creditline from `_creditor` of `_value` tokens
-     * @param _creditor The account that spends tokens up to the given amount
-     * @param _value The maximum amount of tokens that can be spend
-     * @return true, if the credit was successful
-     */
-    function acceptCreditline(address _creditor, uint32 _value) returns (bool success) {
-        address debtor = msg.sender;
-        // retrieve acceptId to validate that updateCreditline has been called
-        bytes32 acceptId = sha3(_creditor, debtor, _value);
-        assert(proposedCreditlineUpdates[acceptId] > 0);
-        //doesnt work with testrpc
-        //delete proposedCreditlineUpdates[acceptId];
-
-        int64 balance = store().getBalance(_creditor, debtor);
-        // do not allow creditline below balance
-        assert(_value >= balance);
-
-        addToUsersAndFriends(_creditor, debtor);
-
-        store().storeCreditline(_creditor, debtor, _value);
-        CreditlineUpdate(_creditor, debtor, _value);
-        success = true;
-    }
-
     /*
      * @notice Checks for the spendable amount by spender
      * @param _spender The address from which the balance will be retrieved
      * @return spendable The spendable amount
      */
-    function spendable(address _spender) constant returns (uint spendable) {
+    function spendable(address _spender) public constant returns (uint spendable) {
         spendable = 0;
         var myfriends = friends[_spender].list;
         for(uint i = 0; i < myfriends.length; i++) {
@@ -388,30 +319,38 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _receiver the receiver that receives the tokens
      * @return Amount of remaining tokens allowed to spend
      */
-    function spendableTo(address _spender, address _receiver) constant returns (uint remaining) {
+    function spendableTo(address _spender, address _receiver) public constant returns (uint remaining) {
         int64 balance = store().getBalance(_spender, _receiver);
         uint32 creditline = store().getCreditline(_receiver, _spender);
         remaining = uint(creditline + balance);
     }
 
-    function store() internal returns (EternalStorage es) {
-        es = EternalStorage(eternalStorage);
+    /*
+     * @notice For Trustlines allowance equals the creditline
+     * @return Creditline between _owner and _spender
+     */
+    function allowance(address _owner, address _spender) public constant returns (uint) {
+        return getCreditline(_owner, _spender);
     }
 
-    /*
+    function shaOfValue(address _from, address _to, uint32 _value, uint16 _expiresOn) public constant returns (bytes32 data) {
+        return sha3(_from, _to, _value, _expiresOn);
+    }
+
+  /*
      * @dev The ERC20 Token balance for the spender. This is different from the balance within a trustline.
      *      In Trustlines this is the spendable amount
      * @param _owner The address from which the balance will be retrieved
      * @return The balance
      */
-    function balanceOf(address _owner) constant returns (uint256) {
+    function balanceOf(address _owner) public constant returns (uint256) {
         return spendable(_owner);
     }
 
     /*
      * @return total amount of tokens. In Trustlines this is the sum of all creditlines
      */
-    function totalSupply() constant returns (uint256 supply) {
+    function totalSupply() public constant returns (uint256 supply) {
         supply = 0;
         var users_list = users.list;
         for(uint i = 0; i < users_list.length; i++) {
@@ -425,21 +364,10 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _B the receiver that receives the tokens
      * @return the creditline given from A to B, the creditline given from B to A, the balance from the view of A
      */
-    function trustline(address _A, address _B) constant returns (int creditlineAB, int creditlineBA, int balanceAB) {
+    function trustline(address _A, address _B) public constant returns (int creditlineAB, int creditlineBA, int balanceAB) {
         creditlineAB = store().getCreditline(_A, _B);
         creditlineBA = store().getCreditline(_B, _A);
         balanceAB = store().getBalance(_A, _B);
-    }
-
-    /*
-     * @notice annual interest rate as byte(ir) is calculated outside and then set here.
-     * @dev creditor sets the annual interestrate for outstanding amounts by debtor
-     * @param _debtor Ethereum address of debtor and the byte representation(ir) of the annual interest rate
-     * @param _ir new interest rate for Creditline
-     */
-    function updateInterestRate(address _debtor, uint16 _ir) returns (bool success) {
-        address creditor = msg.sender;
-        store().updateInterest(creditor, _debtor, _ir);
     }
 
     /*
@@ -447,7 +375,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @dev Gets the sum of system fees as applicable when A sends B and transfer
      * @param Ethereum Addresses of A and B
      */
-    function getFeesOutstanding(address _A, address _B) constant returns (int fees) {
+    function getFeesOutstanding(address _A, address _B) public constant returns (int fees) {
         fees = store().getOutstandingFees(_A, _B);
     }
 
@@ -458,7 +386,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @param _spender The address of the account able to transfer the tokens
      * @return Amount tokens allowed to spent
      */
-    function getCreditline(address _owner, address _spender) constant returns (uint creditline) {
+    function getCreditline(address _owner, address _spender) public constant returns (uint creditline) {
         // returns the current creditline given by A to B
         creditline = store().getCreditline(_owner, _spender);
     }
@@ -468,7 +396,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @dev If negative A owes B, if positive B owes A, delegates to EternalStorage
      * @param Ethereum addresses A and B which have trustline relationship established between them
      */
-    function getBalance(address _A, address _B) constant returns (int balance) {
+    function getBalance(address _A, address _B) public constant returns (int balance) {
         balance = store().getBalance(_A, _B);
     }
 
@@ -493,7 +421,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @notice Calculates the current modification day since system start.
      * @notice now is an alias for block.timestamp gives the epoch time of the current block.
      */
-    function calculateMtime() public returns (uint16 mtime){
+    function calculateMtime() public constant returns (uint16 mtime){
         mtime = uint16((now/(24*60*60)) - ((2017 - 1970)* 365));
     }
 
@@ -529,7 +457,7 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      * @notice negative if A is indebted to B, positive otherwise
      * @dev delegates to EternalStorage and Interests library
      */
-    function occurredInterest(address _sender, address _receiver, uint16 _mtime) public returns (int) {
+    function occurredInterest(address _sender, address _receiver, uint16 _mtime) public constant returns (int) {
         uint16 elapsed = _mtime - store().getLastModification(_sender, _receiver);
         int64 balance = store().getBalance(_sender, _receiver);
         if (balance < 0) {
@@ -539,4 +467,68 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         return Interests.occurredInterest(balance, interest, elapsed);
     }
 
+    function _transferOnValidPath(address _from, address _to, uint _value) valueWithinInt32(_value) internal returns (bool success){
+        uint32 value = uint32(_value);
+        bytes32 pathId = sha3(_from, _to, value);
+        // check Path exists and is still valid
+        Path path = calculated_paths[pathId];
+        if (path.expiresOn > 0) {
+            // is path still valid?
+            require(calculateMtime() <= path.expiresOn);
+            success = mediatedTransfer(_from, _to, value);
+        }
+    }
+
+    function _transfer(address _sender, address _receiver, uint32 _value) internal  {
+        // why??? should be _sender, _receiver
+        int64 balanceAB = store().getBalance(_receiver, _sender);
+
+        // check Creditlines (value + balance must not exceed creditline)
+        uint32 creditline = store().getCreditline(_receiver, _sender);
+        require(_value + balanceAB <= creditline);
+
+        // apply Interests
+        uint16 timediff = calculateMtime() - store().getLastModification(_receiver, _sender);
+        int64 balance;
+        uint16 interestRate;
+        (balance, interestRate) = _getBalanceAndInterestRate(_sender, _receiver, balanceAB);
+        int64 occurredInterest = Interests.occurredInterest(balance, interestRate, timediff);
+        store().addToBalance(_receiver, _sender, occurredInterest);
+
+        // apply Fees
+        uint16 fees = Fees.applyNetworkFee(_sender, _receiver, _value, network_fee_divisor);
+        store().updateOutstandingFees(_sender, _receiver, fees);
+
+        // store new balance
+        store().storeBalance(_receiver, _sender, _value + balanceAB);
+    }
+
+    function store() internal returns (EternalStorage es) {
+        es = EternalStorage(eternalStorage);
+    }
+
+    function addToUsersAndFriends(address _A, address _B) internal {
+        if (!users.contains(_A)) {
+            users.insert(_A);
+        }
+        if (!users.contains(_B)) {
+            users.insert(_B);
+        }
+        if (!friends[_A].contains(_B)) {
+            friends[_A].insert(_B);
+        }
+        if (!friends[_A].contains(_A)) {
+            friends[_B].insert(_A);
+        }
+    }
+
+    function _getBalanceAndInterestRate(address _sender, address _receiver, int64 _balanceAB) internal constant returns (int64 balance, uint16 interestRate) {
+        if (_balanceAB > 0) { // netted balance, value B owes to A(if positive)
+            balance = _balanceAB; // interest rate set by A for debt of B
+            interestRate = store().getInterestRate(_receiver, _sender);
+        } else {
+            balance = -_balanceAB; // interest rate set by B for debt of A
+            interestRate = store().getInterestRate(_sender, _receiver);
+        }
+    }
 }

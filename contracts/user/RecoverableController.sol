@@ -31,68 +31,54 @@ contract RecoverableController {
         recoveryKey = msg.sender;
     }
 
-    function balanceOf(address who) constant returns (uint) {
-        return proxy.balanceOf(who);
-    }
+    // external trustlines functions
 
-    function transfer(address to, uint value) onlyUserKey {
-        proxy.transfer(to, value);
-    }
-
-    function allowance(address owner, address spender) constant returns (uint) {
-        return proxy.allowance(owner, spender);
-    }
-
-    function transferFrom(address from, address to, uint value) {
-        proxy.transferFrom(from, to, value);
-    }
-
-    function approve(address spender, uint value) {
-        proxy.approve(spender, value);
-    }
-
-    function updateCreditline(address _debtor, uint32 _value) {
+    function updateCreditline(address _debtor, uint32 _value) external {
         proxy.updateCreditline(_debtor, _value);
     }
 
-    function acceptCreditline(address _debtor, uint32 _value) returns (bool) {
+    function acceptCreditline(address _debtor, uint32 _value) external returns (bool) {
         return proxy.acceptCreditline(_debtor, _value);
     }
 
+    // public controller functions
+
     //pass 0x0 to cancel
-    function signRecoveryChange(address _proposedRecoveryKey) onlyUserKey {
+    function signRecoveryChange(address _proposedRecoveryKey) public onlyUserKey {
         proposedRecoveryKeyPendingUntil = now + longTimeLock;
         proposedRecoveryKey = _proposedRecoveryKey;
         RecoveryEvent("signRecoveryChange", msg.sender);
     }
 
-    function changeRecovery() {
+    function changeRecovery() public {
         if (proposedRecoveryKeyPendingUntil < now && proposedRecoveryKey != 0x0) {
             recoveryKey = proposedRecoveryKey;
             delete proposedRecoveryKey;
         }
     }
+
     //pass 0x0 to cancel
-    function signControllerChange(address _proposedController) onlyUserKey {
+    function signControllerChange(address _proposedController) public onlyUserKey {
         proposedControllerPendingUntil = now + longTimeLock;
         proposedController = _proposedController;
         RecoveryEvent("signControllerChange", msg.sender);
     }
 
-    function changeController() {
+    function changeController() public {
         if (proposedControllerPendingUntil < now && proposedController != 0x0) {
             proxy.transfer(proposedController);
             suicide(proposedController);
         }
     }
+
     //pass 0x0 to cancel
-    function signUserKeyChange(address _proposedUserKey) onlyUserKey {
+    function signUserKeyChange(address _proposedUserKey) public onlyUserKey {
         proposedUserKeyPendingUntil = now + shortTimeLock;
         proposedUserKey = _proposedUserKey;
         RecoveryEvent("signUserKeyChange", msg.sender);
     }
 
-    function changeUserKey(){
+    function changeUserKey() public {
         if (proposedUserKeyPendingUntil < now && proposedUserKey != 0x0) {
             userKey = proposedUserKey;
             delete proposedUserKey;
@@ -100,11 +86,36 @@ contract RecoverableController {
         }
     }
 
-    function changeRecoveryFromRecovery(address _recoveryKey) onlyRecoveryKey {recoveryKey = _recoveryKey;}
+    function changeRecoveryFromRecovery(address _recoveryKey) public onlyRecoveryKey {
+        recoveryKey = _recoveryKey;
+    }
 
-    function changeUserKeyFromRecovery(address _userKey) onlyRecoveryKey {
+    function changeUserKeyFromRecovery(address _userKey) public onlyRecoveryKey {
         delete proposedUserKey;
         userKey = _userKey;
     }
+
+    // public ERC20 functions
+
+    function transfer(address to, uint value) public onlyUserKey {
+        proxy.transfer(to, value);
+    }
+
+    function transferFrom(address from, address to, uint value) public {
+        proxy.transferFrom(from, to, value);
+    }
+
+    function approve(address spender, uint value) public {
+        proxy.approve(spender, value);
+    }
+
+    function balanceOf(address who) public constant returns (uint) {
+        return proxy.balanceOf(who);
+    }
+
+    function allowance(address owner, address spender) public constant returns (uint) {
+        return proxy.allowance(owner, spender);
+    }
+
 }
 

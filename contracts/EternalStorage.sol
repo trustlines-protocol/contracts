@@ -141,13 +141,11 @@ contract EternalStorage is Owned {
     }
 
     function uniqueIdentifier(address _A, address _B) internal constant returns (bytes32) {
+        require(_A != _B);
         if (_A < _B) {
             return sha3(_A, _B);
         } else if (_A > _B) {
             return sha3(_B, _A);
-        } else {
-            // A == B not allowed
-            throw;
         }
     }
 
