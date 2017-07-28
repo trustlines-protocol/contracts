@@ -1,25 +1,25 @@
-pragma solidity ^0.4.0;
+pragma solidity 0.4.11;
 
 import "./RecoveryQuorum.sol";
 
 contract IdentityFactory {
     event IdentityCreated(
-    address indexed userKey,
-    address proxy,
-    address controller,
-    address recoveryQuorum);
+        address indexed userKey,
+        address proxy,
+        address controller,
+        address recoveryQuorum);
 
-    mapping (address => address) public senderToProxy;
+    mapping(address => address) public senderToProxy;
 
     //cost ~2.4M gas
-    function CreateProxyWithControllerAndRecovery(address destination, address userKey, address[] delegates, uint longTimeLock, uint shortTimeLock) {
-        Proxy proxy = new Proxy(destination);
-        RecoverableController controller = new RecoverableController(proxy, userKey, longTimeLock, shortTimeLock);
+    function CreateProxyWithControllerAndRecovery(address _userKey, address[] _delegates, uint _longTimeLock, uint _shortTimeLock, bytes32 _publicKeyUser) {
+        Proxy proxy = new Proxy();
+        RecoverableController controller = new RecoverableController(proxy, _userKey, _longTimeLock, _shortTimeLock, _publicKeyUser);
         proxy.transfer(controller);
-        RecoveryQuorum recoveryQuorum = new RecoveryQuorum(controller, delegates);
+        RecoveryQuorum recoveryQuorum = new RecoveryQuorum(controller, _delegates);
         controller.changeRecoveryFromRecovery(recoveryQuorum);
 
-        IdentityCreated(userKey, proxy, controller, recoveryQuorum);
+        IdentityCreated(_userKey, proxy, controller, recoveryQuorum);
         senderToProxy[msg.sender] = proxy;
     }
 }

@@ -1,32 +1,42 @@
-pragma solidity ^0.4.0;
-
+pragma solidity 0.4.11;
 import "./RecoverableController.sol";
+
 
 contract RecoveryQuorum {
     RecoverableController public controller;
+    uint constant MAX_DELEGATES = 15;
+    uint constant NEVER = 31536000000000; // large number that acts as inf
 
     address[] public delegateAddresses; // needed for iteration of mapping
     mapping (address => Delegate) public delegates;
-
     struct Delegate {
-    uint deletedAfter; // delegate exists if not 0
-    uint pendingUntil;
-    address proposedUserKey;
+        uint deletedAfter; // delegate exists if not 0
+        uint pendingUntil;
+        address proposedUserKey;
     }
 
     event RecoveryEvent(string action, address initiatedBy);
 
-    modifier onlyUserKey(){if (msg.sender == controller.userKey()) _;}
+    modifier onlyUserKey(){
+        if (msg.sender == controller.userKey()) _;
+    }
 
-    function RecoveryQuorum(address _controller, address[] _delegates){
+    function RecoveryQuorum(address _controller, address[] _delegates) {
         controller = RecoverableController(_controller);
         for (uint i = 0; i < _delegates.length; i++) {
+            if (i >= MAX_DELEGATES) {
+                break;
+            }
             delegateAddresses.push(_delegates[i]);
-            delegates[_delegates[i]] = Delegate({proposedUserKey : 0x0, pendingUntil : 0, deletedAfter : 31536000000000});
+            delegates[_delegates[i]] = Delegate({
+                proposedUserKey: 0x0,
+                pendingUntil: 0,
+                deletedAfter: NEVER
+            });
         }
     }
 
-    function signUserChange(address proposedUserKey) {
+    function signUserChange(address proposedUserKey) public {
         if (delegateRecordExists(delegates[msg.sender])) {
             delegates[msg.sender].proposedUserKey = proposedUserKey;
             changeUserKey(proposedUserKey);
@@ -34,7 +44,7 @@ contract RecoveryQuorum {
         }
     }
 
-    function changeUserKey(address newUserKey) {
+    function changeUserKey(address newUserKey) public {
         if (collectedSignatures(newUserKey) >= neededSignatures()) {
             controller.changeUserKeyFromRecovery(newUserKey);
             for (uint i = 0; i < delegateAddresses.length; i++) {
@@ -58,30 +68,39 @@ contract RecoveryQuorum {
         RecoveryEvent("replaceDelegates", msg.sender);
     }
 
-    function collectedSignatures(address _proposedUserKey) returns (uint signatures){
+    function collectedSignatures(address _proposedUserKey) constant returns (uint signatures) {
         for (uint i = 0; i < delegateAddresses.length; i++) {
-            if (delegateHasValidSignature(delegates[delegateAddresses[i]]) && delegates[delegateAddresses[i]].proposedUserKey == _proposedUserKey) {
-                signatures++;
+            if (delegateHasValidSignature(delegates[delegateAddresses[i]]) &&
+                delegates[delegateAddresses[i]].proposedUserKey == _proposedUserKey) {
+                    signatures++;
             }
         }
     }
 
-    function getAddresses() constant returns (address[]){return delegateAddresses;}
+    function getAddresses() constant returns (address[]) {
+        return delegateAddresses;
+    }
 
-    function neededSignatures() returns (uint){
-        uint currentDelegateCount;
-        //always 0 at this point
+    function neededSignatures() constant returns (uint) {
+        uint currentDelegateCount; //always 0 at this point
         for (uint i = 0; i < delegateAddresses.length; i++) {
-            if (delegateIsCurrent(delegates[delegateAddresses[i]])) {currentDelegateCount++;}
+            if (delegateIsCurrent(delegates[delegateAddresses[i]])) {
+                currentDelegateCount++;
+            }
         }
-        return currentDelegateCount / 2 + 1;
+        return currentDelegateCount/2 + 1;
     }
 
     function addDelegate(address delegate) private {
-        if (!delegateRecordExists(delegates[delegate]) && delegateAddresses.length < 15) {
-            delegates[delegate] = Delegate({proposedUserKey : 0x0, pendingUntil : now + controller.longTimeLock(), deletedAfter : 31536000000000});
-            delegateAddresses.push(delegate);
-        }
+        if (!delegateRecordExists(delegates[delegate]) &&
+            delegateAddresses.length < MAX_DELEGATES) {
+               delegates[delegate] = Delegate({
+                   proposedUserKey: 0x0,
+                   pendingUntil: now + controller.longTimeLock(),
+                   deletedAfter: NEVER
+               });
+               delegateAddresses.push(delegate);
+       }
     }
 
     function removeDelegate(address delegate) private {
@@ -89,8 +108,7 @@ contract RecoveryQuorum {
             //remove right away if they are still pending
             if (delegates[delegate].pendingUntil > now) {
                 delegates[delegate].deletedAfter = now;
-            }
-            else {
+            } else {
                 delegates[delegate].deletedAfter = controller.longTimeLock() + now;
             }
         }
@@ -100,36 +118,45 @@ contract RecoveryQuorum {
         uint i = 0;
         while (i < delegateAddresses.length) {
             if (delegateIsDeleted(delegates[delegateAddresses[i]])) {
-                delegates[delegateAddresses[i]].deletedAfter = 0;
-                delegates[delegateAddresses[i]].pendingUntil = 0;
-                delegates[delegateAddresses[i]].proposedUserKey = 0;
-                removeAddress(i);
+                delete delegates[delegateAddresses[i]];
+                removeAddress(i, delegateAddresses);
+            } else {
+                i++;
             }
-            else {i++;}
         }
     }
 
-    function removeAddress(uint i){
-        uint lengthMinusOne = delegateAddresses.length - 1;
-        delegateAddresses[i] = delegateAddresses[lengthMinusOne];
-        delete delegateAddresses[lengthMinusOne];
-        delegateAddresses.length = lengthMinusOne;
-    }
-
-    function delegateRecordExists(Delegate d) private returns (bool){
+    function delegateRecordExists(Delegate d) private returns (bool) {
         return d.deletedAfter != 0;
     }
 
-    function delegateIsDeleted(Delegate d) private returns (bool){
-        return d.deletedAfter <= now;
-        //doesnt check record existence
+    function delegateIsDeleted(Delegate d) private returns (bool) {
+        return d.deletedAfter <= now; //doesnt check record existence
     }
 
-    function delegateIsCurrent(Delegate d) private returns (bool){
+    function delegateIsCurrent(Delegate d) private returns (bool) {
         return delegateRecordExists(d) && !delegateIsDeleted(d) && now > d.pendingUntil;
     }
 
-    function delegateHasValidSignature(Delegate d) private returns (bool){
+    function delegateHasValidSignature(Delegate d) private returns (bool) {
         return delegateIsCurrent(d) && d.proposedUserKey != 0x0;
+    }
+
+    //ArrayLib
+
+    function findAddress(address a, address[] storage arry) private returns (int){
+        for (uint i = 0 ; i < arry.length ; i++){
+            if (arry[i] == a) {
+                return int(i);
+            }
+        }
+        return -1;
+    }
+
+    function removeAddress(uint i, address[] storage arry) private {
+        uint lengthMinusOne = arry.length - 1;
+        arry[i] = arry[lengthMinusOne];
+        delete arry[lengthMinusOne];
+        arry.length = lengthMinusOne;
     }
 }

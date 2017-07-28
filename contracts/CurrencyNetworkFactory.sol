@@ -4,6 +4,8 @@ import "./lib/registry.sol";
 import "./gov/GovernanceTemplate.sol";
 import "./user/Proxy.sol";
 import "./user/IdentityFactoryWithRecoveryKey.sol";
+import "./EternalStorage.sol";
+import "./CurrencyNetwork.sol";
 
 contract CurrencyNetworkFactory {
 
@@ -27,10 +29,9 @@ contract CurrencyNetworkFactory {
         uint16 _maxInterestRate
     ) {
         GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
-        address tokenAddr = 0x0;//CurrencyNetwork(_tokenName, _tokenSymbol, _network_fee_divisor, _capacity_fee_divisor, _imbalance_fee_divisor);
+        EternalStorage es = new EternalStorage();
+        address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, es);
         registry.register(_tokenName, tokenAddr);
-        Proxy proxy = new Proxy(tokenAddr);
-        new IdentityFactoryWithRecoveryKey().CreateProxyWithControllerAndRecoveryKey(proxy, msg.sender, _delegates, 1000, 100);
         CurrencyNetworkCreated(tokenAddr);
     }
 }

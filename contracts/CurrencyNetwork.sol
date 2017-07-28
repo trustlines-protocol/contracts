@@ -39,11 +39,11 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
     // FEE GLOBAL DEFAULTS
     
     // Divides current value being transferred to calculate the Network fee
-    uint16 constant network_fee_divisor = 1000;
+    uint16 constant network_fee_divisor = 10;
     // Divides current value being transferred to calculate the capacity fee
-    uint16 constant capacity_fee_divisor = 500;
+    uint16 constant capacity_fee_divisor = 20;
     // Divides imbalance that current value transfer introduces to calculate the imbalance fee
-    uint16 constant imbalance_fee_divisor = 250;
+    uint16 constant imbalance_fee_divisor = 25;
     // Base decimal units in which we carry out operations in this token.
     uint32 constant base_unit_multiplier = 100000;
 
@@ -143,6 +143,10 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
             );
     }
 
+    function echo() constant returns (uint) {
+        return 1;
+    }
+
     /*
      * @notice cashCheque required a signature which must be provided by the UI
      * @param _from The address of the account able to transfer the tokens
@@ -176,6 +180,30 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
      */
     function mediatedTransfer(address _to, uint32 _value) external returns (bool success) {
         success = mediatedTransfer(msg.sender, _to, _value);
+    }
+
+    /*
+     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @dev note: a pat has to be prepared before this method can be used
+     */
+
+    function mediatedTransfer(address _from, address _to, uint32 _value) internal returns (bool success) {
+        bytes32 pathId = sha3(_from, _to, _value);
+        address[] _path = calculated_paths[pathId].path;
+        success = mediatedTransfer(_from, _to, _value, calculated_paths[pathId].maxFee, _path);
+    }
+
+    /*
+     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _maxFee the maximum fee which is accepted
+     * @param _path the path of the trustlines calculated by a relay server
+     */
+    function mediatedTransfer(address _to, uint32 _value, uint16 _maxFee, address[] _path) external returns (bool success) {
+        success = mediatedTransfer(msg.sender, _to, _value, _maxFee, _path);
     }
 
     /*
@@ -272,31 +300,81 @@ contract CurrencyNetwork is ICurrencyNetwork, ERC20 {
         }
     }
 
-    function mediatedTransfer(address _from, address _to, uint32 _value) public returns (bool success) {
-        bytes32 pathId = sha3(_from, _to, _value);
-        address[] _path = calculated_paths[pathId].path;
+    function calculateFees(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) public constant returns (int64) {
+        // check Path: is there a Path and is _to the last address? Otherwise throw
+        require ((_path.length > 0) && (_to == _path[_path.length - 1]));
+
+        int64 valueBefore = _value;
+        int64 valueAfter = _value;
+        address sender = _from;
+        uint pathLength = _path.length;
+        for (uint i = pathLength; i > 0; i--) {
+            address receiver = _path[i-1];
+            if (i == 1) {
+                valueAfter = (valueBefore / (1-(1/network_fee_divisor)));
+            }
+            valueAfter += (valueBefore / (1-(1/capacity_fee_divisor))) - valueBefore;
+            int64 balance = store().getBalance(sender, receiver);
+            int64 absBalance = abs(balance);
+            if ((abs(balance - valueAfter) - absBalance) > 0) {
+                valueAfter += ((1/imbalance_fee_divisor) * absBalance + balance * (1/imbalance_fee_divisor) - valueBefore) / ((1/imbalance_fee_divisor)-1);
+            } else {
+                valueAfter += (-(1/imbalance_fee_divisor) * absBalance + balance * (1/imbalance_fee_divisor) + valueBefore) / ((1/imbalance_fee_divisor)+1);
+            }
+            sender = receiver;
+            valueBefore = valueAfter;
+        }
+        return valueAfter;
+    }
+
+    function abs(int64 _balance) internal constant returns (int64 balance)  {
+        if (_balance < 0) {
+            balance = -_balance;
+        } else {
+            balance = _balance;
+        }
+    }
+
+    function applyNetworkFee(address _sender, address _receiver, uint32 _value) internal returns (uint16) {
+
+    }
+
+    function applyCapacityFee(address _sender, address _receiver, uint32 _value) internal returns (uint16) {
+
+    }
+
+    function applyImbalanceFee(address _sender, address _receiver, uint32 _value) internal returns (uint16) {
+
+    }
+
+    /*
+     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _maxFee the maximum fee which is accepted
+     * @param _path the path of the trustlines calculated by a relay server
+     */
+    function mediatedTransfer(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) internal returns (bool success) {
         // check Path: is there a Path and is _to the last address? Otherwise throw
         require ((_path.length > 0) && (_to == _path[_path.length - 1]));
 
         uint16 fees = 0;
-        //TODO: is the sender checked?
         address sender = _from;
         for (uint i = 0;i < _path.length; i++) {
             _to = _path[i];
             int64 balance = store().getBalance(sender, _to);
             if (i == 0) {
-                fees = Fees.applyNetworkFee(sender, _to, _value, network_fee_divisor);
-                store().updateOutstandingFees(sender, _to, fees);
-            } else {
-                fees = Fees.deductedTransferFees(balance, sender, _to, _value, capacity_fee_divisor, imbalance_fee_divisor);
-               _value = _value.sub32(fees);
+                fees = applyNetworkFee(sender, _to, _value);
             }
+            fees += applyCapacityFee(sender, _to, _value);
+            fees += applyImbalanceFee(sender, _to, _value);
+            store().updateOutstandingFees(sender, _to, fees);
             _transfer(sender, _to, _value);
             sender = _to;
             // TODO: remove due to gas costs
             BalanceUpdate(sender, _to, _value);
         }
-        Transfer(msg.sender, _to, _value);
+        Transfer(_from, _to, _value);
         success = true;
     }
 
