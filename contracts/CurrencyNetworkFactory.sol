@@ -23,14 +23,15 @@ contract CurrencyNetworkFactory {
         bytes29 _tokenName,
         bytes3 _tokenSymbol,
         address _delegates,
+        address _adminKey,
         uint16 _network_fee_divisor,
         uint16 _capacity_fee_divisor,
         uint16 _imbalance_fee_divisor,
         uint16 _maxInterestRate
     ) {
         GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
-        EternalStorage es = new EternalStorage();
-        address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, es);
+        EternalStorage es = new EternalStorage(_adminKey);
+        address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, address(es));
         registry.register(_tokenName, tokenAddr);
         CurrencyNetworkCreated(tokenAddr);
     }

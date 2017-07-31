@@ -18,6 +18,7 @@ trustlines = [(0, 1, 100, 150, 15, 10),
               (7, 8, 200, 250, 25, 20)
               ]  # (A, B, tlAB, tlBA)
 
+
 def annual_interest_rate_from_byte(di):
     assert di < 256
     if di == 0:
@@ -70,12 +71,20 @@ def test_trustlines(trustlines_contract, web3):
         assert trustlines_contract.call().getInterestRate(web3.eth.accounts[A], web3.eth.accounts[B]) == irA
         assert trustlines_contract.call().getInterestRate(web3.eth.accounts[B], web3.eth.accounts[A]) == irB
 
-def test_transfer(trustlines_contract, accounts):
+
+def print_gas_used(state, string):
+    t_gas = state.block.gas_used
+    yield
+    gas_used = state.block.gas_used - t_gas - 21000
+    print(string, gas_used)
+
+def test_transfer(trustlines_contract, accounts, state):
     (A, B, C, D) = accounts(4)
     # look for value above
     sysfee = calc_system_fee(value)
     print(value)
-    trustlines_contract.transact({"from":A}).transfer(B, value)
+    with print_gas_used(state, 'gas direct transfer'):
+        trustlines_contract.transact({"from":A}).transfer(B, value)
     assert trustlines_contract.call().getBalance(A, B) == -value
     assert trustlines_contract.call().getInterestRate(A, B) == 15
     assert trustlines_contract.call().getInterestRate(B, A) == 10

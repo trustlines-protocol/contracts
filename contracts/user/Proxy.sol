@@ -8,6 +8,10 @@ contract Proxy is Owned {
 
     function () payable { Received(msg.sender, msg.value); }
 
+    function Proxy(address _admin) Owned (_admin) {
+
+    }
+
     function forward(address destination, uint value, bytes data) onlyOwner {
         if (!destination.call.value(value)(data)) {
             throw;
