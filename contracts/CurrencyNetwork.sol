@@ -30,11 +30,7 @@ import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
 contract CurrencyNetwork {
 
     using ItSet for ItSet.AddressSet;
-    using SafeMath for int64;
-    using SafeMath for int256;
-    using SafeMath for uint16;
-    using SafeMath for uint24;
-    using SafeMath for uint32;
+
 
     // FEE GLOBAL DEFAULTS
     
@@ -78,6 +74,8 @@ contract CurrencyNetwork {
     mapping (bytes32 => uint16) proposedCreditlineUpdates;
     // mapping (sha3(_from, _to, _value, _expiresOn)) => depositedOn
     mapping (bytes32 => uint16) cheques;
+    // allowance to msg.sender to send uint32 to address
+    mapping (address => mapping (address => uint32)) allowed;
 
     // TODO: this should be calculated by the relay server from events
     // friends, users address has an account with
@@ -117,7 +115,7 @@ contract CurrencyNetwork {
     function prepare(address _to, uint32 _value, uint16 _maxFee, address[] _path) external {
         calculated_paths[sha3(msg.sender, _to, _value)] = 
             Path(
-                {expiresOn : uint16(calculateMtime().add16(1)),
+                {expiresOn : calculateMtime() + 1,
                  maxFee : _maxFee,
                  path : _path
                 }
@@ -136,7 +134,7 @@ contract CurrencyNetwork {
      function prepareFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) external {
         calculated_paths[sha3(_from, _to, _value)] = 
             Path(
-                {expiresOn : uint16(calculateMtime().add16(1)),
+                {expiresOn : calculateMtime() + 1,
                  maxFee : _maxFee,
                  path : _path
                 }
@@ -174,32 +172,20 @@ contract CurrencyNetwork {
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
      */
-    function mediatedTransfer(address _to, uint32 _value) external returns (bool success) {
-        success = mediatedTransfer(msg.sender, _to, _value);
+    function transfer(address _to, uint32 _value) external returns (bool success) {
+        success = _mediatedTransferFrom(msg.sender, _to, _value);
     }
 
     /*
      * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
-     * @dev note: a pat has to be prepared before this method can be used
+     * @param _maxFee Maximum fee the sender wants to pay
+     * @param _path Path between msg.sender and _to
      */
-
-    function mediatedTransfer(address _from, address _to, uint32 _value) public returns (bool success) {
-        bytes32 pathId = sha3(_from, _to, _value);
-        address[] _path = calculated_paths[pathId].path;
-        success = _mediatedTransfer(_from, _to, _value, calculated_paths[pathId].maxFee, _path);
-    }
-
-    /*
-     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     * @param _maxFee the maximum fee which is accepted
-     * @param _path the path of the trustlines calculated by a relay server
-     */
-    function mediatedTransfer(address _to, uint32 _value, uint16 _maxFee, address[] _path) external returns (bool success) {
-        success = _mediatedTransfer(msg.sender, _to, _value, _maxFee, _path);
+    function transfer(address _to, uint32 _value, uint16 _maxFee, address[] _path) external returns (bool success) {
+        require(_mediatedTransferFrom(msg.sender, _to, _value, _maxFee, _path));
+        success = true;
     }
 
     /*
@@ -210,6 +196,7 @@ contract CurrencyNetwork {
     function updateCreditline(address _debtor, uint32 _value) external notSender(_debtor) {
         //TODO reduce must be possible without accept
         bytes32 acceptId = sha3(msg.sender, _debtor, _value);
+        // currently storing the time of request to be able to remove too old ones later
         proposedCreditlineUpdates[acceptId] = calculateMtime();
         CreditlineUpdateRequest(msg.sender, _debtor, _value);
     }
@@ -225,7 +212,7 @@ contract CurrencyNetwork {
         // retrieve acceptId to validate that updateCreditline has been called
         bytes32 acceptId = sha3(_creditor, debtor, _value);
         require(proposedCreditlineUpdates[acceptId] > 0);
-        //doesnt work with testrpc
+        //doesnt work with testrpc, should delete the update request
         //delete proposedCreditlineUpdates[acceptId];
 
         Trustline.Account memory account = getAccountInt(_creditor, debtor);
@@ -247,7 +234,7 @@ contract CurrencyNetwork {
      * @param _debtor Ethereum address of debtor and the byte representation(ir) of the annual interest rate
      * @param _ir new interest rate for Creditline
      */
-    function updateInterestRate(address _debtor, uint16 _ir) external returns (bool success) {
+    function __updateInterestRate(address _debtor, uint16 _ir) external returns (bool success) {
         address creditor = msg.sender;
         // TODO: check GovernanceTemplate
         Trustline.Account memory account = getAccountInt(creditor, _debtor);
@@ -260,41 +247,13 @@ contract CurrencyNetwork {
      * @param _spender The address of the account able to transfer the tokens
      * @param _value The amount of wei to be approved for transfer
      */
-    function approve(address _spender,  uint _value) valueWithinInt32(_value) public {
+    function approve(address _spender,  uint _value) valueWithinInt32(_value) public returns (bool success){
         uint32 value = uint32(_value);
         address creditor = msg.sender;
 
-        /*  check consensys
-        Trustline.Account memory account = getAccountInt(creditor, _spender);
-        int64 balance = account.balanceAB;
-        // do not allow creditline below balance
-        require(value >= balance);
-
-        addToUsersAndFriends(creditor, _spender);
-
-        storeAccount(creditor, _spender, account);
-        */
+        allowed[creditor][_spender] = value;
         Approval(creditor, _spender, value);
-    }
-
-    /*
-     * @notice send `_value` token to `_to` from `msg.sender`
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     * @return Whether the transfer was successful or not
-     */
-    function directTransfer(address _to, uint _value) valueWithinInt32(_value) public {
-        int32 value = int32(_value);
-
-        // get unique Trustline between msg.sender and _to
-
-        Trustline.Account memory account = getAccountInt(_to, msg.sender);
-        uint16 fees = applyNetworkFee(uint32(value));
-        account.feesOutstandingA += fees;
-
-        //TODO calculate
-        _transfer(msg.sender, _to, uint32(value), account);
-        Transfer(msg.sender, _to, uint32(value));
+        success = true;
     }
 
     /*
@@ -304,15 +263,18 @@ contract CurrencyNetwork {
      * @param _value The amount of token to be transferred
      * @return true, if the transfer was successful
      */
-    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) public {
+    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) public returns (bool success){
         uint32 value = uint32(_value);
-        Trustline.Account memory account = getAccountInt(_from, _to);
-        if (account.creditlineAB > 0) {
+        if (allowed[_from][msg.sender] >= value) {
+            allowed[_from][msg.sender] -= value;
             require(_transferOnValidPath(_from, _to, value));
+            success = true;
+        } else {
+            success = false;
         }
     }
 
-    function abs(int64 _balance) internal constant returns (int64 balance)  {
+    function _abs(int64 _balance) internal constant returns (int64 balance)  {
         if (_balance < 0) {
             balance = -_balance;
         } else {
@@ -320,16 +282,48 @@ contract CurrencyNetwork {
         }
     }
 
-    function applyNetworkFee(uint32 _value) internal returns (uint16) {
+    function _applyNetworkFee(uint32 _value) internal returns (uint16) {
         return uint16(_value / network_fee_divisor);
     }
 
-    function applyCapacityFee(uint32 _value) internal returns (uint16) {
+    function _applyCapacityFee(uint32 _value) internal returns (uint16) {
         return uint16(_value / capacity_fee_divisor);
     }
 
-    function applyImbalanceFee(uint32 _value, int64 _balance) internal returns (int32) {
-        return int32((abs(_balance - _value) - abs(_balance)) / imbalance_fee_divisor);
+    function _applyImbalanceFee(uint32 _value, int64 _balance) internal returns (int32) {
+        return int32((_abs(_balance - _value) - _abs(_balance)) / imbalance_fee_divisor);
+    }
+
+    function _calculateFees(address _from, address _to, uint32 _value, address[] _path) public constant returns (int64) {
+        // check Path: is there a Path and is _to the last address? Otherwise throw
+        require ((_path.length > 0) && (_to == _path[_path.length - 1]));
+
+        int64 valueBefore = _value;
+        int64 valueAfter = _value;
+        address sender = _from;
+        uint pathLength = _path.length-1;
+        for (uint i = _path.length; i > 0; i--) {
+            address receiver = _path[i-1];
+            if (i == 1) {
+                valueAfter = (valueBefore / (1-(1/network_fee_divisor))) * 1;
+            }
+            valueAfter += (valueBefore / (1-(1/capacity_fee_divisor))) - valueBefore;
+            Trustline.Account memory account = getAccountInt(receiver, sender);
+            int64 absBalance = _abs(account.balanceAB);
+            if ((_abs(account.balanceAB - valueAfter) - absBalance) > 0) {
+                valueAfter += ((1/imbalance_fee_divisor) * absBalance + account.balanceAB * (1/imbalance_fee_divisor) - valueBefore) / ((1/imbalance_fee_divisor)-1);
+            } else {
+                valueAfter += (-(1/imbalance_fee_divisor) * absBalance + account.balanceAB * (1/imbalance_fee_divisor) + valueBefore) / ((1/imbalance_fee_divisor)+1);
+            }
+            sender = _to;
+            valueBefore = valueAfter;
+        }
+        return valueAfter;
+    }
+
+    function _mediatedTransferFrom(address _from, address _to, uint32 _value) internal returns (bool success) {
+        require(_transferOnValidPath(_from, _to, _value));
+        success = true;
     }
 
     /*
@@ -339,30 +333,28 @@ contract CurrencyNetwork {
      * @param _maxFee the maximum fee which is accepted
      * @param _path the path of the trustlines calculated by a relay server
      */
-    function _mediatedTransfer(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) internal returns (bool success) {
+    function _mediatedTransferFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) internal returns (bool success) {
         // check Path: is there a Path and is _to the last address? Otherwise throw
-
-        // calculate inverse
-
         require ((_path.length > 0) && (_to == _path[_path.length - 1]));
+
+        // calculate inverse and set as real value
+        int32 rValue = int32(_value);//int32(_calculateFees(_from, _to, _value, _path));
         uint16 fees = 0;
         address sender = _from;
-        int32 sValue = int32(_value);
 
-        // calculate inverse
         for (uint i = 0;i < _path.length; i++) {
             _to = _path[i];
             Trustline.Account memory account = getAccountInt(_to, sender);
             if (i == 0) {
-                fees = applyNetworkFee(uint32(sValue));
+                fees = _applyNetworkFee(uint32(rValue));
                 account.feesOutstandingA += fees;
             }
-            _transfer(sender, _to, uint32(sValue), account);
+            _transfer(sender, _to, uint32(rValue), account);
             sender = _to;
             // TODO: remove due to gas costs
             //BalanceUpdate(sender, _to, uint32(sValue));
         }
-        Transfer(_from, _to, uint32(sValue));
+        Transfer(_from, _to, uint32(_value));
         success = true;
     }
 
@@ -397,9 +389,8 @@ contract CurrencyNetwork {
      * @notice For Trustlines allowance equals the creditline
      * @return Creditline between _owner and _spender
      */
-    function allowance(address _owner, address _spender) public constant returns (uint) {
-        Trustline.Account memory account = getAccountInt(_owner, _spender);
-        return account.creditlineAB;
+    function allowance(address _owner, address _spender) public constant returns (uint32) {
+        return allowed[_owner][_spender];
     }
 
     function shaOfValue(address _from, address _to, uint32 _value, uint16 _expiresOn) public constant returns (bytes32 data) {
@@ -545,7 +536,7 @@ contract CurrencyNetwork {
         if ((_elapsed == 0) || (_interest == 0)) {
             return;
         }
-        interest = int64(_balance.div(_interest.mul16(256)).mul(_elapsed));
+        interest = int64(_balance / (_interest * 256) * _elapsed);
     }
 
     function _transferOnValidPath(address _from, address _to, uint _value) valueWithinInt32(_value) internal returns (bool success){
@@ -556,7 +547,7 @@ contract CurrencyNetwork {
         if (path.expiresOn > 0) {
             // is path still valid?
             require(calculateMtime() <= path.expiresOn);
-            success = mediatedTransfer(_from, _to, value);
+            success = _mediatedTransferFrom(_from, _to, value, path.maxFee, path.path);
         }
     }
 
@@ -574,7 +565,7 @@ contract CurrencyNetwork {
         account.balanceAB += interest;
 
         //TODO: check unittests
-        _value = _value - uint32(applyCapacityFee(_value) - applyImbalanceFee(_value, account.balanceAB));
+        _value = _value - uint32(_applyCapacityFee(_value) - _applyImbalanceFee(_value, account.balanceAB));
 
         // store new balance
         account.balanceAB = _value + account.balanceAB;
