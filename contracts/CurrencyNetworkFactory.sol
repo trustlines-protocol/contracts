@@ -20,8 +20,8 @@ contract CurrencyNetworkFactory {
     //cost XXXXXXX gas
     function CreateCurrencyNetwork
     (
-        bytes29 _tokenName,
-        bytes3 _tokenSymbol,
+        string _tokenName,
+        string _tokenSymbol,
         address _delegates,
         address _adminKey,
         uint16 _network_fee_divisor,
@@ -32,7 +32,8 @@ contract CurrencyNetworkFactory {
         GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
         EternalStorage es = new EternalStorage(_adminKey);
         address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, address(es));
-        registry.register(_tokenName, tokenAddr);
+        //TODO: change registry to string from bytes29
+        //registry.register(_tokenName, tokenAddr);
         CurrencyNetworkCreated(tokenAddr);
     }
 }

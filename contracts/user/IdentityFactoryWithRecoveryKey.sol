@@ -13,7 +13,7 @@ contract IdentityFactoryWithRecoveryKey {
     mapping(address => address) public recoveryToProxy;
 
     //cost ~2.4M gas
-    function CreateProxyWithControllerAndRecoveryKey(address _adminKey, address _userKey, address _recoveryKey, uint _longTimeLock, uint _shortTimeLock, bytes32 _publicKeyUser) {
+    function CreateProxyWithControllerAndRecoveryKey(address _adminKey, address _userKey, address _recoveryKey, uint _longTimeLock, uint _shortTimeLock, bytes _publicKeyUser) {
         Proxy proxy = new Proxy(_adminKey);
         RecoverableController controller = new RecoverableController(proxy, _userKey, _longTimeLock, _shortTimeLock, _publicKeyUser);
         proxy.transfer(controller);

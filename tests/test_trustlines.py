@@ -96,13 +96,8 @@ def test_cashCheque(trustlines_contract, accounts, web3):
     data = trustlines_contract.call().shaOfValue(A, B, 90, mtime + 1)
     sig, addr = sign.check(bytes(data, "raw_unicode_escape"), tester.k0)
     assert addr == A
-    trustlines_contract.transact({"from": A}).approve(A, 100)
     trustlines_contract.transact({"from": A}).prepareFrom(A, B, 100, [B])
-    filter = trustlines_contract.on("Debug")
     assert(trustlines_contract.transact({"from": A}).cashCheque(A, B, 90, mtime + 1, sig))
-    wait(filter)
-    log_entries = filter.get()
-    print(log_entries[0]['args'])
     assert trustlines_contract.call().balanceOf(A) == balA - 90
     assert trustlines_contract.call().balanceOf(B) == balB + 90
 
@@ -122,7 +117,6 @@ def test_preparePath(trustlines_contract, accounts):
 def test_prepareFrom(web3, trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
     assert trustlines_contract.call().balanceOf(B) == 350
-    trxid = trustlines_contract.transact({"from":B}).approve(A, 100)
     trxid = trustlines_contract.transact({"from":A}).prepareFrom(B, C, 100, [C])
     print_gas_used(web3, trxid, 'hop')
     assert trustlines_contract.call().balanceOf(B) == 350
@@ -133,22 +127,6 @@ def test_prepareFrom(web3, trustlines_contract, accounts):
 #    with pytest.raises(tester.TransactionFailed):
     trustlines_contract.transact({"from":A}).transferFrom(B, C, 30)
     assert trustlines_contract.call().balanceOf(B) == 300
-
-    print(trustlines_contract.call().getBalance(C, B))
-
-    filter = trustlines_contract.on("Debug")
-    filter1 = trustlines_contract.on("BalanceUpdate")
-    assert trustlines_contract.transact({"from":A}).transferFrom(B, C, 20)
-    wait(filter)
-    log_entries = filter.get()
-    for le in log_entries:
-        print(le['args'])
-    log_entries = filter1.get()
-    for le in log_entries:
-        print(le['args'])
-
-    print(trustlines_contract.call().getBalance(C, B))
-    assert trustlines_contract.call().balanceOf(B) == 280
 
 
 def test_approveUpdateAccept(trustlines_contract, accounts):

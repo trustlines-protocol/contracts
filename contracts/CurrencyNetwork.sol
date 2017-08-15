@@ -1,14 +1,14 @@
 pragma solidity ^0.4.0;
 
 import "./lib/it_set_lib.sol";      // Library for Set iteration
-import "./lib/ERC20.sol";           // modified version of "zeppelin": "1.0.5": token/ERC20
-import "./lib/SafeMath.sol";        // modified version of "zeppelin": "1.0.5": SafeMath
 import "./lib/ECVerify.sol";        // Library for safer ECRecovery
 import "./Trustline.sol";           // data structure and functionality for a Trustline
 import "./Interests.sol";           // interest calculator for path in CurrencyNetwork
 import "./Fees.sol";                // fees calculator for path in CurrencyNetwork
 import "./EternalStorage.sol";      // eternal storage for upgrade purposes
 import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
+import "./lib/Receiver_Interface.sol";
+import "./lib/ERC223_Interface.sol";
 
 /*
  * CurrencyNetwork
@@ -27,7 +27,7 @@ import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
  *      uint16 _imbalance_fee_divisor,
  *      uint16 _maxInterestRate)
  */
-contract CurrencyNetwork {
+contract CurrencyNetwork is ContractReceiver, ERC223 {
 
     using ItSet for ItSet.AddressSet;
 
@@ -44,21 +44,21 @@ contract CurrencyNetwork {
     uint32 constant base_unit_multiplier = 100000;
 
     // meta data for token part
-    bytes29 public name;
-    bytes3 public symbol;
+    string public name;
+    string public symbol;
     uint8 public decimals = 6;
 
     EternalStorage eternalStorage;
 
     // Events
-    event Approval(address _owner, address _spender, uint256 _value);
-    event Transfer(address _from, address _to, uint _value);
-    event CreditlineUpdateRequest(address _creditor, address _debtor, uint32 _value);
-    event CreditlineUpdate(address _creditor, address _debtor, uint32 _value);
-    event PathPrepared(address _sender, address _receiver);
+    event Approval(address indexed _owner, address indexed _spender, uint256 indexed _value);
+    event Transfer(address indexed _from, address indexed _to, uint indexed _value);
+    event CreditlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint32 indexed _value);
+    event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint32 indexed _value);
+    event PathPrepared(address indexed _sender, address indexed _receiver);
     // must be deactivated due to gas costs
-    event BalanceUpdate(address _from, address _to, int256 _value);
-    event Debug(uint32 v1, int v2, int v3, int v4);
+    event BalanceUpdate(address indexed _from, address indexed _to, int256 indexed _value);
+    event ChequeCashed(address indexed _sender, address indexed _receiver, uint32 indexed _value);
 
     struct Path {
         // set maximum fee which is allowed for this transaction
@@ -73,8 +73,6 @@ contract CurrencyNetwork {
     mapping (bytes32 => uint16) proposedCreditlineUpdates;
     // mapping (sha3(_from, _to, _value, _expiresOn)) => depositedOn
     mapping (bytes32 => uint16) cheques;
-    // allowance to msg.sender to send uint32 to address
-    mapping (address => mapping (address => uint32)) allowed;
 
     // TODO: this should be calculated by the relay server from events
     // friends, users address has an account with
@@ -95,13 +93,17 @@ contract CurrencyNetwork {
     }
 
     function CurrencyNetwork(
-        bytes29 _tokenName,
-        bytes3 _tokenSymbol,
+        string _tokenName,
+        string _tokenSymbol,
         address _eternalStorage
     ) {
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
         eternalStorage = EternalStorage(_eternalStorage);
+    }
+
+    function tokenFallback(address _from, uint _value, bytes _data) {
+
     }
 
     /*
@@ -159,6 +161,7 @@ contract CurrencyNetwork {
         transferFrom(_from, _to, _value);
         // set processed
         cheques[chequeId] = calculateMtime();
+        ChequeCashed(_from, _to, _value);
         success = true;
     }
 
@@ -167,8 +170,9 @@ contract CurrencyNetwork {
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
      */
-    function transfer(address _to, uint32 _value) external returns (bool success) {
-        success = _mediatedTransferFrom(msg.sender, _to, _value);
+    function transfer(address _to, uint _value) valueWithinInt32(_value) returns (bool success) {
+        uint32 value = uint32(_value);
+        success = _mediatedTransferFrom(msg.sender, _to, value);
     }
 
     /*
@@ -189,7 +193,6 @@ contract CurrencyNetwork {
      * @param _value The maximum amount of tokens that can be spend
      */
     function updateCreditline(address _debtor, uint32 _value) external notSender(_debtor) {
-        //TODO reduce must be possible without accept
         if (_value < getCreditline(msg.sender, _debtor)) {
             _setCreditline(msg.sender, _debtor, _value);
         } else {
@@ -243,20 +246,6 @@ contract CurrencyNetwork {
     }
 
     /*
-     * @notice `msg.sender` approves `_spender` to spend `_value` tokens, is currently not supported for Trustlines
-     * @param _spender The address of the account able to transfer the tokens
-     * @param _value The amount of wei to be approved for transfer
-     */
-    function approve(address _spender,  uint _value) valueWithinInt32(_value) public returns (bool success){
-        uint32 value = uint32(_value);
-        address creditor = msg.sender;
-
-        allowed[creditor][_spender] = value;
-        Approval(creditor, _spender, value);
-        success = true;
-    }
-
-    /*
      * @notice send `_value` token to `_to` from `msg.sender`
      * @param _from The address of the sender
      * @param _to The address of the recipient
@@ -265,13 +254,8 @@ contract CurrencyNetwork {
      */
     function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) public returns (bool success){
         uint32 value = uint32(_value);
-        if (allowed[_from][msg.sender] >= value) {
-            allowed[_from][msg.sender] -= value;
-            require(_transferOnValidPath(_from, _to, value));
-            success = true;
-        } else {
-            success = false;
-        }
+        require(_transferOnValidPath(_from, _to, value));
+        success = true;
     }
 
     function _abs(int64 _balance) internal constant returns (int64 balance)  {
@@ -362,19 +346,11 @@ contract CurrencyNetwork {
         remaining = uint(creditline + balance);
     }
 
-    /*
-     * @notice For Trustlines allowance equals the creditline
-     * @return Creditline between _owner and _spender
-     */
-    function allowance(address _owner, address _spender) public constant returns (uint32) {
-        return allowed[_owner][_spender];
-    }
-
     function shaOfValue(address _from, address _to, uint32 _value, uint16 _expiresOn) public constant returns (bytes32 data) {
         return sha3(_from, _to, _value, _expiresOn);
     }
 
-  /*
+    /*
      * @dev The ERC20 Token balance for the spender. This is different from the balance within a trustline.
      *      In Trustlines this is the spendable amount
      * @param _owner The address from which the balance will be retrieved
@@ -541,27 +517,32 @@ contract CurrencyNetwork {
         return _value + imbalanceFee;
     }
 
-    function _transfer(address _sender, address _receiver, uint32 _value, Trustline.Account account) internal  {
-        int64 balanceAB = account.balanceAB;
+    function _transfer(address _sender, address _receiver, uint32 _value, Trustline.Account accountReceiverSender) internal  {
+        int64 balanceAB = accountReceiverSender.balanceAB;
 
         // check Creditlines (value + balance must not exceed creditline)
-        //TODO: check side of account or rename account to accountReceiverSender
-        uint32 creditline = account.creditlineAB;
+        // TODO: check side of account or rename account to accountReceiverSender
+        uint32 creditline = accountReceiverSender.creditlineAB;
         uint32 nValue = uint32(_calculateCapacityFeeInv(_value));
         nValue = uint32(_calculateImbalanceFeeInv(nValue, balanceAB));
 
         require(nValue + balanceAB <= creditline);
 
         // apply Interests
-        uint16 elapsed = calculateMtime() - account.mtime;
-        int64 interest = occurredInterest(account.balanceAB, account.interestAB, elapsed);
-        account.balanceAB += interest;
+        uint16 elapsed = calculateMtime() - accountReceiverSender.mtime;
+        int64 interest = occurredInterest(accountReceiverSender.balanceAB, accountReceiverSender.interestAB, elapsed);
+        accountReceiverSender.balanceAB += interest;
 
         // store new balance
-        account.balanceAB = nValue + balanceAB;
-        // DEBUG
-        Debug(nValue, _value, 0, account.balanceAB);
-        storeAccount(_receiver, _sender, account);
+        accountReceiverSender.balanceAB = nValue + balanceAB;
+        storeAccount(_receiver, _sender, accountReceiverSender);
+
+        // For ERC223, callback to receiver if it is contract
+        if (isContract(_receiver)) {
+            ContractReceiver receiver = ContractReceiver(_receiver);
+            bytes memory empty;
+            receiver.tokenFallback(_receiver, _value, empty);
+        }
     }
 
     function addToUsersAndFriends(address _A, address _B) internal {
@@ -571,4 +552,31 @@ contract CurrencyNetwork {
         friends[_B].insert(_A);
     }
 
+    // ERC 223 Interface
+
+    function name() constant returns (string) {
+        return name;
+    }
+
+    function symbol() constant returns (string) {
+        return symbol;
+    }
+
+    function decimals() constant returns (uint8) {
+        return decimals;
+    }
+
+    function transfer(address to, uint value, bytes data) returns (bool ok) {
+
+    }
+
+    //assemble the given address bytecode. If bytecode exists then the _addr is a contract.
+    function isContract(address _addr) private returns (bool) {
+        uint length;
+        assembly {
+            //retrieve the size of the code on target address, this needs assembly
+            length := extcodesize(_addr)
+        }
+        return (length>0);
+    }
 }

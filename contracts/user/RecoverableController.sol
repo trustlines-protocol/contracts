@@ -7,7 +7,7 @@ contract RecoverableController {
     Proxy   public proxy;
 
     address public userKey;
-    bytes32 public publicKeyUser;
+    bytes   public publicKeyUser;
     address public proposedUserKey;
     uint    public proposedUserKeyPendingUntil;
 
@@ -30,7 +30,7 @@ contract RecoverableController {
         if (msg.sender == recoveryKey) _;
     }
 
-    function RecoverableController(address proxyAddress, address _userKey, uint _longTimeLock, uint _shortTimeLock, bytes32 _publicKeyUser) {
+    function RecoverableController(address proxyAddress, address _userKey, uint _longTimeLock, uint _shortTimeLock, bytes _publicKeyUser) {
         version = 1;
         proxy = Proxy(proxyAddress);
         userKey = _userKey;
