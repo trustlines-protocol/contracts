@@ -15,16 +15,16 @@ trustlines = [(0, 1, 100, 150),
               (0, 4, 500, 550)
               ]  # (A, B, tlAB, tlBA)
 
-def trustlines_contract(trustlines_contract, tlAddr0, tlAddr1, proxy0, proxy1, web3):
+def trustlines_contract(trustlines_contract, web3):
     for (A, B, tlAB, tlBA) in trustlines:
         print((A, B, tlAB, tlBA))
-        txid = trustlines_contract(tlAddr0).transact({"from":web3.eth.accounts[A]}).updateCreditline(proxy1, tlAB)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[A]}).updateCreditline(web3.eth.accounts[B], tlAB)
         receipt = check_succesful_tx(web3, txid)
-        txid = trustlines_contract(tlAddr1).transact({"from":web3.eth.accounts[B]}).acceptCreditline(proxy0, tlAB)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[B]}).acceptCreditline(web3.eth.accounts[A], tlAB)
         receipt = check_succesful_tx(web3, txid)
-        txid = trustlines_contract(tlAddr1).transact({"from":web3.eth.accounts[B]}).updateCreditline(proxy0, tlBA)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[B]}).updateCreditline(web3.eth.accounts[A], tlBA)
         receipt = check_succesful_tx(web3, txid)
-        txid = trustlines_contract(tlAddr0).transact({"from":web3.eth.accounts[A]}).acceptCreditline(proxy1, tlBA)
+        txid = trustlines_contract.transact({"from":web3.eth.accounts[A]}).acceptCreditline(web3.eth.accounts[B], tlBA)
     receipt = check_succesful_tx(web3, txid)
     return trustlines_contract
 
@@ -61,6 +61,9 @@ def main():
     print("Web3 provider is", web3.currentProvider)
     eternalStorage = deploy("EternalStorage", chain, web3.eth.accounts[0])
     currencyNetwork = deploy("CurrencyNetwork", chain, 'Trustlines', 'T', eternalStorage.address)
+    txid = eternalStorage.transact({"from": web3.eth.accounts[0]}).transfer(currencyNetwork.address);
+    receipt = check_succesful_tx(web3, txid)
+    trustlines_contract(currencyNetwork, web3)
 
 if __name__ == "__main__":
     main()
