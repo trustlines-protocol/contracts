@@ -9,10 +9,10 @@ contract Registry{
     using NameAddressLibrary for NameAddressLibrary.NameAddressMap;
     NameAddressLibrary.NameAddressMap registry;
 
-    event TLTokenNameRegistered(bytes32 name, address tltokenAddress);
-    event TLTokenNameDeRegistered(bytes32 name);
+    event TLTokenNameRegistered(string name, address tltokenAddress);
+    event TLTokenNameDeRegistered(string name);
 
-    function register(bytes32 name, address tlToken) returns (bool success){
+    function register(string name, address tlToken) returns (bool success){
         success = false;
         if(!registry.contains(name)){
             success = registry.set(name, tlToken);
@@ -20,15 +20,15 @@ contract Registry{
          }
     }
 
-    function getTLTokenAddress(bytes32 name) constant returns (address){
+    function getTLTokenAddress(string name) constant returns (address){
         return registry.get(name);
     }
 
-    function contains(bytes32 name) constant returns (bool){
+    function contains(string name) constant returns (bool){
         return registry.contains(name);
      }
 
-    function unregister(bytes32 name) returns (bool success){
+    function unregister(string name) returns (bool success){
         success = registry.remove(name);
         TLTokenNameDeRegistered(name);
     }
@@ -37,7 +37,7 @@ contract Registry{
         return registry.size();
     }
 
-    function index(uint idx) constant returns (bytes32){
+    function index(uint idx) constant returns (string){
         return registry.index(idx);
     }
 
@@ -49,7 +49,4 @@ contract Registry{
         return tlTokens;
     }
 
-    function getAllNames() constant returns (bytes32[]){
-        return registry.keys;
-    }
 }

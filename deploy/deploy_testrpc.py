@@ -59,32 +59,8 @@ def main():
         web3 = chain.web3
 
     print("Web3 provider is", web3.currentProvider)
-    eternalStorage = deploy("EternalStorage", chain)
+    eternalStorage = deploy("EternalStorage", chain, web3.eth.accounts[0])
     currencyNetwork = deploy("CurrencyNetwork", chain, 'Trustlines', 'T', eternalStorage.address)
-    idFactory = deploy("IdentityFactoryWithRecoveryKey", chain)
-    transfer_filter = idFactory.on('IdentityCreated')
-
-    # create 1st identity
-    txhash = idFactory.transact().CreateProxyWithControllerAndRecoveryKey(currencyNetwork.address, web3.eth.accounts[0], web3.eth.accounts[1], 0, 0)
-    check_succesful_tx(web3, txhash)
-    wait(transfer_filter)
-    log_entries = transfer_filter.get()
-    ctrlAddrAcct0 = log_entries[0]['args']['controller']
-    proxy0 = log_entries[0]['args']['proxy']
-
-    # create 2nd identity
-    txhash = idFactory.transact().CreateProxyWithControllerAndRecoveryKey(currencyNetwork.address, web3.eth.accounts[1], web3.eth.accounts[0], 0, 0)
-    check_succesful_tx(web3, txhash)
-    wait(transfer_filter)
-    log_entries = transfer_filter.get()
-    ctrlAddrAcct1 = log_entries[0]['args']['controller']
-    proxy1 = log_entries[0]['args']['proxy']
-
-    print(ctrlAddrAcct0, "-p", proxy0)
-    print(ctrlAddrAcct1, "-p", proxy1)
-
-    trustlineProxy = chain.provider.get_contract_factory("CurrencyNetwork")
-    trustlines_contract(trustlineProxy, ctrlAddrAcct0, ctrlAddrAcct1, proxy0, proxy1, web3)
 
 if __name__ == "__main__":
     main()

@@ -33,7 +33,7 @@ contract CurrencyNetworkFactory {
         EternalStorage es = new EternalStorage(_adminKey);
         address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, address(es));
         //TODO: change registry to string from bytes29
-        //registry.register(_tokenName, tokenAddr);
+        registry.register(_tokenName, tokenAddr);
         CurrencyNetworkCreated(tokenAddr);
     }
 }

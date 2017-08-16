@@ -6,16 +6,16 @@ pragma solidity ^0.4.0;
 
 library NameAddressLibrary {
     struct NameAddressMapEntry {
-    address tlTokenAddress;
-    uint idx;
+        address tlTokenAddress;
+        uint idx;
     }
 
     struct NameAddressMap {
-    mapping (bytes32 => NameAddressMapEntry) entries;
-    bytes32[] keys;
+        mapping (string => NameAddressMapEntry) entries;
+        string[] keys;
     }
 
-    function set(NameAddressMap storage self, bytes32 name, address addr) internal returns (bool){
+    function set(NameAddressMap storage self, string name, address addr) internal returns (bool){
         var entry = self.entries[name];
         if (entry.idx == 0) {
             entry.idx = self.keys.length + 1;
@@ -26,15 +26,15 @@ library NameAddressLibrary {
         return false;
     }
 
-    function get(NameAddressMap storage self, bytes32 name) internal constant returns (address){
+    function get(NameAddressMap storage self, string name) internal constant returns (address){
         return self.entries[name].tlTokenAddress;
     }
 
-    function contains(NameAddressMap storage self, bytes32 name) internal constant returns (bool){
+    function contains(NameAddressMap storage self, string name) internal constant returns (bool){
         return self.entries[name].idx > 0;
     }
 
-    function remove(NameAddressMap storage self, bytes32 name) internal returns (bool){
+    function remove(NameAddressMap storage self, string name) internal returns (bool){
         var entry = self.entries[name];
         if (entry.idx > 0) {
             var otherkey = self.keys[self.keys.length - 1];
@@ -53,7 +53,7 @@ library NameAddressLibrary {
         return self.keys.length;
     }
 
-    function index(NameAddressMap storage self, uint idx) internal constant returns (bytes32) {
+    function index(NameAddressMap storage self, uint idx) internal constant returns (string) {
         return self.keys[idx];
     }
 
@@ -65,7 +65,7 @@ library NameAddressLibrary {
         return tlTokens;
     }
 
-    function getAllNames(NameAddressMap storage self) internal constant returns (bytes32[]){
+    function getAllNames(NameAddressMap storage self) internal constant returns (string[]){
         return self.keys;
     }
 }

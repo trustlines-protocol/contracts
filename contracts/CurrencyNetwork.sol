@@ -27,7 +27,7 @@ import "./lib/ERC223_Interface.sol";
  *      uint16 _imbalance_fee_divisor,
  *      uint16 _maxInterestRate)
  */
-contract CurrencyNetwork is ContractReceiver, ERC223 {
+contract CurrencyNetwork is ERC223 {
 
     using ItSet for ItSet.AddressSet;
 
@@ -100,10 +100,6 @@ contract CurrencyNetwork is ContractReceiver, ERC223 {
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
         eternalStorage = EternalStorage(_eternalStorage);
-    }
-
-    function tokenFallback(address _from, uint _value, bytes _data) {
-
     }
 
     /*
