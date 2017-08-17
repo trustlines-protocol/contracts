@@ -22,3 +22,14 @@ The Smart Contracts can be installed separately from the other components of the
  * deploy:      `python deploy_testrpc.py`
 
 For deployment a running _ethereumjs-testrpc_ (`testrpc`) with default values is mandatory.
+
+### Integration
+
+Each component of Trustlines has a Integration instruction which should enable any user to setup his own environment step-by-step.
+
+#### Integrating Smart Contracts and Relay Server
+
+*NOTE: we are assuming a running _ethereumjs-testrpc_ (`testrpc`) instance with default settings.*
+
+ * Follow the instructions for _Setup_ and _Usage_ above
+ * ...

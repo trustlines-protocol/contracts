@@ -1,4 +1,4 @@
-import json, time, re;
+import json, time, sys, os
 from web3 import Web3, HTTPProvider
 
 trustlines = [(0, 1, 100, 150),
@@ -7,6 +7,10 @@ trustlines = [(0, 1, 100, 150),
               (3, 4, 400, 450),
               (0, 4, 500, 550)
               ]  # (A, B, tlAB, tlBA)
+
+
+contract_abi_path = ''
+
 
 def check_successful_tx(web3: Web3, txid: str, timeout=120) -> dict:
     for i in range(0, timeout):
@@ -21,7 +25,7 @@ def check_successful_tx(web3: Web3, txid: str, timeout=120) -> dict:
     assert txn["gas"] != txn_receipt["gasUsed"]
     return txn
 
-def trustlines_contract(trustlines_contract, web3):
+def prepare_trustlines_contract(trustlines_contract, web3):
     for (A, B, tlAB, tlBA) in trustlines:
         print((A, B, tlAB, tlBA))
         txid = trustlines_contract.transact({"from":web3.eth.accounts[A]}).updateCreditline(web3.eth.accounts[B], tlAB)
@@ -43,48 +47,23 @@ def test_trustlines(trustlines_contract, web3):
     for (A, B, tlAB, tlBA) in trustlines:
         assert trustlines_contract.call().trustline(web3.eth.accounts[A], web3.eth.accounts[B]) == [tlAB, tlBA, 0]
 
-def test_spendable(trustlines_contract, web3):
-    (A, B) = accounts(web3)(2)
-    assert trustlines_contract.call().spendableTo(A, B) == 150
-    assert trustlines_contract.call().spendableTo(B, A) == 100
-    txid = trustlines_contract.transact({"from":A}).transfer(B, 40)
-    check_successful_tx(web3, txid)
-    print(trustlines_contract.call().spendableTo(A, B))
-    assert trustlines_contract.call().spendableTo(A, B) == 110
-    assert trustlines_contract.call().spendableTo(B, A) == 140
-
-def test_balance_of(trustlines_contract, web3):
-    (A, B, C, D, E) = accounts(web3)(5)
-    print(trustlines_contract.call().balanceOf(A))
-    assert trustlines_contract.call().balanceOf(A) == 700
-    trustlines_contract.transact({"from":A}).transfer(B, 40)
-    assert trustlines_contract.call().balanceOf(A) == 660
-    trustlines_contract.transact({"from":A}).mediatedTransfer(C, 20, [E, D, C])
-    assert trustlines_contract.call().balanceOf(A) == 640
-    trustlines_contract.transact({"from":E}).transfer(A, 70)
-    assert trustlines_contract.call().balanceOf(A) == 710
-#    with pytest.raises(tester.TransactionFailed):
-#        trustlines_contract.transact({"from":A}).transfer(B, 1000)
-    assert trustlines_contract.call().balanceOf(A) == 710
-
 def abi():
-    with open('./build/contracts/CurrencyNetwork.json') as data_file:
-        data = data_file.read()
-    addr = re.search(r'"address": "(.+)",', data, re.M|re.I).group(1)
-    data = re.search(r'"abi": (.+),.*"unlinked_binary"', data, re.M|re.I|re.DOTALL).group(1)
-    return addr, json.loads(data)
+    global contract_abi_path
+    if not contract_abi_path:
+        contract_abi_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'build/contracts.json')
+    with open(contract_abi_path) as abi_file:
+        contract_abis = json.load(abi_file)
+        trustlines_abi  = contract_abis['CurrencyNetwork']['abi']
+    return trustlines_abi
+
 
 def main():
     web3 = Web3(HTTPProvider('http://localhost:8545'))
-    (addr, jabi) = abi()
-    print("\ncalling contract at address {}\n".format(addr))
-    ctri = web3.eth.contract(abi=jabi, address=addr)
-    assert(ctri.call().spendable(addr) == 0)
-    # start integration tests
-    trustlines_contract(ctri, web3)
-    #test_trustlines(ctri, web3)
-    #test_spendable(ctri, web3)
-    test_balance_of(ctri, web3)
+    addr = sys.argv[1]
+    print("\ncalling trustlines contract at address {}\n".format(addr))
+    trustlines_contract = web3.eth.contract(abi=abi(), address=addr)
+    prepare_trustlines_contract(trustlines_contract, web3)
+    test_trustlines(trustlines_contract, web3)
 
 if __name__ == "__main__":
     main()
