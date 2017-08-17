@@ -63,7 +63,8 @@ def main():
     currencyNetwork = deploy("CurrencyNetwork", chain, 'Trustlines', 'T', eternalStorage.address)
     txid = eternalStorage.transact({"from": web3.eth.accounts[0]}).transfer(currencyNetwork.address);
     receipt = check_succesful_tx(web3, txid)
-    trustlines_contract(currencyNetwork, web3)
+    # health check
+    assert(currencyNetwork.call().spendable(web3.eth.accounts[0]) == 0)
 
 if __name__ == "__main__":
     main()
