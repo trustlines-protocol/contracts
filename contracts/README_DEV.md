@@ -32,4 +32,5 @@ Each component of Trustlines has a Integration instruction which should enable a
 *NOTE: we are assuming a running _ethereumjs-testrpc_ (`testrpc`) instance with default settings.*
 
  * Follow the instructions for _Setup_ and _Usage_ above
- * ...
+ * Use the `CurrencyNetwork` address printed during deployment as argument for `python connect_wo_populus.py`
+ * If there were no errors, the contracts are deployed correctly and can be used with any web3 connector
