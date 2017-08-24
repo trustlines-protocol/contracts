@@ -1,7 +1,7 @@
 /*
 This library serves as storage for the name address mappings of TLToken Names and their addresses
 */
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.11;
 
 
 library NameAddressLibrary {

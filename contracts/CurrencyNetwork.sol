@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.11;
 
 import "./lib/it_set_lib.sol";      // Library for Set iteration
 import "./lib/ECVerify.sol";        // Library for safer ECRecovery
@@ -532,7 +532,9 @@ contract CurrencyNetwork is ERC223 {
         // store new balance
         accountReceiverSender.balanceAB = nValue + balanceAB;
         storeAccount(_receiver, _sender, accountReceiverSender);
-
+        // Should be removed later
+        BalanceUpdate(_receiver, _sender, accountReceiverSender.balanceAB);
+        
         // For ERC223, callback to receiver if it is contract
         if (isContract(_receiver)) {
             ContractReceiver receiver = ContractReceiver(_receiver);
