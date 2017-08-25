@@ -19,7 +19,7 @@ The Smart Contracts can be installed separately from the other components of the
 
  * compilation: `populus compile`
  * unittest:    `pytest`
- * deploy:      `python deploy_testrpc.py`
+ * deploy:      `python deploy/deploy_testrpc.py`
 
 For deployment a running _ethereumjs-testrpc_ (`testrpc`) with default values is mandatory.
 

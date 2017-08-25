@@ -37,9 +37,9 @@ contract CurrencyNetwork is ERC223 {
     // Divides current value being transferred to calculate the Network fee
     uint16 constant network_fee_divisor = 1000;
     // Divides current value being transferred to calculate the capacity fee
-    uint16 constant capacity_fee_divisor = 500;
+    uint16 constant capacity_fee_divisor = 100;
     // Divides imbalance that current value transfer introduces to calculate the imbalance fee
-    uint16 constant imbalance_fee_divisor = 250;
+    uint16 constant imbalance_fee_divisor = 25;
     // Base decimal units in which we carry out operations in this token.
     uint32 constant base_unit_multiplier = 100000;
 
@@ -239,6 +239,17 @@ contract CurrencyNetwork is ERC223 {
         Trustline.Account memory account = getAccountInt(creditor, _debtor);
         account.interestAB = _ir;
         storeAccount(creditor, _debtor, account);
+    }
+
+    /*
+     * @notice send `_value` token to `_to` from `msg.sender`
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _maxFee the maximum fee which is accepted
+     * @param _path the path of the trustlines calculated by a relay server
+     */
+    function mediatedTransfer(address _to, uint32 _value, uint16 _maxFee, address[] _path) external returns (bool success) {
+        return _mediatedTransferFrom(msg.sender, _to, _value, _maxFee, _path);
     }
 
     /*
@@ -562,8 +573,8 @@ contract CurrencyNetwork is ERC223 {
         return decimals;
     }
 
-    function transfer(address to, uint value, bytes data) returns (bool ok) {
-
+    function transfer(address _to, uint _value, bytes _data) returns (bool ok) {
+        return transfer(_to, _value);
     }
 
     //assemble the given address bytecode. If bytecode exists then the _addr is a contract.
