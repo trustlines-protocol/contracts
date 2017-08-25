@@ -243,17 +243,6 @@ contract CurrencyNetwork is ERC223 {
 
     /*
      * @notice send `_value` token to `_to` from `msg.sender`
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     * @param _maxFee the maximum fee which is accepted
-     * @param _path the path of the trustlines calculated by a relay server
-     */
-    function mediatedTransfer(address _to, uint32 _value, uint16 _maxFee, address[] _path) external returns (bool success) {
-        return _mediatedTransferFrom(msg.sender, _to, _value, _maxFee, _path);
-    }
-
-    /*
-     * @notice send `_value` token to `_to` from `msg.sender`
      * @param _from The address of the sender
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
