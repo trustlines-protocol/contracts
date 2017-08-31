@@ -22,7 +22,7 @@ def trustlines_contract(chain, web3):
 
     Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
     deploy_txn_hash = Trustlines.deploy(args=[
-        "Testcoin", "T", eternalStorage_address
+        "Testcoin", "T", eternalStorage_address, web3.eth.accounts[0], 1000, 100, 25, 100
     ])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     # transfer ownership from base account to contract_address
@@ -379,7 +379,7 @@ def test_too_high_value_mediatedTransfer(trustlines_contract, accounts):
     trustlines_contract.transact({"from": C}).acceptCreditline(B, 2**32 - 1)
     trustlines_contract.transact({"from": C}).updateCreditline(B, 0)
 #    trustlines_contract.transact({"from": B}).acceptCreditline(C, 0)
-    trustlines_contract.transact({"from": C}).prepare(A, 2**16-1, 50000, [B, A])
+    trustlines_contract.transact({"from": C}).prepare(A, 50000, [B, A])
     trustlines_contract.transact({"from": C}).transfer(A, 2**16-1)
     assert trustlines_contract.call().trustline(C, B) == [0, 2**32 - 1, -(2**16 - 1)]
 

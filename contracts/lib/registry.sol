@@ -12,12 +12,13 @@ contract Registry{
     event TLTokenNameRegistered(string name, address tltokenAddress);
     event TLTokenNameDeRegistered(string name);
 
-    function register(string name, address tlToken) returns (bool success){
+    function register(string name, address tlToken) external returns (bool success){
         success = false;
-        if(!registry.contains(name)){
-            success = registry.set(name, tlToken);
-            TLTokenNameRegistered(name, tlToken);
-         }
+
+        //if(!registry.contains(name)){
+        //    success = registry.set(name, tlToken);
+        //    TLTokenNameRegistered(name, tlToken);
+        // }
     }
 
     function getTLTokenAddress(string name) constant returns (address){

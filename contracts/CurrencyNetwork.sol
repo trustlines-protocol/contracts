@@ -35,11 +35,11 @@ contract CurrencyNetwork is ERC223 {
     // FEE GLOBAL DEFAULTS
     
     // Divides current value being transferred to calculate the Network fee
-    uint16 constant network_fee_divisor = 1000;
+    uint16 network_fee_divisor = 1000;
     // Divides current value being transferred to calculate the capacity fee
-    uint16 constant capacity_fee_divisor = 100;
+    uint16 capacity_fee_divisor = 100;
     // Divides imbalance that current value transfer introduces to calculate the imbalance fee
-    uint16 constant imbalance_fee_divisor = 25;
+    uint16 imbalance_fee_divisor = 25;
     // Base decimal units in which we carry out operations in this token.
     uint32 constant base_unit_multiplier = 100000;
 
@@ -95,11 +95,19 @@ contract CurrencyNetwork is ERC223 {
     function CurrencyNetwork(
         string _tokenName,
         string _tokenSymbol,
-        address _eternalStorage
+        address _eternalStorage,
+        uint16 _network_fee_divisor,
+        uint16 _capacity_fee_divisor,
+        uint16 _imbalance_fee_divisor,
+        uint16 _maxInterestRate
     ) {
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
         eternalStorage = EternalStorage(_eternalStorage);
+        network_fee_divisor = _network_fee_divisor;
+        capacity_fee_divisor = _capacity_fee_divisor;
+        imbalance_fee_divisor = _imbalance_fee_divisor;
+        //maxInterestRate = _maxInterestRate;
     }
 
     /*
@@ -312,6 +320,12 @@ contract CurrencyNetwork is ERC223 {
             BalanceUpdate(sender, _to, uint32(rValue));
         }
         Transfer(_from, _to, uint32(_value));
+        // For ERC223, callback to receiver if it is contract
+        if (isContract(_to)) {
+            ContractReceiver contractReceiver = ContractReceiver(_to);
+            bytes memory empty;
+            contractReceiver.tokenFallback(_to, _value, empty);
+        }
         success = true;
     }
 
@@ -532,13 +546,6 @@ contract CurrencyNetwork is ERC223 {
         // store new balance
         accountReceiverSender.balanceAB = nValue + balanceAB;
         storeAccount(_receiver, _sender, accountReceiverSender);
-
-        // For ERC223, callback to receiver if it is contract
-        if (isContract(_receiver)) {
-            ContractReceiver receiver = ContractReceiver(_receiver);
-            bytes memory empty;
-            receiver.tokenFallback(_receiver, _value, empty);
-        }
     }
 
     function addToUsersAndFriends(address _A, address _B) internal {

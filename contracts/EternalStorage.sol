@@ -8,7 +8,11 @@ contract EternalStorage is Owned {
     mapping(bytes32 => Trustline.Account) public accounts;
 
     function EternalStorage(address _adminKey) Owned(_adminKey) {
+        // just set Owner, nothing to do here.
+    }
 
+    function transfer(address _owner) onlyOwnerOrAdmin {
+        owner = _owner;
     }
 
     function setAccount(address _A, address _B, uint32 clAB, uint32 clBA, uint16 iAB, uint16 iBA, uint16 fA, uint16 fB, uint16 mtime, int64 balance) onlyOwner external
@@ -37,7 +41,7 @@ contract EternalStorage is Owned {
          }
     }
 
-    function getAccount(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int)
+    function getAccount(address _A, address _B) public constant onlyOwner returns (int, int, int, int, int, int, int, int)
     {
         Trustline.Account account = accounts[uniqueIdentifier(_A, _B)];
         if (_A < _B) {

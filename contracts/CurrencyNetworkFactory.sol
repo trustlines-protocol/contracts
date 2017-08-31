@@ -9,12 +9,12 @@ import "./CurrencyNetwork.sol";
 
 contract CurrencyNetworkFactory {
 
-    event CurrencyNetworkCreated(address _currencyNetworkContract);
+    event CurrencyNetworkCreated(address _currencyNetworkContract, address _eternalStorage);
 
     Registry private registry;
 
     function CurrencyNetworkFactory(address _registry) {
-        registry = Registry(registry);
+        registry = Registry(_registry);
     }
 
     //cost XXXXXXX gas
@@ -22,7 +22,6 @@ contract CurrencyNetworkFactory {
     (
         string _tokenName,
         string _tokenSymbol,
-        address _delegates,
         address _adminKey,
         uint16 _network_fee_divisor,
         uint16 _capacity_fee_divisor,
@@ -31,10 +30,9 @@ contract CurrencyNetworkFactory {
     ) {
         GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
         EternalStorage es = new EternalStorage(_adminKey);
-        address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, address(es));
+        address tokenAddr = new CurrencyNetwork(_tokenName, _tokenSymbol, address(es), _network_fee_divisor, _capacity_fee_divisor, _imbalance_fee_divisor, _maxInterestRate);
         es.transfer(tokenAddr);
-        //TODO: change registry to string from bytes29
         registry.register(_tokenName, tokenAddr);
-        CurrencyNetworkCreated(tokenAddr);
+        CurrencyNetworkCreated(tokenAddr, es);
     }
 }
