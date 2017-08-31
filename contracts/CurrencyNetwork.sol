@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.11;
 
 import "./lib/it_set_lib.sol";      // Library for Set iteration
 import "./lib/ECVerify.sol";        // Library for safer ECRecovery
@@ -316,8 +316,6 @@ contract CurrencyNetwork is ERC223 {
                 account.feesOutstandingA += fees;
             }
             _transfer(sender, receiver, uint32(rValue), account);
-            // TODO: remove due to gas costs
-            BalanceUpdate(sender, _to, uint32(rValue));
         }
         Transfer(_from, _to, uint32(_value));
         // For ERC223, callback to receiver if it is contract
@@ -546,6 +544,9 @@ contract CurrencyNetwork is ERC223 {
         // store new balance
         accountReceiverSender.balanceAB = nValue + balanceAB;
         storeAccount(_receiver, _sender, accountReceiverSender);
+
+        // Should be removed later
+        BalanceUpdate(_receiver, _sender, accountReceiverSender.balanceAB);
     }
 
     function addToUsersAndFriends(address _A, address _B) internal {

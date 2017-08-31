@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.11;
 
 import "./lib/registry.sol";
 import "./gov/GovernanceTemplate.sol";
