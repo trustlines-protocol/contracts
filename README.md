@@ -21,6 +21,6 @@ _Note: all command should be executed from the root directory_
 
  * compilation: `populus compile`
  * unittest:    `pytest`
- * deploy:      `python deploy_testrpc.py`
+ * deploy:      `python deploy/deploy_testrpc.py`
 
 For deployment a running _ethereumjs-testrpc_ (`testrpc`) with default values is mandatory.

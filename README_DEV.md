@@ -17,6 +17,8 @@ The Smart Contracts can be installed separately from the other components of the
 
 ### Usage
 
+_Note: all command should be executed from the root directory_
+
  * compilation: `populus compile`
  * unittest:    `pytest`
  * deploy:      `python deploy/deploy_testrpc.py`

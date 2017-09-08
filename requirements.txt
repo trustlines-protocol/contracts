@@ -1,3 +1,5 @@
-populus==1.6.9
-pytest==3.1.2		
+populus==2.0.0a4
+pytest==3.2.1
 ethereum==1.6.1
+pycrypto==2.6.1
+web3==3.11.1
