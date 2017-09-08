@@ -52,21 +52,29 @@ def main():
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     addr_trustlines = log_entries[0]['args']['_currencyNetworkContract']
-    print("Real CurrencyNetwork contract address is", addr_trustlines)
+    print("REAL CurrencyNetwork contract address is", addr_trustlines)
 
     resolver = deploy("Resolver", chain, addr_trustlines)
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", addr_trustlines);
     receipt = check_successful_tx(web3, txid)
     transfer_filter = resolver.on("FallbackChanged")
     proxy = deploy("EtherRouter", chain, resolver.address)
     proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).setAccount(web3.eth.accounts[6], web3.eth.accounts[7], 2000000, 1, 1, 1, 1, 1, 1, 1);
+    receipt = check_successful_tx(web3, txid)
+    print(proxied_trustlines.call().getAccountExt(web3.eth.accounts[6], web3.eth.accounts[7]))
+
+    storagev2 = deploy("CurrencyNetwork", chain)
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).setFallback(storagev2.address);
+    receipt = check_successful_tx(web3, txid)
+    wait(transfer_filter)
+    log_entries = transfer_filter.get()
+    print("Forwarded to ", log_entries[0]['args']['newFallback'])
     txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 1000, 100, 25, 100)
     receipt = check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", addr_trustlines);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", storagev2.address);
     receipt = check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("trustline(address,address)", "trustlineLen(address,address)", addr_trustlines);
-    receipt = check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", addr_trustlines);
-    receipt = check_successful_tx(web3, txid)
+    print(proxied_trustlines.call().getAccountExt(web3.eth.accounts[6], web3.eth.accounts[7]))
 
 
 if __name__ == "__main__":
