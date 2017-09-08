@@ -1,3 +1,4 @@
+// TODO check if still used!
 pragma solidity ^0.4.11;
 
 contract Owned {

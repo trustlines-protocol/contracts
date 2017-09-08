@@ -1,14 +1,9 @@
 pragma solidity ^0.4.11;
 
-import "./lib/it_set_lib.sol";      // Library for Set iteration
-import "./lib/ECVerify.sol";        // Library for safer ECRecovery
-import "./Trustline.sol";           // data structure and functionality for a Trustline
-import "./Interests.sol";           // interest calculator for path in CurrencyNetwork
-import "./Fees.sol";                // fees calculator for path in CurrencyNetwork
-import "./EternalStorage.sol";      // eternal storage for upgrade purposes
-import "./ICurrencyNetwork.sol";    // interface description for CurrencyNetwork
-import "./lib/Receiver_Interface.sol";
-import "./lib/ERC223_Interface.sol";
+import "./lib/it_set_lib.sol";          // Library for Set iteration
+import "./lib/ECVerify.sol";            // Library for safer ECRecovery
+import "./lib/Receiver_Interface.sol";  // Library for Token Receiver ERC223 Interface
+import "./lib/ERC223_Interface.sol";    // Library for Token ERC223 Interface
 
 /*
  * CurrencyNetwork
@@ -31,9 +26,10 @@ contract CurrencyNetwork is ERC223 {
 
     using ItSet for ItSet.AddressSet;
 
+    mapping(bytes32 => Account) public accounts;
 
     // FEE GLOBAL DEFAULTS
-    
+
     // Divides current value being transferred to calculate the Network fee
     uint16 network_fee_divisor = 1000;
     // Divides current value being transferred to calculate the capacity fee
@@ -48,8 +44,6 @@ contract CurrencyNetwork is ERC223 {
     string public symbol;
     uint8 public decimals = 6;
 
-    EternalStorage eternalStorage;
-
     // Events
     event Approval(address indexed _owner, address indexed _spender, uint256 indexed _value);
     event Transfer(address indexed _from, address indexed _to, uint indexed _value);
@@ -63,8 +57,26 @@ contract CurrencyNetwork is ERC223 {
     struct Path {
         // set maximum fee which is allowed for this transaction
         uint16 maxFee;
-        // set complete path for transaction 
+        // set complete path for transaction
         address[] path;
+    }
+
+    // for accounting balance and trustline between two users introducing fees and interests
+    // currently uses 208 bits, 48 remaining
+    struct Account {
+        // A < B (A is the lower address)
+        uint16 interestAB;          //  interest rate set by A for debt of B
+        uint16 interestBA;          //  interest rate set by B for debt of A
+
+        uint16 mtime;               //  last modification time
+
+        uint16 feesOutstandingA;    //  fees outstanding by A
+        uint16 feesOutstandingB;    //  fees outstanding by B
+
+        uint32 creditlineAB;        //  creditline given by A to B, always positive
+        uint32 creditlineBA;        //  creditline given by B to A, always positive
+
+        int64 balanceAB;            //  balance between A and B, A->B (x(-1) for B->A)
     }
 
     // sha3 hash to Path for planned transfer
@@ -79,7 +91,7 @@ contract CurrencyNetwork is ERC223 {
     mapping (address => ItSet.AddressSet) friends;
     //list of all users of the system
     ItSet.AddressSet users;
-    
+
     modifier notSender(address _sender) {
         require(_sender != msg.sender);
         _;
@@ -92,10 +104,13 @@ contract CurrencyNetwork is ERC223 {
         _;
     }
 
-    function CurrencyNetwork(
+    function CurrencyNetwork() {
+        // don't do anything here due to upgradeability issues (no contructor-call on replacement).
+    }
+
+    function init(
         string _tokenName,
         string _tokenSymbol,
-        address _eternalStorage,
         uint16 _network_fee_divisor,
         uint16 _capacity_fee_divisor,
         uint16 _imbalance_fee_divisor,
@@ -103,7 +118,6 @@ contract CurrencyNetwork is ERC223 {
     ) {
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
-        eternalStorage = EternalStorage(_eternalStorage);
         network_fee_divisor = _network_fee_divisor;
         capacity_fee_divisor = _capacity_fee_divisor;
         imbalance_fee_divisor = _imbalance_fee_divisor;
@@ -125,7 +139,7 @@ contract CurrencyNetwork is ERC223 {
                 });
         PathPrepared(msg.sender, _to);
     }
-    
+
     /*
      * @notice initialize contract to send `_value` token to `_to` from `_from` with calculated path
      * @param _from The address of the sender
@@ -224,7 +238,7 @@ contract CurrencyNetwork is ERC223 {
     }
 
     function _setCreditline(address _creditor, address _debtor, uint32 _value) internal returns (bool success){
-        Trustline.Account memory account = getAccountInt(_creditor, _debtor);
+        Account memory account = getAccount(_creditor, _debtor);
         int64 balance = account.balanceAB;
 
         addToUsersAndFriends(_creditor, _debtor);
@@ -244,7 +258,7 @@ contract CurrencyNetwork is ERC223 {
     function __updateInterestRate(address _debtor, uint16 _ir) external returns (bool success) {
         address creditor = msg.sender;
         // TODO: check GovernanceTemplate
-        Trustline.Account memory account = getAccountInt(creditor, _debtor);
+        Account memory account = getAccount(creditor, _debtor);
         account.interestAB = _ir;
         storeAccount(creditor, _debtor, account);
     }
@@ -310,7 +324,7 @@ contract CurrencyNetwork is ERC223 {
             } else {
                 sender = _path[i-2];
             }
-            Trustline.Account memory account = getAccountInt(receiver, sender);
+            Account memory account = getAccount(receiver, sender);
             if (i == 0) {
                 fees = _calculateNetworkFee(uint32(rValue));
                 account.feesOutstandingA += fees;
@@ -347,8 +361,7 @@ contract CurrencyNetwork is ERC223 {
      * @return Amount of remaining tokens allowed to spend
      */
     function spendableTo(address _spender, address _receiver) public constant returns (uint remaining) {
-        Trustline.Account memory account = getAccountInt(_spender, _receiver);
-
+        Account memory account = getAccount(_spender, _receiver);
         int64 balance = account.balanceAB;
         uint32 creditline = account.creditlineBA;
         remaining = uint(creditline + balance);
@@ -385,11 +398,17 @@ contract CurrencyNetwork is ERC223 {
      * @param _B the receiver that receives the tokens
      * @return the creditline given from A to B, the creditline given from B to A, the balance from the view of A
      */
-    function trustline(address _A, address _B) public constant returns (int creditlineAB, int creditlineBA, int balanceAB) {
-        Trustline.Account memory account = getAccountInt(_A, _B);
-        creditlineAB = account.creditlineAB;
-        creditlineBA = account.creditlineBA;
-        balanceAB = account.balanceAB;
+    function trustline(address _A, address _B) public constant returns (int256[]) {
+        Account memory account = getAccount(_A, _B);
+        int[] memory retvals = new int[](3);
+        retvals[0] = int256(account.creditlineAB);
+        retvals[1] = int256(account.creditlineBA);
+        retvals[2] = int256(account.balanceAB);
+        return retvals;
+    }
+
+    function trustlineLen(address _A, address _B) public constant returns (uint) {
+        return trustline(_A,_B).length + 2;
     }
 
     /*
@@ -398,7 +417,7 @@ contract CurrencyNetwork is ERC223 {
      * @param Ethereum Addresses of A and B
      */
     function getFeesOutstanding(address _A, address _B) public constant returns (int fees) {
-        Trustline.Account memory account = getAccountInt(_A, _B);
+        Account memory account = getAccount(_A, _B);
         fees = account.feesOutstandingA;
     }
 
@@ -411,17 +430,17 @@ contract CurrencyNetwork is ERC223 {
      */
     function getCreditline(address _owner, address _spender) public constant returns (uint creditline) {
         // returns the current creditline given by A to B
-        Trustline.Account memory account = getAccountInt(_owner, _spender);
+        Account memory account = getAccount(_owner, _spender);
         creditline = account.creditlineAB;
     }
 
     /*
      * @notice returns what B owes to A
-     * @dev If negative A owes B, if positive B owes A, delegates to EternalStorage
+     * @dev If negative A owes B, if positive B owes A
      * @param Ethereum addresses A and B which have trustline relationship established between them
      */
     function getBalance(address _A, address _B) public constant returns (int balance) {
-        Trustline.Account memory account = getAccountInt(_A, _B);
+        Account memory account = getAccount(_A, _B);
         balance = account.balanceAB;
     }
 
@@ -442,6 +461,12 @@ contract CurrencyNetwork is ERC223 {
         return users.list;
     }
 
+    function getUsersReturnSize() returns(uint) {
+        // Returning a dynamically-sized array requires two extra slots.
+        // One for the data location pointer, and one for the length.
+        return getUsers().length + 2;
+    }
+
     /*
      * @notice Calculates the current modification day since system start.
      * @notice now is an alias for block.timestamp gives the epoch time of the current block.
@@ -450,38 +475,27 @@ contract CurrencyNetwork is ERC223 {
         mtime = uint16((now/(24*60*60)) - ((2017 - 1970)* 365));
     }
 
-    // delegates to EternalStorage
-    function getAccountExt(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int) {
-        return eternalStorage.getAccount(_A, _B);
-    }
-
-    function getAccountInt(address _A, address _B) internal constant returns (Trustline.Account account) {
-        var (clAB, clBA, iAB, iBA, fA, fB, mtime, balance) = eternalStorage.getAccount(_A, _B);
-        account =  Trustline.Account({
-            creditlineAB : uint32(clAB),
-            creditlineBA : uint32(clBA),
-            interestAB : uint16(iAB),
-            interestBA : uint16(iBA),
-            feesOutstandingA : uint16(fA),
-            feesOutstandingB : uint16(fB),
-            mtime : uint16(mtime),
-            balanceAB : int48(balance)
-        });
-    }
-
-    function storeAccount(address _A, address _B, Trustline.Account account) internal {
-        eternalStorage.setAccount(
-            _A,
-            _B,
-            account.creditlineAB,
-            account.creditlineBA,
-            account.interestAB,
-            account.interestBA,
-            account.feesOutstandingA,
-            account.feesOutstandingB,
-            account.mtime,
-            account.balanceAB
-        );
+    function storeAccount(address _A, address _B, Account account) internal {
+        Account acc = accounts[uniqueIdentifier(_A, _B)];
+        if (_A < _B) {
+            acc.creditlineAB = account.creditlineAB;
+            acc.creditlineBA = account.creditlineBA;
+            acc.interestAB = account.interestBA;
+            acc.interestBA = account.interestAB;
+            acc.feesOutstandingA = account.feesOutstandingA;
+            acc.feesOutstandingB = account.feesOutstandingB;
+            acc.mtime = account.mtime;
+            acc.balanceAB = account.balanceAB;
+        } else {
+            acc.creditlineBA = account.creditlineAB;
+            acc.creditlineAB = account.creditlineBA;
+            acc.interestBA = account.interestBA;
+            acc.interestAB = account.interestAB;
+            acc.feesOutstandingB = account.feesOutstandingA;
+            acc.feesOutstandingA = account.feesOutstandingB;
+            acc.mtime = account.mtime;
+            acc.balanceAB = -account.balanceAB;
+        }
     }
 
     /*
@@ -525,11 +539,10 @@ contract CurrencyNetwork is ERC223 {
         return _value + imbalanceFee;
     }
 
-    function _transfer(address _sender, address _receiver, uint32 _value, Trustline.Account accountReceiverSender) internal  {
+    function _transfer(address _sender, address _receiver, uint32 _value, Account accountReceiverSender) internal  {
         int64 balanceAB = accountReceiverSender.balanceAB;
 
         // check Creditlines (value + balance must not exceed creditline)
-        // TODO: check side of account or rename account to accountReceiverSender
         uint32 creditline = accountReceiverSender.creditlineAB;
         uint32 nValue = uint32(_calculateCapacityFeeInv(_value));
         nValue = uint32(_calculateImbalanceFeeInv(nValue, balanceAB));
@@ -554,6 +567,83 @@ contract CurrencyNetwork is ERC223 {
         users.insert(_B);
         friends[_A].insert(_B);
         friends[_B].insert(_A);
+    }
+
+    function setAccount(address _A, address _B, uint32 clAB, uint32 clBA, uint16 iAB, uint16 iBA, uint16 fA, uint16 fB, uint16 mtime, int64 balance) external
+    {
+        Account memory account;
+        account.creditlineAB = clAB;
+        account.creditlineBA = clBA;
+        account.interestAB = iAB;
+        account.interestBA = iBA;
+        account.feesOutstandingA = fA;
+        account.feesOutstandingB = fB;
+        account.mtime = mtime;
+        account.balanceAB = balance;
+        storeAccount(_A, _B, account);
+    }
+
+    function getAccountExt(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int)
+    {
+        Account account = accounts[uniqueIdentifier(_A, _B)];
+        if (_A < _B) {
+            // View of the Account if the address A < B
+            return (account.creditlineAB,
+                    account.creditlineBA,
+                    account.interestAB,
+                    account.interestBA,
+                    account.feesOutstandingA,
+                    account.feesOutstandingB,
+                    account.mtime,
+                    account.balanceAB);
+        } else {
+            // View of the account if Address A > B
+            return (account.creditlineBA,
+                    account.creditlineAB,
+                    account.interestBA,
+                    account.interestAB,
+                    account.feesOutstandingB,
+                    account.feesOutstandingA,
+                    account.mtime,
+                    - account.balanceAB);
+         }
+    }
+
+    function getAccountExtLen() constant returns (uint) {
+        return 8*32 + 2;
+    }
+
+    function getAccount(address _A, address _B) internal constant returns (Account acc)
+    {
+        Account account = accounts[uniqueIdentifier(_A, _B)];
+        if (_A < _B) {
+            acc.creditlineAB = account.creditlineAB;
+            acc.creditlineBA = account.creditlineBA;
+            acc.interestAB = account.interestBA;
+            acc.interestBA = account.interestAB;
+            acc.feesOutstandingA = account.feesOutstandingA;
+            acc.feesOutstandingB = account.feesOutstandingB;
+            acc.mtime = account.mtime;
+            acc.balanceAB = account.balanceAB;
+        } else {
+            acc.creditlineBA = account.creditlineAB;
+            acc.creditlineAB = account.creditlineBA;
+            acc.interestBA = account.interestBA;
+            acc.interestAB = account.interestAB;
+            acc.feesOutstandingB = account.feesOutstandingA;
+            acc.feesOutstandingA = account.feesOutstandingB;
+            acc.mtime = account.mtime;
+            acc.balanceAB = -account.balanceAB;
+        }
+    }
+
+    function uniqueIdentifier(address _A, address _B) internal constant returns (bytes32) {
+        require(_A != _B);
+        if (_A < _B) {
+            return sha3(_A, _B);
+        } else if (_A > _B) {
+            return sha3(_B, _A);
+        }
     }
 
     // ERC 223 Interface
