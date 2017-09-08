@@ -1,4 +1,4 @@
-# Trustlines Smart Contract Platform
+cd te   # Trustlines Smart Contract Platform
 
 Smart Contracts, Unittests and Infrastructure for Trustlines App.
 
@@ -16,6 +16,8 @@ The Smart Contracts can be installed separately from the other components of the
  * pip install -r requirements.txt
 
 ### Usage
+
+_Note: all command should be executed from the root directory_
 
  * compilation: `populus compile`
  * unittest:    `pytest`

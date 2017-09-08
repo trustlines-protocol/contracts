@@ -48,6 +48,8 @@ def trustlines_contract(chain, web3):
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", storagev2.address);
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("trustline(address,address)", "trustlineLen(address,address)", storagev2.address);
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", storagev2.address);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("name()", "nameLen()", storagev2.address);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("symbol()", "symbolLen()", storagev2.address);
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     print("Forwarded to ", log_entries[0]['args']['newFallback'])
@@ -402,7 +404,7 @@ def test_trustlines_lt_balance(trustlines_contract, accounts):
 
 
 def test_meta(trustlines_contract):
-    assert trustlines_contract.call().name().replace('\x00', '') == "Testcoin"
+    assert trustlines_contract.call().name().replace('\x00', '') == "Trustlines"
     assert trustlines_contract.call().symbol().replace('\x00', '') == "T"
 
 

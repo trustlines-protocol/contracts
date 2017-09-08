@@ -652,8 +652,16 @@ contract CurrencyNetwork is ERC223 {
         return name;
     }
 
+    function nameLen() constant returns (uint) {
+        return bytes(name).length;
+    }
+
     function symbol() constant returns (string) {
         return symbol;
+    }
+
+    function symbolLen() constant returns (uint) {
+        return bytes(symbol).length;
     }
 
     function decimals() constant returns (uint8) {
