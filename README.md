@@ -1,4 +1,4 @@
-cd te   # Trustlines Smart Contract Platform
+# Trustlines Smart Contract Platform
 
 Smart Contracts, Unittests and Infrastructure for Trustlines App.
 
