@@ -14,20 +14,47 @@ trustlines = [(0, 1, 100, 150),
               ]  # (A, B, tlAB, tlBA)
 
 
+def deploy(contract_name, chain, *args):
+    contract = chain.provider.get_contract_factory(contract_name)
+    txhash = contract.deploy(args=args)
+    contract_address = chain.wait.for_contract_address(txhash)
+    print(contract_name, "contract address is", contract_address)
+    return contract(contract_address)
+
+
 @pytest.fixture()
 def trustlines_contract(chain, web3):
-    EternalStorage = chain.provider.get_contract_factory('EternalStorage')
-    deploy_txn_hash = EternalStorage.deploy(args=[web3.eth.accounts[0]])
-    eternalStorage_address = chain.wait.for_contract_address(deploy_txn_hash)
 
-    Trustlines = chain.provider.get_contract_factory('CurrencyNetwork')
-    deploy_txn_hash = Trustlines.deploy(args=[
-        "Testcoin", "T", eternalStorage_address, web3.eth.accounts[0], 1000, 100, 25, 100
-    ])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    # transfer ownership from base account to contract_address
-    EternalStorage(eternalStorage_address).transact({"from": web3.eth.accounts[0]}).transfer(contract_address);
-    trustlines_contract = Trustlines(address=contract_address)
+    print("Web3 provider is", web3.currentProvider)
+    registry = deploy("Registry", chain)
+    currencyNetworkFactory = deploy("CurrencyNetworkFactoryV2", chain, registry.address)
+    transfer_filter = currencyNetworkFactory.on("CurrencyNetworkCreated")
+    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 25, 100);
+    wait(transfer_filter)
+    log_entries = transfer_filter.get()
+    addr_trustlines = log_entries[0]['args']['_currencyNetworkContract']
+    print("REAL CurrencyNetwork contract address is", addr_trustlines)
+
+    resolver = deploy("Resolver", chain, addr_trustlines)
+    transfer_filter = resolver.on("FallbackChanged")
+    proxy = deploy("EtherRouter", chain, resolver.address)
+    proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetworkV2")(proxy.address)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).setAccount(web3.eth.accounts[7], web3.eth.accounts[8], 2000000, 1, 1, 1, 1, 1, 1, 1);
+    print(proxied_trustlines.call().getAccountExt(web3.eth.accounts[7], web3.eth.accounts[8]))
+
+    storagev2 = deploy("CurrencyNetworkV2", chain)
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).setFallback(storagev2.address);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", storagev2.address);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("trustlineArray(address,address)", "trustlineArrayLen(address,address)", storagev2.address);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExtArray(address,address)", "getAccountExtArrayLen()", storagev2.address);
+    wait(transfer_filter)
+    log_entries = transfer_filter.get()
+    print("Forwarded to ", log_entries[0]['args']['newFallback'])
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 1000, 100, 25, 100);
+
+    print(proxied_trustlines.call().getAccountExt(web3.eth.accounts[7], web3.eth.accounts[8]))
+
+    trustlines_contract = proxied_trustlines
     for (A, B, tlAB, tlBA) in trustlines:
         print((A, B, tlAB, tlBA))
         trustlines_contract.transact({"from":web3.eth.accounts[A]}).updateCreditline(web3.eth.accounts[B], tlAB)
@@ -43,14 +70,21 @@ def accounts(web3):
         return [web3.eth.accounts[i] for i in range(num)]
     return get
 
+
 def print_gas_used(web3, trxid, message):
     receipt = wait_for_transaction_receipt(web3, trxid)
-    print(message, receipt["gasUsed"])
+    print(message, receipt["gasUsed"] - 21000)
+
 
 def wait(transfer_filter):
     with Timeout(30) as timeout:
         while not transfer_filter.get(False):
             timeout.sleep(2)
+
+
+def test_getaccount(trustlines_contract, accounts):
+    (A, B) = accounts(2)
+    print(trustlines_contract.call().getAccountExtArray(A, B))
 
 
 def test_update_no_accept_creditline_(trustlines_contract, accounts):
@@ -103,6 +137,8 @@ def test_cashCheque(trustlines_contract, accounts, web3):
 
 def test_preparePath(trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
+    print (trustlines_contract.call().getCreditline(A, B))
+    print (trustlines_contract.call().spendableTo(A, B))
     assert trustlines_contract.call().balanceOf(A) == 700
     trustlines_contract.transact({"from":A}).prepare(C, 100, [E, D, C])
     trustlines_contract.transact({"from":A}).transfer(C, 20)
@@ -110,9 +146,9 @@ def test_preparePath(trustlines_contract, accounts):
     trustlines_contract.transact({"from":A}).prepare(C, 100, [E, D, C])
 #    with pytest.raises(tester.TransactionFailed):
     trustlines_contract.transact({"from":A}).transfer(C, 30)
-    assert trustlines_contract.call().balanceOf(A) == 650
+    assert trustlines_contract.call().balanceOf(A) == 651
     trustlines_contract.transact({"from":A}).transfer(C, 20)
-    assert trustlines_contract.call().balanceOf(A) == 630
+    assert trustlines_contract.call().balanceOf(A) == 631
 
 def test_prepareFrom(web3, trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
@@ -191,16 +227,16 @@ def test_transactions(trustlines_contract, accounts):
     trustlines_contract.transact({"from":B}).transfer(A, 20, 100, [A])
 
 
-def test_mediated_transfer(trustlines_contract, accounts, web3):
+def test_mediated_transfer_array(trustlines_contract, accounts, web3):
     (A, B, C, D, E) = accounts(5)
 
     # 0 hops (using mediated)
-    assert trustlines_contract.call().trustline(A, B)[2] == 0
+    assert trustlines_contract.call().trustlineArray(A, B)[2] == 0
     path = [B]
     trustlines_contract.transact({"from": A}).prepare(B, 100, path)
     res = trustlines_contract.transact({"from":A}).transfer(B, 21)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -21
+    assert trustlines_contract.call().trustlineArray(A, B)[2] == -21
 
     # 1 hops (using mediated)
     path = [B,C]
@@ -208,8 +244,8 @@ def test_mediated_transfer(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":A}).transfer(C, 21)
     print_gas_used(web3, res, '1 hop')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -42 # spend 2 times
-    assert trustlines_contract.call().trustline(B, C)[2] == -21 # received 21
+    assert trustlines_contract.call().trustlineArray(A, B)[2] == -42
+    assert trustlines_contract.call().trustlineArray(B, C)[2] == -21
 
     # 2 hops (using mediated)
     path = [B, C, D]
@@ -217,8 +253,8 @@ def test_mediated_transfer(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":A}).transfer(D, 21)
     print_gas_used(web3, res, '2 hops')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -63  # spend 3 times
-    assert trustlines_contract.call().trustline(B, C)[2] == -42  # relay 2 times
+    assert trustlines_contract.call().trustlineArray(A, B)[2] == -63
+    assert trustlines_contract.call().trustlineArray(B, C)[2] == -42
 
     # 2 hops (using mediated)
     path = [B, C, D, E]
@@ -226,8 +262,8 @@ def test_mediated_transfer(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":A}).transfer(E, 21)
     print_gas_used(web3, res, '2 hops')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -84  # spend 4 times
-    assert trustlines_contract.call().trustline(D, E)[2] == -21  # received 21
+    assert trustlines_contract.call().trustlineArray(A, B)[2] == -84
+    assert trustlines_contract.call().trustlineArray(D, E)[2] == -21
 
     # 0 hops (using mediated) payback
     path = [A]
@@ -235,8 +271,56 @@ def test_mediated_transfer(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":B}).transfer(A, 84)
     print_gas_used(web3, res, '0 hops')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == 0  # balanced
-    assert trustlines_contract.call().trustline(D, E)[2] == -21  # unchanged
+    assert trustlines_contract.call().trustlineArray(A, B)[2] == 0
+    assert trustlines_contract.call().trustlineArray(D, E)[2] == -21
+
+
+def test_mediated_transfer(trustlines_contract, accounts, web3):
+    (A, B, C, D, E) = accounts(5)
+
+    # 0 hops (using mediated)
+    assert trustlines_contract.call().trustline(A, B) & (2**63-1) == 0
+    path = [B]
+    trustlines_contract.transact({"from": A}).prepare(B, 100, path)
+    res = trustlines_contract.transact({"from":A}).transfer(B, 21)
+    assert res
+    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 21) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
+
+    # 1 hops (using mediated)
+    path = [B,C]
+    trustlines_contract.transact({"from": A}).prepare(C, 100, path)
+    res = trustlines_contract.transact({"from":A}).transfer(C, 21)
+    print_gas_used(web3, res, '1 hop')
+    assert res
+    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 42) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
+    assert ((trustlines_contract.call().trustline(B, C) & (2**63-1) == 21) and (trustlines_contract.call().trustline(B, C) & (2**63) == (2**63)))
+
+    # 2 hops (using mediated)
+    path = [B, C, D]
+    trustlines_contract.transact({"from": A}).prepare(D, 100, path)
+    res = trustlines_contract.transact({"from":A}).transfer(D, 21)
+    print_gas_used(web3, res, '2 hops')
+    assert res
+    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 63) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
+    assert ((trustlines_contract.call().trustline(B, C) & (2**63-1) == 42) and (trustlines_contract.call().trustline(B, C) & (2**63) == (2**63)))
+
+    # 2 hops (using mediated)
+    path = [B, C, D, E]
+    trustlines_contract.transact({"from": A}).prepare(E, 100, path)
+    res = trustlines_contract.transact({"from":A}).transfer(E, 21)
+    print_gas_used(web3, res, '2 hops')
+    assert res
+    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 84) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
+    assert ((trustlines_contract.call().trustline(D, E) & (2**63-1) == 21) and (trustlines_contract.call().trustline(D, E) & (2**63) == (2**63)))
+
+    # 0 hops (using mediated) payback
+    path = [A]
+    trustlines_contract.transact({"from": B}).prepare(A, 100, path)
+    res = trustlines_contract.transact({"from":B}).transfer(A, 84)
+    print_gas_used(web3, res, '0 hops')
+    assert res
+    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 0) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
+    assert ((trustlines_contract.call().trustline(D, E) & (2**63-1) == 21) and (trustlines_contract.call().trustline(D, E) & (2**63) == (2**63)))
 
 
 def test_mediated_transfer_not_enough_balance(trustlines_contract, accounts):
@@ -324,7 +408,7 @@ def test_meta(trustlines_contract):
 def test_users(trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
     assert trustlines_contract.call().getUsers() == list(map(lambda item: item,[A, B, C, D, E]))
-    assert trustlines_contract.call().getFriends(A) == list(map(lambda item: item,[B, E]))
+    #assert trustlines_contract.call().getFriends(A) == list(map(lambda item: item,[B, E]))
 
 
 def test_same_user(trustlines_contract, accounts):
