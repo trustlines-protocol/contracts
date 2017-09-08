@@ -67,6 +67,7 @@ def main():
     receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", addr_trustlines);
     receipt = check_successful_tx(web3, txid)
+    print("\n\naddress for accessing CurrencyNetwork through Proxy: ", proxied_trustlines.address, '\n\n')
 
 
 if __name__ == "__main__":
