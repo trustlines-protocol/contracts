@@ -1,0 +1,3 @@
+parity --chain dev --jsonrpc-cors "*" --jsonrpc-apis "web3,eth,personal" --jsonrpc-hosts="all" --no-ui --unlock 0x00a329c0648769a73afac7f9381e08fb43dbea72,0x001146f256c0e5abc3ba61313cb63ecccb4e3c03,0x00923368a1248f40622612e6422c4ab7225f515c,0x00b086af6b97b594d0b4fe6e507fbb13d8326d94,0x00d16ac8dec0a7954439011a49bf4fdf569b5730,0x00A999e42B9271F23c729ACdC7E7A8a806AB28Aa,0x003496c00b0DB7fD8eF930bC881f1bf3FB260908,0x00C54a6429561E0E2787a96019032f6E11421Eb7 --password pw
+# start with UI to create more accounts
+# parity --chain dev --jsonrpc-cors "*" --jsonrpc-apis "web3,eth,personal" --jsonrpc-hosts="all" --force-ui --ui-no-validation
