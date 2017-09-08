@@ -63,6 +63,8 @@ def main():
     receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", addr_trustlines);
     receipt = check_successful_tx(web3, txid)
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getFriends(address)", "getFriendsReturnSize(address)", addr_trustlines);
+    receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("trustline(address,address)", "trustlineLen(address,address)", addr_trustlines);
     receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", addr_trustlines);

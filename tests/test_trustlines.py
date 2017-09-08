@@ -46,6 +46,7 @@ def trustlines_contract(chain, web3):
     storagev2 = deploy("CurrencyNetwork", chain)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).setFallback(storagev2.address);
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", storagev2.address);
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getFriends(address)", "getFriendsReturnSize(address)", storagev2.address);
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("trustline(address,address)", "trustlineLen(address,address)", storagev2.address);
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", storagev2.address);
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("name()", "nameLen()", storagev2.address);

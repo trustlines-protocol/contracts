@@ -452,6 +452,10 @@ contract CurrencyNetwork is ERC223 {
         return friends[_user].list;
     }
 
+    function getFriendsReturnSize(address _user) public constant returns (uint) {
+        return getFriends(_user).length + 2;
+    }
+
     /*
      * @notice gets friends of user
      * @param Ethereum Address of the user
