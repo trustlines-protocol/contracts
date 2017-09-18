@@ -31,18 +31,18 @@ contract CurrencyNetwork is ERC223 {
     // FEE GLOBAL DEFAULTS
 
     // Divides current value being transferred to calculate the Network fee
-    uint16 network_fee_divisor = 1000;
+    uint16 network_fee_divisor;
     // Divides current value being transferred to calculate the capacity fee
-    uint16 capacity_fee_divisor = 100;
+    uint16 capacity_fee_divisor;
     // Divides imbalance that current value transfer introduces to calculate the imbalance fee
-    uint16 imbalance_fee_divisor = 25;
+    uint16 imbalance_fee_divisor;
     // Base decimal units in which we carry out operations in this token.
-    uint32 constant base_unit_multiplier = 100000;
+    uint32 base_unit_multiplier;
 
     // meta data for token part
     string public name;
     string public symbol;
-    uint8 public decimals = 6;
+    uint8 public decimals;
 
     // Events
     event Approval(address indexed _owner, address indexed _spender, uint256 indexed _value);
@@ -111,6 +111,7 @@ contract CurrencyNetwork is ERC223 {
     function init(
         string _tokenName,
         string _tokenSymbol,
+        uint8 _decimals,
         uint16 _network_fee_divisor,
         uint16 _capacity_fee_divisor,
         uint16 _imbalance_fee_divisor,
@@ -118,9 +119,11 @@ contract CurrencyNetwork is ERC223 {
     ) {
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
+        decimals = _decimals;
         network_fee_divisor = _network_fee_divisor;
         capacity_fee_divisor = _capacity_fee_divisor;
         imbalance_fee_divisor = _imbalance_fee_divisor;
+        base_unit_multiplier = uint32(10**_decimals);
         //maxInterestRate = _maxInterestRate;
     }
 
