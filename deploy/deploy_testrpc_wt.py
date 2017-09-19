@@ -47,7 +47,7 @@ def main():
     registry = deploy("Registry", chain)
     currencyNetworkFactory = deploy("CurrencyNetworkFactory", chain, registry.address)
     transfer_filter = currencyNetworkFactory.on("CurrencyNetworkCreated")
-    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 25, 100);
+    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 100);
     receipt = check_successful_tx(web3, txid)
     wait(transfer_filter)
     log_entries = transfer_filter.get()
@@ -70,7 +70,7 @@ def main():
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     print("Forwarded to ", log_entries[0]['args']['newFallback'])
-    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, 25, 100)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, "0x0000000000000000000000000000000000000000")
     receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", storagev2.address);
     receipt = check_successful_tx(web3, txid)
