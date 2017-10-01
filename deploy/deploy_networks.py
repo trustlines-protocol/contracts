@@ -33,7 +33,7 @@ def deploy(contract_name, chain, *args):
     return contract(id_address)
     
     
-def deploy_network(chain, currency_network_factory, name, symbol):
+def deploy_network(chain, currency_network_factory, name, symbol, decimals):
     web3 = chain.web3
     transfer_filter = currency_network_factory.on("CurrencyNetworkCreated")
     txid = currency_network_factory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork(name, symbol, web3.eth.accounts[0], 1000, 100, 25, 100);
@@ -48,7 +48,7 @@ def deploy_network(chain, currency_network_factory, name, symbol):
     transfer_filter = resolver.on("FallbackChanged")
     proxy = deploy("EtherRouter", chain, resolver.address)
     proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init(name, symbol, 1000, 100, 25, 100)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 1000, 100, 25, 100)
     receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", addr_trustlines);
     receipt = check_successful_tx(web3, txid)
@@ -79,9 +79,9 @@ def main():
     registry = deploy("Registry", chain)
     currencyNetworkFactory = deploy("CurrencyNetworkFactory", chain, registry.address)
     
-    networks = [("Euro", "EUR"), ("US Dollar", "USD"), ("Testcoin", "T")]
+    networks = [("Euro", "EUR", 2), ("US Dollar", "USD", 2), ("Testcoin", "T", 6)]
     
-    network_addresses = [deploy_network(chain, currencyNetworkFactory, name, symbol) for (name, symbol) in networks]
+    network_addresses = [deploy_network(chain, currencyNetworkFactory, name, symbol, decimals) for (name, symbol, decimals) in networks]
     
     with open("networks", 'w') as file_handler:
         for network_address in network_addresses:
