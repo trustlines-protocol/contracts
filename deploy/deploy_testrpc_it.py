@@ -155,7 +155,7 @@ def main():
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     print("Forwarded to ", log_entries[0]['args']['newFallback'])
-    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 1000, 100, 25, 100)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, 25, 100)
     receipt = check_successful_tx("init", web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", storagev2.address);
     receipt = check_successful_tx("register", web3, txid)

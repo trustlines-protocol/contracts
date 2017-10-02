@@ -59,7 +59,7 @@ def main():
     transfer_filter = resolver.on("FallbackChanged")
     proxy = deploy("EtherRouter", chain, resolver.address)
     proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 1000, 100, 25, 100)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, 25, 100)
     receipt = check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()", "getUsersReturnSize()", addr_trustlines);
     receipt = check_successful_tx(web3, txid)
