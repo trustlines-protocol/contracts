@@ -1,6 +1,7 @@
 import pytest
 from ethereum import tester
 import sign
+import math
 from populus.utils.wait import wait_for_transaction_receipt
 from web3.utils.compat import (
     Timeout,
@@ -29,7 +30,7 @@ def trustlines_contract(chain, web3):
     registry = deploy("Registry", chain)
     currencyNetworkFactory = deploy("CurrencyNetworkFactory", chain, registry.address)
     transfer_filter = currencyNetworkFactory.on("CurrencyNetworkCreated")
-    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 25, 100);
+    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 100);
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     addr_trustlines = log_entries[0]['args']['_currencyNetworkContract']
@@ -55,8 +56,9 @@ def trustlines_contract(chain, web3):
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     print("Forwarded to ", log_entries[0]['args']['newFallback'])
-    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, 25, 100);
 
+    print(resolver.address, type(resolver.address))
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, "0x0000000000000000000000000000000000000000");
     print(proxied_trustlines.call().getAccountExt(web3.eth.accounts[7], web3.eth.accounts[8]))
 
     trustlines_contract = proxied_trustlines
@@ -114,6 +116,7 @@ def test_reduceCreditline_evenif_above_balance(trustlines_contract, accounts):
     trustlines_contract.transact({"from": A}).updateCreditline(B, 10)
     assert 10 == trustlines_contract.call().getCreditline(A, B)
 
+
 def test_updateAndAcceptCreditline(trustlines_contract, accounts):
     (A, B, C) = accounts(3)
     with pytest.raises(tester.TransactionFailed):  # next should fail, no creditline to self
@@ -137,8 +140,9 @@ def test_cashCheque(trustlines_contract, accounts, web3):
     assert addr == A
     trustlines_contract.transact({"from": A}).prepareFrom(A, B, 100, [B])
     assert(trustlines_contract.transact({"from": A}).cashCheque(A, B, 90, mtime + 1, sig))
-    assert trustlines_contract.call().balanceOf(A) == balA - 90
-    assert trustlines_contract.call().balanceOf(B) == balB + 90
+    assert trustlines_contract.call().balanceOf(A) == balA - 90 + 1
+    assert trustlines_contract.call().balanceOf(B) == balB + 90 - 1
+
 
 def test_preparePath(trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
@@ -147,13 +151,15 @@ def test_preparePath(trustlines_contract, accounts):
     assert trustlines_contract.call().balanceOf(A) == 700
     trustlines_contract.transact({"from":A}).prepare(C, 100, [E, D, C])
     trustlines_contract.transact({"from":A}).transfer(C, 20)
-    assert trustlines_contract.call().balanceOf(A) == 680
+    assert trustlines_contract.call().balanceOf(A) == 680 + 1
     trustlines_contract.transact({"from":A}).prepare(C, 100, [E, D, C])
 #    with pytest.raises(tester.TransactionFailed):
     trustlines_contract.transact({"from":A}).transfer(C, 30)
-    assert trustlines_contract.call().balanceOf(A) == 651
+    print("spendableto", trustlines_contract.call().spendableTo(A, B))
+    assert trustlines_contract.call().balanceOf(A) == 650 + 2
     trustlines_contract.transact({"from":A}).transfer(C, 20)
-    assert trustlines_contract.call().balanceOf(A) == 631
+    assert trustlines_contract.call().balanceOf(A) == 630 + 2
+
 
 def test_prepareFrom(web3, trustlines_contract, accounts):
     (A, B, C, D, E) = accounts(5)
@@ -163,11 +169,11 @@ def test_prepareFrom(web3, trustlines_contract, accounts):
     assert trustlines_contract.call().balanceOf(B) == 350
     trxid = trustlines_contract.transact({"from":A}).transferFrom(B, C, 20)
     print_gas_used(web3, trxid, 'hop')
-    assert trustlines_contract.call().balanceOf(B) == 330
+    assert trustlines_contract.call().balanceOf(B) == 330 + 1
     trustlines_contract.transact({"from":A}).prepareFrom(B, C, 100, [C])
 #    with pytest.raises(tester.TransactionFailed):
     trustlines_contract.transact({"from":A}).transferFrom(B, C, 30)
-    assert trustlines_contract.call().balanceOf(B) == 300
+    assert trustlines_contract.call().balanceOf(B) == 300 + 2
 
 
 def test_approveUpdateAccept(trustlines_contract, accounts):
@@ -186,25 +192,26 @@ def test_spendable(trustlines_contract, accounts):
     assert trustlines_contract.call().spendableTo(B, A) == 100
     trustlines_contract.transact({"from":A}).prepare(B, 100, [B])
     trustlines_contract.transact({"from":A}).transfer(B, 40)
-    assert trustlines_contract.call().spendableTo(A, B) == 110
-    assert trustlines_contract.call().spendableTo(B, A) == 140
+    assert trustlines_contract.call().spendableTo(A, B) == 110 + 1
+    assert trustlines_contract.call().spendableTo(B, A) == 140 - 1
 
 
 def test_balance_of(trustlines_contract, accounts, web3):
     (A, B, C, D, E) = accounts(5)
     assert trustlines_contract.call().balanceOf(A) == 700
-    trustlines_contract.transact({"from":A}).transfer(B, 40, 100, [B])
-    assert trustlines_contract.call().balanceOf(A) == 660
+    trxid = trustlines_contract.transact({"from":A}).transfer(B, 40, 100, [B])
+    print_gas_used(web3, trxid, 'hop')
+    assert trustlines_contract.call().balanceOf(A) == 660 + 1
     trxid = trustlines_contract.transact({"from":A}).transfer(C, 20, 100, [E, D, C])
     print_gas_used(web3, trxid, 'hop')
     trxid = trustlines_contract.transact({"from":A}).transfer(C, 20, 100, [B, C])
     print_gas_used(web3, trxid, 'hop')
-    assert trustlines_contract.call().balanceOf(A) == 620
+    assert trustlines_contract.call().balanceOf(A) == 620 + 2
     trustlines_contract.transact({"from":E}).transfer(A, 70, 100, [A])
-    assert trustlines_contract.call().balanceOf(A) == 690
+    assert trustlines_contract.call().balanceOf(A) == 690 + 1
     with pytest.raises(tester.TransactionFailed):
-        trustlines_contract.transact({"from":A}).transfer(B, 1000, 100, [B])
-    assert trustlines_contract.call().balanceOf(A) == 690
+       trustlines_contract.transact({"from":A}).transfer(B, 1000, 100, [B])
+    assert trustlines_contract.call().balanceOf(A) == 690 + 1
 
 
 def test_total_supply(trustlines_contract):
@@ -221,14 +228,15 @@ def test_total_supply_after_credits(trustlines_contract, accounts):
     trustlines_contract.transact({"from":B}).updateCreditline(A, 0)
     assert trustlines_contract.call().totalSupply() == 3000
 
+
 def test_transactions(trustlines_contract, accounts):
     (A, B) = accounts(2)
     assert trustlines_contract.call().trustline(A, B) == [100, 150, 0]
     trustlines_contract.transact({"from":A}).transfer(B, 10, 100, [B])
     res = trustlines_contract.transact({"from":A}).transfer(B, 10, 100, [B])
     assert res
-    assert trustlines_contract.call().trustline(A, B) == [100, 150, -20]
-    assert trustlines_contract.call().trustline(B, A) == [150, 100, 20]
+    assert trustlines_contract.call().trustline(A, B) == [100, 150, -18]
+    assert trustlines_contract.call().trustline(B, A) == [150, 100, 18]
     trustlines_contract.transact({"from":B}).transfer(A, 20, 100, [A])
 
 
@@ -241,7 +249,7 @@ def test_mediated_transfer_array(trustlines_contract, accounts, web3):
     trustlines_contract.transact({"from": A}).prepare(B, 100, path)
     res = trustlines_contract.transact({"from":A}).transfer(B, 21)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == -20
 
     # 1 hops (using mediated)
     path = [B,C]
@@ -249,8 +257,8 @@ def test_mediated_transfer_array(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":A}).transfer(C, 21)
     print_gas_used(web3, res, '1 hop')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -42
-    assert trustlines_contract.call().trustline(B, C)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == -40
+    assert trustlines_contract.call().trustline(B, C)[2] == -20
 
     # 2 hops (using mediated)
     path = [B, C, D]
@@ -258,8 +266,8 @@ def test_mediated_transfer_array(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":A}).transfer(D, 21)
     print_gas_used(web3, res, '2 hops')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -63
-    assert trustlines_contract.call().trustline(B, C)[2] == -42
+    assert trustlines_contract.call().trustline(A, B)[2] == -60 - 1
+    assert trustlines_contract.call().trustline(B, C)[2] == -40
 
     # 2 hops (using mediated)
     path = [B, C, D, E]
@@ -267,8 +275,8 @@ def test_mediated_transfer_array(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":A}).transfer(E, 21)
     print_gas_used(web3, res, '2 hops')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -84
-    assert trustlines_contract.call().trustline(D, E)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == -80 - 2
+    assert trustlines_contract.call().trustline(D, E)[2] == -20
 
     # 0 hops (using mediated) payback
     path = [A]
@@ -276,56 +284,8 @@ def test_mediated_transfer_array(trustlines_contract, accounts, web3):
     res = trustlines_contract.transact({"from":B}).transfer(A, 84)
     print_gas_used(web3, res, '0 hops')
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == 0
-    assert trustlines_contract.call().trustline(D, E)[2] == -21
-
-
-def test_mediated_transfer(trustlines_contract, accounts, web3):
-    (A, B, C, D, E) = accounts(5)
-
-    # 0 hops (using mediated)
-    assert trustlines_contract.call().trustline(A, B) & (2**63-1) == 0
-    path = [B]
-    trustlines_contract.transact({"from": A}).prepare(B, 100, path)
-    res = trustlines_contract.transact({"from":A}).transfer(B, 21)
-    assert res
-    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 21) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
-
-    # 1 hops (using mediated)
-    path = [B,C]
-    trustlines_contract.transact({"from": A}).prepare(C, 100, path)
-    res = trustlines_contract.transact({"from":A}).transfer(C, 21)
-    print_gas_used(web3, res, '1 hop')
-    assert res
-    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 42) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
-    assert ((trustlines_contract.call().trustline(B, C) & (2**63-1) == 21) and (trustlines_contract.call().trustline(B, C) & (2**63) == (2**63)))
-
-    # 2 hops (using mediated)
-    path = [B, C, D]
-    trustlines_contract.transact({"from": A}).prepare(D, 100, path)
-    res = trustlines_contract.transact({"from":A}).transfer(D, 21)
-    print_gas_used(web3, res, '2 hops')
-    assert res
-    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 63) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
-    assert ((trustlines_contract.call().trustline(B, C) & (2**63-1) == 42) and (trustlines_contract.call().trustline(B, C) & (2**63) == (2**63)))
-
-    # 2 hops (using mediated)
-    path = [B, C, D, E]
-    trustlines_contract.transact({"from": A}).prepare(E, 100, path)
-    res = trustlines_contract.transact({"from":A}).transfer(E, 21)
-    print_gas_used(web3, res, '2 hops')
-    assert res
-    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 84) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
-    assert ((trustlines_contract.call().trustline(D, E) & (2**63-1) == 21) and (trustlines_contract.call().trustline(D, E) & (2**63) == (2**63)))
-
-    # 0 hops (using mediated) payback
-    path = [A]
-    trustlines_contract.transact({"from": B}).prepare(A, 100, path)
-    res = trustlines_contract.transact({"from":B}).transfer(A, 84)
-    print_gas_used(web3, res, '0 hops')
-    assert res
-    assert ((trustlines_contract.call().trustline(A, B) & (2**63-1) == 0) and (trustlines_contract.call().trustline(A, B) & (2**63) == (2**63)))
-    assert ((trustlines_contract.call().trustline(D, E) & (2**63-1) == 21) and (trustlines_contract.call().trustline(D, E) & (2**63) == (2**63)))
+    assert trustlines_contract.call().trustline(A, B)[2] == 1
+    assert trustlines_contract.call().trustline(D, E)[2] == -20
 
 
 def test_mediated_transfer_not_enough_balance(trustlines_contract, accounts):
@@ -334,11 +294,11 @@ def test_mediated_transfer_not_enough_balance(trustlines_contract, accounts):
     trustlines_contract.transact({"from": A}).prepare(C, 100, path)
     res = trustlines_contract.transact({"from":A}).transfer(C, 150)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -150  # 150 were spend
+    assert trustlines_contract.call().trustline(A, B)[2] == -150 + 2  # 150 were spend
     with pytest.raises(tester.TransactionFailed): # next should fail
         trustlines_contract.transact({"from":A}).prepare(C, 100, path)
-        trustlines_contract.transact({"from":A}).transfer(C, 1)
-    assert trustlines_contract.call().trustline(A, B)[2] == -150  # should be unchanged
+        trustlines_contract.transact({"from":A}).transfer(C, 10)
+    assert trustlines_contract.call().trustline(A, B)[2] == -150 + 2  # should be unchanged
 
 
 def test_mediated_transfer_no_path(trustlines_contract, accounts):
@@ -387,7 +347,7 @@ def test_trustlines_lt_balance(trustlines_contract, accounts):
     trustlines_contract.transact({"from": A}).prepare(C, 100, path)
     trustlines_contract.transact({"from": A}).transfer(C, 150)
     trustlines_contract.transact({"from": B}).updateCreditline(A, 100) # should fail, because below balance
-    assert trustlines_contract.call().trustline(B, A) == [100, 100, 150]
+    assert trustlines_contract.call().trustline(B, A) == [100, 100, 150 - 2]
     path = [B, A]
     print(trustlines_contract.call().trustline(B, C))
     print(trustlines_contract.call().trustline(C, B))
@@ -402,7 +362,7 @@ def test_trustlines_lt_balance(trustlines_contract, accounts):
 
     res = trustlines_contract.transact({"from": A}).acceptCreditline(B, 102)  # should now work
     assert res
-    assert trustlines_contract.call().trustline(B, A) == [100, 100, 100]
+    assert trustlines_contract.call().trustline(B, A) == [100 + 2, 100, 100 - 1]
 
 
 def test_meta(trustlines_contract):
@@ -457,7 +417,7 @@ def test_too_high_value_transfer(trustlines_contract, accounts):
     trustlines_contract.transact({"from": B}).updateCreditline(A, 0)
 #    trustlines_contract.transact({"from": A}).acceptCreditline(B, 0)
     trustlines_contract.transact({"from": B}).transfer(A, 2**16 - 1, 50000, [A])
-    assert trustlines_contract.call().trustline(A, B) == [2**16 - 1, 0, 2**16 - 1]
+    assert trustlines_contract.call().trustline(A, B) == [2**16 - 1, 0, math.floor(2**16 - 2**16/100 - 1)]
 
 
 def test_too_high_value_mediatedTransfer(trustlines_contract, accounts):
@@ -471,7 +431,7 @@ def test_too_high_value_mediatedTransfer(trustlines_contract, accounts):
 #    trustlines_contract.transact({"from": B}).acceptCreditline(C, 0)
     trustlines_contract.transact({"from": C}).prepare(A, 50000, [B, A])
     trustlines_contract.transact({"from": C}).transfer(A, 2**16-1)
-    assert trustlines_contract.call().trustline(C, B) == [0, 2**32 - 1, -(2**16 - 1)]
+    assert trustlines_contract.call().trustline(C, B) == [0, 2**32 - 1, -64879] # TODO: calculate
 
 
 def test_negative_value_transfer_credit(trustlines_contract, accounts):

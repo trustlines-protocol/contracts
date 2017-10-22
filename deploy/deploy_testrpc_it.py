@@ -76,7 +76,7 @@ def test_mediated_transfer_array(trustlines_contract, web3):
     res = trustlines_contract.transact({"from":A}).transfer(B, 21)
     check_successful_tx("0 hops", web3, res)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == -20
 
     # 1 hops (using mediated)
     path = [B,C]
@@ -85,8 +85,8 @@ def test_mediated_transfer_array(trustlines_contract, web3):
     res = trustlines_contract.transact({"from":A}).transfer(C, 21)
     check_successful_tx("1 hop", web3, res)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -42
-    assert trustlines_contract.call().trustline(B, C)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == -40
+    assert trustlines_contract.call().trustline(B, C)[2] == -20
 
     # 2 hops (using mediated)
     path = [B, C, D]
@@ -95,8 +95,8 @@ def test_mediated_transfer_array(trustlines_contract, web3):
     res = trustlines_contract.transact({"from":A}).transfer(D, 21)
     check_successful_tx("2 hops", web3, res)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -63
-    assert trustlines_contract.call().trustline(B, C)[2] == -42
+    assert trustlines_contract.call().trustline(A, B)[2] == -61
+    assert trustlines_contract.call().trustline(B, C)[2] == -40
 
     # 3 hops (using mediated)
     path = [B, C, D, E]
@@ -105,8 +105,8 @@ def test_mediated_transfer_array(trustlines_contract, web3):
     res = trustlines_contract.transact({"from":A}).transfer(E, 21)
     check_successful_tx("3 hops", web3, res)
     assert res
-    assert trustlines_contract.call().trustline(A, B)[2] == -84
-    assert trustlines_contract.call().trustline(D, E)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == -82
+    assert trustlines_contract.call().trustline(D, E)[2] == -20
 
     # 0 hops (using mediated) payback
     path = [A]
@@ -116,8 +116,8 @@ def test_mediated_transfer_array(trustlines_contract, web3):
     check_successful_tx("0 hops", web3, res)
     assert res
     # still wrong calculations TODO
-    assert trustlines_contract.call().trustline(A, B)[2] == -10
-    assert trustlines_contract.call().trustline(D, E)[2] == -21
+    assert trustlines_contract.call().trustline(A, B)[2] == 1
+    assert trustlines_contract.call().trustline(D, E)[2] == -20
 
 
 def main():
@@ -132,7 +132,7 @@ def main():
     registry = deploy("Registry", chain)
     currencyNetworkFactory = deploy("CurrencyNetworkFactory", chain, registry.address)
     transfer_filter = currencyNetworkFactory.on("CurrencyNetworkCreated")
-    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 25, 100);
+    txid = currencyNetworkFactory.transact({"from": web3.eth.accounts[0]}).CreateCurrencyNetwork('Trustlines', 'T', web3.eth.accounts[0], 1000, 100, 100);
     receipt = check_successful_tx("create", web3, txid)
     wait(transfer_filter)
     log_entries = transfer_filter.get()
@@ -155,7 +155,7 @@ def main():
     wait(transfer_filter)
     log_entries = transfer_filter.get()
     print("Forwarded to ", log_entries[0]['args']['newFallback'])
-    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, 25, 100)
+    txid = proxied_trustlines.transact({"from": web3.eth.accounts[0]}).init('Trustlines', 'T', 6, 1000, 100, "0x0000000000000000000000000000000000000000")
     receipt = check_successful_tx("init", web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)", "getAccountExtLen()", storagev2.address);
     receipt = check_successful_tx("register", web3, txid)

@@ -32,12 +32,11 @@ contract CurrencyNetwork is ERC223 {
 
     // Divides current value being transferred to calculate the Network fee
     uint16 network_fee_divisor;
-    // Divides current value being transferred to calculate the capacity fee
-    uint16 capacity_fee_divisor;
-    // Divides imbalance that current value transfer introduces to calculate the imbalance fee
-    uint16 imbalance_fee_divisor;
-    // Base decimal units in which we carry out operations in this token.
-    uint32 base_unit_multiplier;
+    // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
+    uint16 capacity_imbalance_fee_divisor;
+
+    // address of governance template
+    address governance;
 
     // meta data for token part
     string public name;
@@ -113,18 +112,16 @@ contract CurrencyNetwork is ERC223 {
         string _tokenSymbol,
         uint8 _decimals,
         uint16 _network_fee_divisor,
-        uint16 _capacity_fee_divisor,
-        uint16 _imbalance_fee_divisor,
-        uint16 _maxInterestRate
+        uint16 _capacity_imbalance_fee_divisor,
+        address _governance
     ) {
+        require(_decimals < 10);
         name = _tokenName;       // Set the name for display purposes
         symbol = _tokenSymbol;   // Set the symbol for display purposes
         decimals = _decimals;
         network_fee_divisor = _network_fee_divisor;
-        capacity_fee_divisor = _capacity_fee_divisor;
-        imbalance_fee_divisor = _imbalance_fee_divisor;
-        base_unit_multiplier = uint32(10**_decimals);
-        //maxInterestRate = _maxInterestRate;
+        capacity_imbalance_fee_divisor = _capacity_imbalance_fee_divisor;
+        governance = _governance;
     }
 
     /*
@@ -287,18 +284,6 @@ contract CurrencyNetwork is ERC223 {
         }
     }
 
-    function _calculateNetworkFee(uint32 _value) internal returns (uint16) {
-        return uint16(_value / network_fee_divisor);
-    }
-
-    function _calculateCapacityFee(uint32 _value) internal returns (uint16) {
-        return uint16(_value / capacity_fee_divisor);
-    }
-
-    function _calculateImbalanceFee(uint32 _value, int64 _balance) internal returns (int32) {
-        return int32((_abs(_balance - _value) - _abs(_balance)) / imbalance_fee_divisor);
-    }
-
     function _mediatedTransferFrom(address _from, address _to, uint32 _value) internal returns (bool success) {
         require(_transferOnValidPath(_from, _to, _value));
         success = true;
@@ -328,6 +313,7 @@ contract CurrencyNetwork is ERC223 {
                 sender = _path[i-2];
             }
             Account memory account = getAccount(receiver, sender);
+            require(account.creditlineAB > 0);
             if (i == 0) {
                 fees = _calculateNetworkFee(uint32(rValue));
                 account.feesOutstandingA += fees;
@@ -531,19 +517,19 @@ contract CurrencyNetwork is ERC223 {
         }
     }
 
-    function _calculateNetworkFeeInv(uint32 _value) internal returns (uint16) {
+    function _calculateNetworkFee(uint32 _value) internal returns (uint16) {
         return uint16(_value + (_value/network_fee_divisor));
     }
 
-    function _calculateCapacityFeeInv(uint32 _value) internal returns (uint16) {
-        return uint16(_value + (_value/capacity_fee_divisor));
-    }
-
-    function _calculateImbalanceFeeInv(uint32 _value, int64 _balance) internal returns (int64) {
-        int64 absBalance = _abs(_balance);
-        int64 imbalanceDiff = (_balance - _value) - absBalance;
-        int64 imbalanceFee = imbalanceDiff / imbalance_fee_divisor;
-        return _value + imbalanceFee;
+    function _calculateFees(uint32 _value, int64 _balance) internal returns (uint32) {
+        int64 imbalance_generated = int64(_value);
+        if (_balance > 0) {
+            imbalance_generated = _value - _balance;
+            if (imbalance_generated <= 0) {
+                return 0;
+            }
+        }
+        return uint32(uint32(imbalance_generated / capacity_imbalance_fee_divisor) + 1);  // minimum fee is 1
     }
 
     function _transfer(address _sender, address _receiver, uint32 _value, Account accountReceiverSender) internal  {
@@ -551,8 +537,7 @@ contract CurrencyNetwork is ERC223 {
 
         // check Creditlines (value + balance must not exceed creditline)
         uint32 creditline = accountReceiverSender.creditlineAB;
-        uint32 nValue = uint32(_calculateCapacityFeeInv(_value));
-        nValue = uint32(_calculateImbalanceFeeInv(nValue, balanceAB));
+        uint32 nValue = _value - _calculateFees(_value, balanceAB);
 
         require(nValue + balanceAB <= creditline);
 
