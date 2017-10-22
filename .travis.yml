@@ -8,6 +8,7 @@ install:
 script:
   - flake8 tlcontrcts
   - solium --dir contracts/
+  - populus compile
   - python -m pytest tests/test_trustlines.py
   - docker build -t contracts .
 branches:
