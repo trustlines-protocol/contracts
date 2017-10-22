@@ -1,17 +1,19 @@
 // TODO check if still used!
 pragma solidity ^0.4.11;
 
+
 contract Owned {
+
     address public owner;
     address public admin;
 
     modifier onlyOwnerOrAdmin() {
-        require (isOwner(msg.sender) || isAdmin(msg.sender));
+        require(isOwner(msg.sender) || isAdmin(msg.sender));
         _;
     }
 
     modifier onlyOwner() {
-        require (isOwner(msg.sender));
+        require(isOwner(msg.sender));
         _;
     }
 

@@ -1,9 +1,10 @@
 pragma solidity ^0.4.11;
 
-import "./lib/it_set_lib.sol";          // Library for Set iteration
-import "./lib/ECVerify.sol";            // Library for safer ECRecovery
+
+import "./lib/it_set_lib.sol";  // Library for Set iteration
+import "./lib/ECVerify.sol";  // Library for safer ECRecovery
 import "./lib/Receiver_Interface.sol";  // Library for Token Receiver ERC223 Interface
-import "./lib/ERC223_Interface.sol";    // Library for Token ERC223 Interface
+import "./lib/ERC223_Interface.sol";  // Library for Token ERC223 Interface
 
 /*
  * CurrencyNetwork
@@ -25,11 +26,9 @@ import "./lib/ERC223_Interface.sol";    // Library for Token ERC223 Interface
 contract CurrencyNetwork is ERC223 {
 
     using ItSet for ItSet.AddressSet;
-
-    mapping(bytes32 => Account) public accounts;
+    mapping (bytes32 => Account) public accounts;
 
     // FEE GLOBAL DEFAULTS
-
     // Divides current value being transferred to calculate the Network fee
     uint16 network_fee_divisor;
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
@@ -99,7 +98,7 @@ contract CurrencyNetwork is ERC223 {
     // check value is inbounds for accounting to prevent overflows
     modifier valueWithinInt32(uint _value)
     {
-        require(_value < 2**32);
+        require(_value < 2 ** 32);
         _;
     }
 
@@ -116,8 +115,8 @@ contract CurrencyNetwork is ERC223 {
         address _governance
     ) {
         require(_decimals < 10);
-        name = _tokenName;       // Set the name for display purposes
-        symbol = _tokenSymbol;   // Set the symbol for display purposes
+        name = _tokenName;
+        symbol = _tokenSymbol;
         decimals = _decimals;
         network_fee_divisor = _network_fee_divisor;
         capacity_imbalance_fee_divisor = _capacity_imbalance_fee_divisor;
@@ -133,10 +132,10 @@ contract CurrencyNetwork is ERC223 {
      */
     function prepare(address _to, uint16 _maxFee, address[] _path) external {
         calculated_paths[sha3(msg.sender, _to)] =
-            Path({
-                    maxFee : _maxFee,
-                    path : _path
-                });
+        Path({
+        maxFee : _maxFee,
+        path : _path
+        });
         PathPrepared(msg.sender, _to);
     }
 
@@ -148,12 +147,12 @@ contract CurrencyNetwork is ERC223 {
      * @param _maxFee Maximum for fee which occurs when the path is used for transfer
      * @param _path Path of Trustlines calculated by external service (relay server)
      */
-     function prepareFrom(address _from, address _to, uint16 _maxFee, address[] _path) external {
+    function prepareFrom(address _from, address _to, uint16 _maxFee, address[] _path) external {
         calculated_paths[sha3(_from, _to)] =
-            Path({
-                    maxFee : _maxFee,
-                    path : _path
-                });
+        Path({
+        maxFee : _maxFee,
+        path : _path
+        });
     }
 
     /*
@@ -237,7 +236,7 @@ contract CurrencyNetwork is ERC223 {
         _setCreditline(_creditor, debtor, _value);
     }
 
-    function _setCreditline(address _creditor, address _debtor, uint32 _value) internal returns (bool success){
+    function _setCreditline(address _creditor, address _debtor, uint32 _value) internal returns (bool success) {
         Account memory account = getAccount(_creditor, _debtor);
         int64 balance = account.balanceAB;
 
@@ -270,15 +269,15 @@ contract CurrencyNetwork is ERC223 {
      * @param _value The amount of token to be transferred
      * @return true, if the transfer was successful
      */
-    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) public returns (bool success){
+    function transferFrom(address _from, address _to, uint _value) valueWithinInt32(_value) public returns (bool success) {
         uint32 value = uint32(_value);
         require(_transferOnValidPath(_from, _to, value));
         success = true;
     }
 
-    function _abs(int64 _balance) internal constant returns (int64 balance)  {
+    function _abs(int64 _balance) internal constant returns (int64 balance) {
         if (_balance < 0) {
-            balance = -_balance;
+            balance = - _balance;
         } else {
             balance = _balance;
         }
@@ -298,19 +297,19 @@ contract CurrencyNetwork is ERC223 {
      */
     function _mediatedTransferFrom(address _from, address _to, uint32 _value, uint16 _maxFee, address[] _path) internal returns (bool success) {
         // check Path: is there a Path and is _to the last address? Otherwise throw
-        require ((_path.length > 0) && (_to == _path[_path.length - 1]));
+        require((_path.length > 0) && (_to == _path[_path.length - 1]));
 
         // calculate inverse and set as real value
         int32 rValue = int32(_value);
         uint16 fees = 0;
 
-        for (uint i = _path.length; i>0; i--) {
-            address receiver = _path[i-1];
+        for (uint i = _path.length; i > 0; i--) {
+            address receiver = _path[i - 1];
             address sender;
             if (i == 1) {
                 sender = _from;
             } else {
-                sender = _path[i-2];
+                sender = _path[i - 2];
             }
             Account memory account = getAccount(receiver, sender);
             require(account.creditlineAB > 0);
@@ -338,7 +337,7 @@ contract CurrencyNetwork is ERC223 {
     function spendable(address _spender) public constant returns (uint spendable) {
         spendable = 0;
         var myfriends = friends[_spender].list;
-        for(uint i = 0; i < myfriends.length; i++) {
+        for (uint i = 0; i < myfriends.length; i++) {
             spendable += spendableTo(_spender, myfriends[i]);
         }
     }
@@ -376,7 +375,7 @@ contract CurrencyNetwork is ERC223 {
     function totalSupply() public constant returns (uint256 supply) {
         supply = 0;
         var users_list = users.list;
-        for(uint i = 0; i < users_list.length; i++) {
+        for (uint i = 0; i < users_list.length; i++) {
             supply += spendable(users_list[i]);
         }
     }
@@ -397,7 +396,7 @@ contract CurrencyNetwork is ERC223 {
     }
 
     function trustlineLen(address _A, address _B) public constant returns (uint) {
-        return trustline(_A,_B).length + 2;
+        return trustline(_A, _B).length + 2;
     }
 
     /*
@@ -454,7 +453,7 @@ contract CurrencyNetwork is ERC223 {
         return users.list;
     }
 
-    function getUsersReturnSize() returns(uint) {
+    function getUsersReturnSize() returns (uint) {
         // Returning a dynamically-sized array requires two extra slots.
         // One for the data location pointer, and one for the length.
         return getUsers().length + 2;
@@ -464,8 +463,8 @@ contract CurrencyNetwork is ERC223 {
      * @notice Calculates the current modification day since system start.
      * @notice now is an alias for block.timestamp gives the epoch time of the current block.
      */
-    function calculateMtime() public constant returns (uint16 mtime){
-        mtime = uint16((now/(24*60*60)) - ((2017 - 1970)* 365));
+    function calculateMtime() public constant returns (uint16 mtime) {
+        mtime = uint16((now / (24 * 60 * 60)) - ((2017 - 1970) * 365));
     }
 
     function storeAccount(address _A, address _B, Account account) internal {
@@ -487,7 +486,7 @@ contract CurrencyNetwork is ERC223 {
             acc.feesOutstandingB = account.feesOutstandingA;
             acc.feesOutstandingA = account.feesOutstandingB;
             acc.mtime = account.mtime;
-            acc.balanceAB = -account.balanceAB;
+            acc.balanceAB = - account.balanceAB;
         }
     }
 
@@ -507,7 +506,7 @@ contract CurrencyNetwork is ERC223 {
         interest = int64(_balance / (_interest * 256) * _elapsed);
     }
 
-    function _transferOnValidPath(address _from, address _to, uint _value) valueWithinInt32(_value) internal returns (bool success){
+    function _transferOnValidPath(address _from, address _to, uint _value) valueWithinInt32(_value) internal returns (bool success) {
         uint32 value = uint32(_value);
         bytes32 pathId = sha3(_from, _to);
         // check Path exists and is still valid
@@ -518,7 +517,7 @@ contract CurrencyNetwork is ERC223 {
     }
 
     function _calculateNetworkFee(uint32 _value) internal returns (uint16) {
-        return uint16(_value + (_value/network_fee_divisor));
+        return uint16(_value + (_value / network_fee_divisor));
     }
 
     function _calculateFees(uint32 _value, int64 _balance) internal returns (uint32) {
@@ -532,7 +531,7 @@ contract CurrencyNetwork is ERC223 {
         return uint32(uint32(imbalance_generated / capacity_imbalance_fee_divisor) + 1);  // minimum fee is 1
     }
 
-    function _transfer(address _sender, address _receiver, uint32 _value, Account accountReceiverSender) internal  {
+    function _transfer(address _sender, address _receiver, uint32 _value, Account accountReceiverSender) internal {
         int64 balanceAB = accountReceiverSender.balanceAB;
 
         // check Creditlines (value + balance must not exceed creditline)
@@ -561,8 +560,7 @@ contract CurrencyNetwork is ERC223 {
         friends[_B].insert(_A);
     }
 
-    function setAccount(address _A, address _B, uint32 clAB, uint32 clBA, uint16 iAB, uint16 iBA, uint16 fA, uint16 fB, uint16 mtime, int64 balance) external
-    {
+    function setAccount(address _A, address _B, uint32 clAB, uint32 clBA, uint16 iAB, uint16 iBA, uint16 fA, uint16 fB, uint16 mtime, int64 balance) external {
         Account memory account;
         account.creditlineAB = clAB;
         account.creditlineBA = clBA;
@@ -575,8 +573,7 @@ contract CurrencyNetwork is ERC223 {
         storeAccount(_A, _B, account);
     }
 
-    function getAccountExt(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int)
-    {
+    function getAccountExt(address _A, address _B) public constant returns (int, int, int, int, int, int, int, int) {
         Account account = accounts[uniqueIdentifier(_A, _B)];
         if (_A < _B) {
             // View of the Account if the address A < B
@@ -597,16 +594,15 @@ contract CurrencyNetwork is ERC223 {
                     account.feesOutstandingB,
                     account.feesOutstandingA,
                     account.mtime,
-                    - account.balanceAB);
-         }
+                    -account.balanceAB);
+        }
     }
 
     function getAccountExtLen() constant returns (uint) {
-        return 8*32 + 2;
+        return 8 * 32 + 2;
     }
 
-    function getAccount(address _A, address _B) internal constant returns (Account acc)
-    {
+    function getAccount(address _A, address _B) internal constant returns (Account acc) {
         Account account = accounts[uniqueIdentifier(_A, _B)];
         if (_A < _B) {
             acc.creditlineAB = account.creditlineAB;
@@ -671,6 +667,6 @@ contract CurrencyNetwork is ERC223 {
             //retrieve the size of the code on target address, this needs assembly
             length := extcodesize(_addr)
         }
-        return (length>0);
+        return (length > 0);
     }
 }

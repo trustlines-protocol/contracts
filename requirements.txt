@@ -3,3 +3,4 @@ pytest==3.2.1
 ethereum==1.6.1
 pycrypto==2.6.1
 web3==3.11.1
+flake8

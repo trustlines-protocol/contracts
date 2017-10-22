@@ -1,5 +1,6 @@
 pragma solidity ^0.4.11;
 
+
 library ECVerify {
 
     function safer_ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) internal returns (bool, address) {
@@ -26,7 +27,7 @@ library ECVerify {
         uint8 v;
 
         if (sig.length != 65)
-          return (false, 0);
+            return (false, 0);
 
         assembly {
             r := mload(add(sig, 32))
@@ -36,7 +37,7 @@ library ECVerify {
         }
 
         if (v < 27)
-          v += 27;
+            v += 27;
 
         if (v != 27 && v != 28)
             return (false, 0);
