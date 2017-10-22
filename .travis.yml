@@ -1,0 +1,17 @@
+language: python
+python:
+  - "3.6"
+install:
+  - pip install -r requirements.txt
+  - npm install -g solium
+script:
+  - flake8 tlcontrcts
+  - solium --dir contracts/
+  - python -m pytest tests/test_trustlines.py
+  - docker build -t contracts .
+branches:
+  only:
+  - master
+  - develop
+services:
+  - docker

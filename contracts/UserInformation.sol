@@ -1,5 +1,6 @@
 pragma solidity ^0.4.0;
 
+
 contract UserInformation {
 
     mapping (address => bytes) public userPubkey;

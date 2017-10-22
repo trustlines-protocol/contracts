@@ -15,7 +15,7 @@ library NameAddressLibrary {
         string[] keys;
     }
 
-    function set(NameAddressMap storage self, string name, address addr) internal returns (bool){
+    function set(NameAddressMap storage self, string name, address addr) internal returns (bool) {
         var entry = self.entries[name];
         if (entry.idx == 0) {
             entry.idx = self.keys.length + 1;
@@ -26,15 +26,15 @@ library NameAddressLibrary {
         return false;
     }
 
-    function get(NameAddressMap storage self, string name) internal constant returns (address){
+    function get(NameAddressMap storage self, string name) internal constant returns (address) {
         return self.entries[name].tlTokenAddress;
     }
 
-    function contains(NameAddressMap storage self, string name) internal constant returns (bool){
+    function contains(NameAddressMap storage self, string name) internal constant returns (bool) {
         return self.entries[name].idx > 0;
     }
 
-    function remove(NameAddressMap storage self, string name) internal returns (bool){
+    function remove(NameAddressMap storage self, string name) internal returns (bool) {
         var entry = self.entries[name];
         if (entry.idx > 0) {
             var otherkey = self.keys[self.keys.length - 1];
@@ -57,7 +57,7 @@ library NameAddressLibrary {
         return self.keys[idx];
     }
 
-    function getAllTLTokens(NameAddressMap storage self) internal constant returns (address[]){
+    function getAllTLTokens(NameAddressMap storage self) internal constant returns (address[]) {
         address[] memory tlTokens = new address[](self.keys.length);
         for (uint i = 0; i < self.keys.length; i++) {
             tlTokens[i] = self.entries[self.keys[i]].tlTokenAddress;
@@ -65,7 +65,7 @@ library NameAddressLibrary {
         return tlTokens;
     }
 
-    function getAllNames(NameAddressMap storage self) internal constant returns (string[]){
+    function getAllNames(NameAddressMap storage self) internal constant returns (string[]) {
         return self.keys;
     }
 }

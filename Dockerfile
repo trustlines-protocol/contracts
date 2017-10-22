@@ -14,4 +14,5 @@ RUN pip install -r requirements.txt
 
 COPY . /contracts
 
-ENTRYPOINT [ "python", "deploy/deploy_networks.py" ]
+ENTRYPOINT [ "python"]
+CMD ["deploy/deploy_testnetwork.py"] 
