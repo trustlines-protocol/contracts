@@ -6,7 +6,7 @@ import "./ERC223_Interface.sol";
 
 
 /**
-* ERC23 token by Dexaran
+* ERC23 token original by Dexaran
 *
 * https://github.com/Dexaran/ERC23-tokens
 */
@@ -19,22 +19,20 @@ contract SafeMath {
     0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
     function safeAdd(uint256 x, uint256 y) constant internal returns (uint256 z) {
-        if (x > MAX_UINT256 - y)
-            throw;
+        require(x <= MAX_UINT256 - y);
+
         return x + y;
     }
 
     function safeSub(uint256 x, uint256 y) constant internal returns (uint256 z) {
-        if (x < y)
-            throw;
+        require(x >= y);
         return x - y;
     }
 
     function safeMul(uint256 x, uint256 y) constant internal returns (uint256 z) {
         if (y == 0)
             return 0;
-        if (x > MAX_UINT256 / y)
-            throw;
+        require(x <= MAX_UINT256 / y);
         return x * y;
     }
 }
@@ -49,27 +47,27 @@ contract ERC223Token is ERC223, SafeMath {
     uint256 public totalSupply;
 
     // Function to access name of token .
-    function name() constant returns (string _name) {
+    function name() public constant returns (string _name) {
         return name;
     }
 
     // Function to access symbol of token .
-    function symbol() constant returns (string _symbol) {
+    function symbol() public constant returns (string _symbol) {
         return symbol;
     }
 
     // Function to access decimals of token .
-    function decimals() constant returns (uint8 _decimals) {
+    function decimals() public constant returns (uint8 _decimals) {
         return decimals;
     }
 
     // Function to access total supply of tokens .
-    function totalSupply() constant returns (uint256 _totalSupply) {
+    function totalSupply() public constant returns (uint256 _totalSupply) {
         return totalSupply;
     }
 
     // Function that is called when a user or another contract wants to transfer funds .
-    function transfer(address _to, uint _value, bytes _data) returns (bool success) {
+    function transfer(address _to, uint _value, bytes _data) public returns (bool success) {
 
         if (isContract(_to)) {
             return transferToContract(_to, _value, _data);
@@ -80,7 +78,7 @@ contract ERC223Token is ERC223, SafeMath {
 
     // Standard function transfer similar to ERC20 transfer with no _data .
     // Added due to backwards compatibility reasons .
-    function transfer(address _to, uint _value) returns (bool success) {
+    function transfer(address _to, uint _value) public returns (bool success) {
 
         // standard function transfer similar to ERC20 transfer with no _data
         // added due to backwards compatibility reasons
@@ -108,8 +106,7 @@ contract ERC223Token is ERC223, SafeMath {
 
     // function that is called when transaction target is an address
     function transferToAddress(address _to, uint _value, bytes _data) private returns (bool success) {
-        if (balanceOf(msg.sender) < _value)
-            throw;
+        require(balanceOf(msg.sender) >= _value);
         balances[msg.sender] = safeSub(balanceOf(msg.sender), _value);
         balances[_to] = safeAdd(balanceOf(_to), _value);
         Transfer(msg.sender, _to, _value, _data);
@@ -118,8 +115,7 @@ contract ERC223Token is ERC223, SafeMath {
 
     // function that is called when transaction target is a contract
     function transferToContract(address _to, uint _value, bytes _data) private returns (bool success) {
-        if (balanceOf(msg.sender) < _value)
-            throw;
+        require(balanceOf(msg.sender) >= _value);
         balances[msg.sender] = safeSub(balanceOf(msg.sender), _value);
         balances[_to] = safeAdd(balanceOf(_to), _value);
         ContractReceiver receiver = ContractReceiver(_to);
@@ -128,7 +124,7 @@ contract ERC223Token is ERC223, SafeMath {
         return true;
     }
 
-    function balanceOf(address _owner) constant returns (uint balance) {
+    function balanceOf(address _owner) public constant returns (uint balance) {
         return balances[_owner];
     }
 }

@@ -7,7 +7,7 @@ contract UserInformation {
 
     event YouHaveMail(address _receiver, bytes _ipfsHash);
 
-    function sendMessage(address _receiver, bytes _ipfsHash) {
+    function sendMessage(address _receiver, bytes _ipfsHash) public {
         YouHaveMail(_receiver, _ipfsHash);
     }
 

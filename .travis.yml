@@ -9,7 +9,7 @@ script:
   - flake8 tlcontrcts
   - solium --dir contracts/
   - populus compile
-  - python -m pytest tests/test_trustlines.py
+  - python -m pytest tests/test_currency_network_basics.py
   - docker build -t contracts .
 branches:
   only:

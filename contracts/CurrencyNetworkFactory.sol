@@ -12,20 +12,20 @@ contract CurrencyNetworkFactory {
 
     Registry private registry;
 
-    function CurrencyNetworkFactory(address _registry) {
+    function CurrencyNetworkFactory(address _registry) public {
         registry = Registry(_registry);
     }
 
     //cost XXXXXXX gas
-    function CreateCurrencyNetwork
-    (
+    function CreateCurrencyNetwork(
         string _tokenName,
         string _tokenSymbol,
         address _adminKey,
         uint16 _network_fee_divisor,
-        uint16 _capacity_imbalance_fee_divisor,
+        uint16 _capacityImbalanceFeeDivisor,
         uint16 _maxInterestRate
-    ) {
+    ) external
+    {
         // GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
         address tokenAddr = new CurrencyNetwork();
         registry.register(_tokenName, tokenAddr);
