@@ -23,28 +23,28 @@ contract Registry {
         // }
     }
 
-    function getTLTokenAddress(string name) constant returns (address) {
+    function getTLTokenAddress(string name) external constant returns (address) {
         return registry.get(name);
     }
 
-    function contains(string name) constant returns (bool) {
+    function contains(string name) external constant returns (bool) {
         return registry.contains(name);
     }
 
-    function unregister(string name) returns (bool success) {
+    function unregister(string name) external returns (bool success) {
         success = registry.remove(name);
         TLTokenNameDeRegistered(name);
     }
 
-    function size() constant returns (uint) {
+    function size() external constant returns (uint) {
         return registry.size();
     }
 
-    function index(uint idx) constant returns (string) {
+    function index(uint idx) external constant returns (string) {
         return registry.index(idx);
     }
 
-    function getAllTLTokens() constant returns (address[]) {
+    function getAllTLTokens() external constant returns (address[]) {
         address[] memory tlTokens = new address[](registry.keys.length);
         for (uint i = 0; i < registry.keys.length; i++) {
             tlTokens[i] = registry.entries[registry.keys[i]].tlTokenAddress;

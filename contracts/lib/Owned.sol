@@ -17,7 +17,7 @@ contract Owned {
         _;
     }
 
-    function Owned(address _admin) {
+    function Owned(address _admin) public {
         owner = msg.sender;
         admin = _admin;
     }
@@ -30,7 +30,7 @@ contract Owned {
         return admin == _addr;
     }
 
-    function transfer(address _owner) onlyOwnerOrAdmin {
+    function transfer(address _owner) public onlyOwnerOrAdmin {
         owner = _owner;
     }
 }

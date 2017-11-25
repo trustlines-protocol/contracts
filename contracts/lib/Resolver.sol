@@ -13,48 +13,56 @@ contract Resolver {
     event FallbackChanged(address oldFallback, address newFallback);
 
     modifier onlyAdmin {
-        if (msg.sender != admin) {throw;}
+        require(msg.sender == admin);
         _;
     }
 
-    function Resolver(address _fallback) {
+    function Resolver(address _fallback) public {
         admin = msg.sender;
         fallback = _fallback;
     }
 
     // Public API
-    function lookup(bytes4 sig, bytes msgData) returns (address, uint) {
-        if (address(replacement) != 0) {return replacement.lookup(sig, msgData);} // If Resolver has been replaced, pass call to replacement
+    function lookup(bytes4 sig, bytes msgData) external returns (address, uint) {
+        // If Resolver has been replaced, pass call to replacement
+        if (address(replacement) != 0) {return replacement.lookup(sig, msgData);}
 
         return (destination(sig, msgData), outsize(sig, msgData));
     }
 
     // Administrative functions
 
-    function setAdmin(address _admin) onlyAdmin {
+    function setAdmin(address _admin) external onlyAdmin {
         admin = _admin;
     }
 
-    function replace(Resolver _replacement) onlyAdmin {
+    function replace(Resolver _replacement) external onlyAdmin {
         replacement = _replacement;
     }
 
-    function register(string signature, address destination, uint outsize) onlyAdmin {
+    function register(string signature, address destination, uint outsize) external onlyAdmin {
         pointers[stringToSig(signature)] = Pointer(destination, outsize);
     }
 
-    function registerLengthFunction(string mainSignature, string lengthSignature, address destination) onlyAdmin {
+    function registerLengthFunction(
+        string mainSignature,
+        string lengthSignature,
+        address destination
+    )
+        external
+        onlyAdmin
+    {
         lengthPointers[stringToSig(mainSignature)] = LengthPointer(stringToSig(lengthSignature), destination);
     }
 
-    function setFallback(address _fallback) onlyAdmin {
+    function setFallback(address _fallback) external onlyAdmin {
         FallbackChanged(fallback, _fallback);
         fallback = _fallback;
     }
 
     // Helpers
 
-    function destination(bytes4 sig, bytes msgData) returns (address) {
+    function destination(bytes4 sig, bytes msgData) internal returns (address) {
         address storedDestination = pointers[sig].destination;
         if (storedDestination != 0) {
             return storedDestination;
@@ -63,7 +71,7 @@ contract Resolver {
         }
     }
 
-    function outsize(bytes4 sig, bytes msgData) returns (uint) {
+    function outsize(bytes4 sig, bytes msgData) internal returns (uint) {
         if (lengthPointers[sig].destination != 0) {
             // Dynamically sized
             return dynamicLength(sig, msgData);
@@ -76,7 +84,7 @@ contract Resolver {
         }
     }
 
-    function dynamicLength(bytes4 sig, bytes msgData) returns (uint outsize) {
+    function dynamicLength(bytes4 sig, bytes msgData) internal returns (uint outsize) {
         uint r;
         address lengthDestination = lengthPointers[sig].destination;
         bytes4 lengthSig = lengthPointers[sig].sig;
@@ -89,10 +97,12 @@ contract Resolver {
         }
 
         // Throw if the call failed
-        if (r != 1) {throw;}
+        if (r != 1) {
+            revert();
+        }
     }
 
-    function stringToSig(string signature) returns (bytes4) {
-        return bytes4(sha3(signature));
+    function stringToSig(string signature) internal returns (bytes4) {
+        return bytes4(keccak256(signature));
     }
 }
