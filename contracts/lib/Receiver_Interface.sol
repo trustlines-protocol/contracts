@@ -7,6 +7,6 @@ pragma solidity ^0.4.9;
 
 interface ContractReceiver {
 
-    function tokenFallback(address _from, uint _value, bytes _data);
+    function tokenFallback(address _from, uint _value, bytes _data) public;
 
 }
