@@ -9,7 +9,7 @@ def main():
     
     networks = [("Euro", "EUR"), ("US Dollar", "USD"), ("Testcoin", "T")]
     
-    network_addresses = deploy_test_networks(chain_name, networks):
+    network_addresses = deploy_test_networks(chain_name, networks)
     
     with open("networks", 'w') as file_handler:
         for network_address in network_addresses:
