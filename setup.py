@@ -113,7 +113,8 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['populus==2.0.0a4',
-                      'web3'],
+                      'web3==3.11.1',
+                      'ethereum==1.6.1'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

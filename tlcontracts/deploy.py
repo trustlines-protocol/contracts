@@ -63,8 +63,7 @@ def deploy_network(chain, currency_network_factory, name, symbol, decimals):
     proxy = deploy("EtherRouter", chain, resolver.address)
     proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
     txid = proxied_trustlines.transact(
-        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 1000, 100,
-                                             "0x0000000000000000000000000000000000000000")
+        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 1000, 100)
     check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()",
                                                                                     "getUsersReturnSize()",
