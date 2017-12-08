@@ -271,6 +271,10 @@ contract CurrencyNetwork {
             account.balanceAB);
     }
 
+    function getAccountLen() external constant returns (uint) {
+        return 8 * 32 + 2;
+    }
+
     function setAccount(
         address _A,
         address _B,
@@ -300,10 +304,6 @@ contract CurrencyNetwork {
         _storeAccount(_A, _B, account);
 
         addToUsersAndFriends(_A, _B);
-    }
-
-    function getAccountLen() external constant returns (uint) {
-        return 8 * 32 + 2;
     }
 
     /*
