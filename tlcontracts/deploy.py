@@ -73,12 +73,8 @@ def deploy_network(chain, currency_network_factory, name, symbol, decimals):
                                                                                     "getFriendsReturnSize(address)",
                                                                                     addr_trustlines)
     check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("trustline(address,address)",
-                                                                                    "trustlineLen(address,address)",
-                                                                                    addr_trustlines)
-    check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccountExt(address,address)",
-                                                                                    "getAccountExtLen()",
+    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccount(address,address)",
+                                                                                    "getAccountLen()",
                                                                                     addr_trustlines)
     check_successful_tx(web3, txid)
     txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("name()", "nameLen()",
