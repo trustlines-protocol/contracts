@@ -73,8 +73,7 @@ contract CurrencyNetwork {
     }
 
     // check value is inbounds for accounting to prevent overflows
-    modifier valueWithinInt32(uint _value)
-    {
+    modifier valueWithinInt32(uint _value) {
         require(_value < 2 ** 32);
         _;
     }
@@ -82,6 +81,8 @@ contract CurrencyNetwork {
     function CurrencyNetwork() public {
         // don't do anything here due to upgradeability issues (no contructor-call on replacement).
     }
+
+    function() external {}
 
     /*
      * @notice initialize the contract
@@ -98,7 +99,7 @@ contract CurrencyNetwork {
         uint16 _capacityImbalanceFeeDivisor
     )
         //TODO add modifier to restrict access
-        public
+        external
     {
         require(_decimals < 10);
         name = _tokenName;
@@ -257,8 +258,8 @@ contract CurrencyNetwork {
         }
     }
 
-    function getAccount(address _A, address _B) external constant returns (int, int, int, int, int, int, int, int) {
-        Account memory account = _loadAccount(_A, _B);
+    function getAccount(address _a, address _b) external constant returns (int, int, int, int, int, int, int, int) {
+        Account memory account = _loadAccount(_a, _b);
 
         return (
             account.creditlineAB,
@@ -276,8 +277,8 @@ contract CurrencyNetwork {
     }
 
     function setAccount(
-        address _A,
-        address _B,
+        address _a,
+        address _b,
         uint32 _creditlineAB,
         uint32 _creditlineBA,
         uint16 _interestAB,
@@ -301,9 +302,9 @@ contract CurrencyNetwork {
         account.mtime = _mtime;
         account.balanceAB = _balanceAB;
 
-        _storeAccount(_A, _B, account);
+        _storeAccount(_a, _b, account);
 
-        addToUsersAndFriends(_A, _B);
+        addToUsersAndFriends(_a, _b);
     }
 
     /*
@@ -311,8 +312,8 @@ contract CurrencyNetwork {
      * @dev Gets the sum of system fees as applicable when A sends B and transfer
      * @param Ethereum Addresses of A and B
      */
-    function getFeesOutstanding(address _A, address _B) external constant returns (int fees) {
-        Account memory account = _loadAccount(_A, _B);
+    function getFeesOutstanding(address _a, address _b) external constant returns (int fees) {
+        Account memory account = _loadAccount(_a, _b);
         fees = account.feesOutstandingA;
     }
 
@@ -360,8 +361,8 @@ contract CurrencyNetwork {
      * @dev If negative A owes B, if positive B owes A
      * @param Ethereum addresses A and B which have trustline relationship established between them
      */
-    function balance(address _A, address _B) public constant returns (int _balance) {
-        Account memory account = _loadAccount(_A, _B);
+    function balance(address _a, address _b) public constant returns (int _balance) {
+        Account memory account = _loadAccount(_a, _b);
         _balance = account.balanceAB;
     }
 
@@ -398,6 +399,28 @@ contract CurrencyNetwork {
      */
     function calculateMtime() public constant returns (uint16 mtime) {
         mtime = uint16((now / (24 * 60 * 60)) - ((2017 - 1970) * 365));
+    }
+
+    // ERC 223 Interface
+
+    function name() public constant returns (string) {
+        return name;
+    }
+
+    function nameLen() public constant returns (uint) {
+        return bytes(name).length;
+    }
+
+    function symbol() public constant returns (string) {
+        return symbol;
+    }
+
+    function symbolLen() public constant returns (uint) {
+        return bytes(symbol).length;
+    }
+
+    function decimals() public constant returns (uint8) {
+        return decimals;
     }
 
     function _directTransfer(
@@ -484,17 +507,17 @@ contract CurrencyNetwork {
         success = true;
     }
 
-    function addToUsersAndFriends(address _A, address _B) internal {
-        users.insert(_A);
-        users.insert(_B);
-        friends[_A].insert(_B);
-        friends[_B].insert(_A);
+    function addToUsersAndFriends(address _a, address _b) internal {
+        users.insert(_a);
+        users.insert(_b);
+        friends[_a].insert(_b);
+        friends[_b].insert(_a);
     }
 
-    function _loadAccount(address _A, address _B) internal constant returns (Account) {
-        Account memory account = accounts[uniqueIdentifier(_A, _B)];
+    function _loadAccount(address _a, address _b) internal constant returns (Account) {
+        Account memory account = accounts[uniqueIdentifier(_a, _b)];
         Account memory result;
-        if (_A < _B) {
+        if (_a < _b) {
             result = account;
         } else {
             result.creditlineBA = account.creditlineAB;
@@ -509,9 +532,9 @@ contract CurrencyNetwork {
         return result;
     }
 
-    function _storeAccount(address _A, address _B, Account account) internal {
-        Account storage acc = accounts[uniqueIdentifier(_A, _B)];
-        if (_A < _B) {
+    function _storeAccount(address _a, address _b, Account account) internal {
+        Account storage acc = accounts[uniqueIdentifier(_a, _b)];
+        if (_a < _b) {
             acc.creditlineAB = account.creditlineAB;
             acc.creditlineBA = account.creditlineBA;
             acc.interestAB = account.interestAB;
@@ -580,12 +603,12 @@ contract CurrencyNetwork {
         return uint32(uint32(imbalanceGenerated / _capacityImbalanceFeeDivisor) + 1);  // minimum fee is 1
     }
 
-    function uniqueIdentifier(address _A, address _B) internal pure returns (bytes32) {
-        require(_A != _B);
-        if (_A < _B) {
-            return keccak256(_A, _B);
-        } else if (_A > _B) {
-            return keccak256(_B, _A);
+    function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
+        require(_a != _b);
+        if (_a < _b) {
+            return keccak256(_a, _b);
+        } else if (_a > _b) {
+            return keccak256(_b, _a);
         }
     }
 
@@ -620,28 +643,6 @@ contract CurrencyNetwork {
         returns (bytes32)
     {
         return keccak256(_creditor, _debtor, _value);
-    }
-
-    // ERC 223 Interface
-
-    function name() public constant returns (string) {
-        return name;
-    }
-
-    function nameLen() public constant returns (uint) {
-        return bytes(name).length;
-    }
-
-    function symbol() public constant returns (string) {
-        return symbol;
-    }
-
-    function symbolLen() public constant returns (uint) {
-        return bytes(symbol).length;
-    }
-
-    function decimals() public constant returns (uint8) {
-        return decimals;
     }
 
     function _abs(int64 _balance) internal pure returns (int64 _absBalance) {

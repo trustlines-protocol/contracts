@@ -46,7 +46,7 @@ def deploy_network(chain, currency_network_factory, name, symbol, decimals):
     web3 = chain.web3
     transfer_filter = currency_network_factory.on("CurrencyNetworkCreated")
     txid = currency_network_factory.transact(
-        {"from": web3.eth.accounts[0]}).CreateCurrencyNetwork(name, symbol,
+        {"from": web3.eth.accounts[0]}).createCurrencyNetwork(name, symbol,
                                                               web3.eth.accounts[0],
                                                               1000,
                                                               100,
