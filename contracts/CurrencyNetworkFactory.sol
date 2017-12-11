@@ -17,14 +17,15 @@ contract CurrencyNetworkFactory {
     }
 
     //cost XXXXXXX gas
-    function CreateCurrencyNetwork(
+    function createCurrencyNetwork(
         string _tokenName,
         string _tokenSymbol,
         address _adminKey,
-        uint16 _network_fee_divisor,
+        uint16 _networkFeeDivisor,
         uint16 _capacityImbalanceFeeDivisor,
         uint16 _maxInterestRate
-    ) external
+    )
+        external
     {
         // GovernanceTemplate governance = new GovernanceTemplate(_maxInterestRate);
         address tokenAddr = new CurrencyNetwork();

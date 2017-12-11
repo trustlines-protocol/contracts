@@ -3,6 +3,8 @@
   "plugins": ["security"],
   "rules": {
     "indentation": ["error", 4],
+    "function-order": "error",
+    "mixedcase": "error",
     "quotes": ["error", "double"],
     "security/no-inline-assembly": "off",
     "security/no-block-members": "off"

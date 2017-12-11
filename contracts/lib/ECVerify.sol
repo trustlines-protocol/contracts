@@ -1,5 +1,6 @@
 pragma solidity ^0.4.11;
 
+
 //
 // The new assembly support in Solidity makes writing helpers easy.
 // Many have complained how complex it is to use `ecrecover`, especially in conjunction
@@ -20,10 +21,19 @@ pragma solidity ^0.4.11;
 //
 // Written by Alex Beregszaszi (@axic), use it under the terms of the MIT license.
 //
-
 library ECVerify {
 
-    function safer_ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) internal returns (bool, address) {
+    function saferECrecover(
+        bytes32 hash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        internal
+        returns (
+            bool,
+            address)
+    {
         bool ret;
         address addr;
 
@@ -62,7 +72,7 @@ library ECVerify {
         if (v != 27 && v != 28)
             return (false, 0);
 
-        return safer_ecrecover(hash, v, r, s);
+        return saferECrecover(hash, v, r, s);
     }
 
     function ecverify(bytes32 hash, bytes sig) internal returns (address addr) {

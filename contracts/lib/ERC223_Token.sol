@@ -90,8 +90,12 @@ contract ERC223Token is ERC223, SafeMath {
         }
     }
 
+    function balanceOf(address _owner) public constant returns (uint balance) {
+        return balances[_owner];
+    }
+
     // assemble the given address bytecode. If bytecode exists then the _addr is a contract.
-    function isContract(address _addr) private returns (bool is_contract) {
+    function isContract(address _addr) private returns (bool isContract) {
         uint length;
         assembly {
             //retrieve the size of the code on target address, this needs assembly
@@ -109,7 +113,13 @@ contract ERC223Token is ERC223, SafeMath {
         require(balanceOf(msg.sender) >= _value);
         balances[msg.sender] = safeSub(balanceOf(msg.sender), _value);
         balances[_to] = safeAdd(balanceOf(_to), _value);
-        Transfer(msg.sender, _to, _value, _data);
+
+        Transfer(
+            msg.sender,
+            _to,
+            _value,
+            _data);
+
         return true;
     }
 
@@ -120,11 +130,14 @@ contract ERC223Token is ERC223, SafeMath {
         balances[_to] = safeAdd(balanceOf(_to), _value);
         ContractReceiver receiver = ContractReceiver(_to);
         receiver.tokenFallback(msg.sender, _value, _data);
-        Transfer(msg.sender, _to, _value, _data);
+
+        Transfer(
+            msg.sender,
+            _to,
+            _value,
+            _data);
+
         return true;
     }
 
-    function balanceOf(address _owner) public constant returns (uint balance) {
-        return balances[_owner];
-    }
 }
