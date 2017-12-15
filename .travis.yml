@@ -17,3 +17,9 @@ branches:
   - develop
 services:
   - docker
+notifications:
+  webhooks:
+    urls:
+      - secure: "47kfxfxOWTBPkAiDI0hsD7qA1aHRWAMJmHP7IdJLTwiRX2PhFOkjkaM98IiAZMHkPbvgXo8rSqfvzyBlztrWP78VHIZmL38ICt3sZ+VZ/WM+TKtq67jV4/ENPdkqPRPA6KCPQzQy93gtGM222ql9PCIYy8xz55fb9vqulYwis7H36zLXnwqywIXwJNa/w37UTmWSyzgHAeKOPfXosdoYU9N+0pQHnxJOI2JHQlwok2sJQZXWjRnp/ZLKl/chkdlW02mjnqwFeLBe+4laySYhFZ5WFcyrhV93bm4MLVLQp0lHAFT4u2hw2S2Kn8Bjv13wN/7wDhEwJ5IRGenM4JMfIxCdyeAwsA1g5crDrBPa0mrj0eTzA+X1mgmyWfd3seNpDb+COEzO5WT/+VGmMFp1boDN5SJgp4KDLiw2oJRefvdQufQmCmB01pbHcGwsFljIcP33VA4sk5/uhsz7RAV+Y1k/2vfO0Yv79HfO5yYIN04Xp5jZCla4QQ3WYmYWsE8O1V2IG1oyp6LRB1ssC2bJWOtHcUbpjMqXFQSL3wW2erKNwMEg8IaXBGUGxVHo1P79bvblrgGna+p64bAFb5tR57eCSmgB2cRiUzeU4M1C7xBnXT4zOwGNQ2M8M0PU9LzqtXD2TYRR0VdMPvmL7ikFzntQWXeGs9dFCMRiVI5QlCo="
+    on_success: change
+    on_failure: always
