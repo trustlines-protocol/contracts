@@ -3,4 +3,4 @@ pycrypto
 web3
 eth-testrpc
 flake8
-pytest
+pytest==3.2.5
