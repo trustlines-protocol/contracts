@@ -1,7 +1,6 @@
-populus==2.0.0a4
-pytest==3.2.1
-ethereum==1.6.1
-ethereum-utils==0.6.0
-pycrypto==2.6.1
-web3==3.11.1
+populus
+pycrypto
+web3
+eth-testrpc
 flake8
+pytest

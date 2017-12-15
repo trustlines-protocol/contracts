@@ -91,8 +91,8 @@ def deploy_network(chain, currency_network_factory, name, symbol, decimals):
 @contextmanager
 def cd_into_projectpath():
     cwd = os.getcwd()
-    local_filepath = 'populus.json'
-    install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'populus.json')
+    local_filepath = 'config.json'
+    install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'config.json')
     if os.path.isfile(local_filepath):  # we are in the right directory
         yield
     elif os.path.isfile(install_filepath):
@@ -105,7 +105,7 @@ def cd_into_projectpath():
 
 def deploy_test_networks(chain_name, networks):
     with cd_into_projectpath():
-        project = Project('populus.json')
+        project = Project(user_config_file_path='config.json')
         print("Make sure {} chain is running, you can connect to it, or you'll get timeout".format(chain_name))
 
         with project.get_chain(chain_name) as chain:

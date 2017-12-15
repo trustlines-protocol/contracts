@@ -40,11 +40,10 @@ class CompileContracts(Command):
 
     def run(self):
         from populus import Project
-        from populus.utils.cli import compile_contracts
-        project = Project('populus.json')
-        compiler_settings = project.config.get('compilation.settings', {})
-        compile_contracts(project, compiler_settings)
-        
+        from populus.api.compile_contracts import compile_project
+        project = Project(user_config_file_path='config.json')
+        compile_project(project, False)
+
         
 def list_files(dir_path):
     base_dir = path.join(here, dir_path)
@@ -112,9 +111,8 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['populus==2.0.0a4',
-                      'web3==3.11.1',
-                      'ethereum==1.6.1'],
+    install_requires=['populus',
+                      'web3',],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -133,7 +131,7 @@ setup(
     # need to place data files outside of your packages. See:
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    data_files=[('trustlines-contracts', ['populus.json']),
+    data_files=[('trustlines-contracts', ['config.json']),
                 ('trustlines-contracts/build', ['build/contracts.json']),
                 ('trustlines-contracts/contracts', list_files('contracts')),
                 ('trustlines-contracts/contracts/gov', list_files('contracts/gov')),
