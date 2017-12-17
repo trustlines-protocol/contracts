@@ -4,3 +4,4 @@ web3
 eth-testrpc
 flake8
 pytest==3.2.5
+cytoolz==0.8.2
