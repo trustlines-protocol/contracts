@@ -91,11 +91,8 @@ def deploy_network(chain, currency_network_factory, name, symbol, decimals):
 @contextmanager
 def cd_into_projectpath():
     cwd = os.getcwd()
-    local_filepath = 'config.json'
     install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'config.json')
-    if os.path.isfile(local_filepath):  # we are in the right directory
-        yield
-    elif os.path.isfile(install_filepath):
+    if os.path.isfile(install_filepath):
         os.chdir(os.path.join(sys.prefix, 'trustlines-contracts'))
         yield
     else:
