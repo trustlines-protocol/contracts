@@ -23,7 +23,7 @@ pragma solidity ^0.4.11;
 //
 library ECVerify {
 
-    function saferECrecover(
+    function saferECRecover(
         bytes32 hash,
         uint8 v,
         bytes32 r,
@@ -72,7 +72,11 @@ library ECVerify {
         if (v != 27 && v != 28)
             return (false, 0);
 
-        return saferECrecover(hash, v, r, s);
+        return saferECRecover(
+            hash,
+            v,
+            r,
+            s);
     }
 
     function ecverify(bytes32 hash, bytes sig) internal returns (address addr) {
