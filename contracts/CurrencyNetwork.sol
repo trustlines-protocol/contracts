@@ -122,7 +122,7 @@ contract CurrencyNetwork {
         address _from,
         address _to,
         uint32 _value,
-        uint16 _maxFee,
+        uint32 _maxFee,
         uint16 _expiresOn,
         uint _nounce,
         address[] _path,
@@ -176,7 +176,7 @@ contract CurrencyNetwork {
     function transfer(
         address _to,
         uint32 _value,
-        uint16 _maxFee,
+        uint32 _maxFee,
         address[] _path
     )
         external
@@ -430,40 +430,31 @@ contract CurrencyNetwork {
         uint _hopNumber
     )
         internal
+        returns (uint32 fees)
     {
-        Account memory accountReceiverSender = _loadAccount(_receiver, _sender);
+        Account memory account = _loadAccount(_sender, _receiver);
 
-        if (_hopNumber == 0) {
-            uint16 fees = _calculateNetworkFee(_value, networkFeeDivisor);
-            accountReceiverSender.feesOutstandingA += fees;
-        }
-
-        int64 balanceAB = accountReceiverSender.balanceAB;
+        int64 balanceAB = account.balanceAB;
 
         // check Creditlines (value + balance must not exceed creditline)
-        uint32 creditlineAB = accountReceiverSender.creditlineAB;
-        uint32 nValue = _value - _calculateFees(_value, balanceAB, capacityImbalanceFeeDivisor);
+        uint32 creditlineBA = account.creditlineBA;
+        fees = _calculateFees(_value, balanceAB, capacityImbalanceFeeDivisor);
+        int64 newBalance = balanceAB - _value - fees;
 
-        require(nValue + balanceAB <= creditlineAB);
-
-        // apply Interests
-        uint16 elapsed = calculateMtime() - accountReceiverSender.mtime;
-        int64 interest = _occurredInterest(accountReceiverSender.balanceAB, accountReceiverSender.interestAB, elapsed);
-        accountReceiverSender.balanceAB += interest;
+        require(-newBalance <= creditlineBA);
+        account.balanceAB = newBalance;
 
         // store new balance
-        accountReceiverSender.balanceAB = nValue + balanceAB;
-        _storeAccount(_receiver, _sender, accountReceiverSender);
-
+        _storeAccount(_sender, _receiver, account);
         // Should be removed later
-        BalanceUpdate(_receiver, _sender, accountReceiverSender.balanceAB);
+        BalanceUpdate(_receiver, _sender, newBalance);
     }
 
     function _mediatedTransfer(
         address _from,
         address _to,
         uint32 _value,
-        uint16 _maxFee,
+        uint32 _maxFee,
         address[] _path
     )
         internal
@@ -473,8 +464,9 @@ contract CurrencyNetwork {
         require((_path.length > 0) && (_to == _path[_path.length - 1]));
 
         // calculate inverse and set as real value
-        int32 rValue = int32(_value);
-        //uint16 fees = 0; // TODO
+        uint32 rValue = _value;
+        uint32 fees = 0;
+        uint32 fee = 0;
 
         for (uint i = _path.length; i > 0; i--) {
             address receiver = _path[i-1];
@@ -484,11 +476,14 @@ contract CurrencyNetwork {
             } else {
                 sender = _path[i-2];
             }
-            _directTransfer(
+            fee = _directTransfer(
                 sender,
                 receiver,
-                uint32(rValue),
+                rValue,
                 i);
+            rValue += fee;
+            fees += fee;
+            require(fees <= _maxFee);
         }
         bytes memory empty;
 
@@ -616,7 +611,7 @@ contract CurrencyNetwork {
         address _from,
         address _to,
         uint32 _value,
-        uint16 _maxFee,
+        uint32 _maxFee,
         uint16 _expiresOn,
         uint _nounce
     )
