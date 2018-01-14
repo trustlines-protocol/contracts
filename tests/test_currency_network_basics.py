@@ -143,6 +143,24 @@ def test_transfer_payback(currency_network_contract_with_trustlines, accounts):
     assert contract.call().balance(accounts[4], accounts[3]) == 0
 
 
+def test_send_back(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    assert contract.call().balance(accounts[0], accounts[1]) == 0
+    contract.transact({'from': accounts[0]}).transfer(accounts[1], 120, 0, [accounts[1]])
+    assert contract.call().balance(accounts[1], accounts[0]) == 120
+    contract.transact({'from': accounts[1]}).transfer(accounts[0], 120, 0, [accounts[0]])
+    assert contract.call().balance(accounts[0], accounts[1]) == 0
+
+
+def test_send_more(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    assert contract.call().balance(accounts[0], accounts[1]) == 0
+    contract.transact({'from': accounts[0]}).transfer(accounts[1], 120, 0, [accounts[1]])
+    assert contract.call().balance(accounts[1], accounts[0]) == 120
+    contract.transact({'from': accounts[1]}).transfer(accounts[0], 200, 0, [accounts[0]])
+    assert contract.call().balance(accounts[0], accounts[1]) == 80
+
+
 def test_update_without_accept_creditline_(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
