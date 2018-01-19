@@ -71,7 +71,7 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
     A, B, *rest = accounts
     assert contract.call().spendableTo(A, B) == 150
     assert contract.call().spendableTo(B, A) == 100
-    contract.transact({"from":A}).transfer(B, 40, 1, [B])
+    contract.transact({"from": A}).transfer(B, 40, 1, [B])
     assert contract.call().spendableTo(A, B) == 110 - 1
     assert contract.call().spendableTo(B, A) == 140 + 1
 
@@ -79,7 +79,7 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
 def test_max_fee(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     with pytest.raises(tester.TransactionFailed):
-      contract.transact({'from': accounts[0]}).transfer(accounts[1], 100, 1, [accounts[1]])
+        contract.transact({'from': accounts[0]}).transfer(accounts[1], 100, 1, [accounts[1]])
 
 
 def test_send_back_with_fees(currency_network_contract_with_trustlines, accounts):
@@ -98,4 +98,3 @@ def test_send_more_with_fees(currency_network_contract_with_trustlines, accounts
     assert contract.call().balance(accounts[1], accounts[0]) == 120 + 2
     contract.transact({'from': accounts[1]}).transfer(accounts[0], 200, 1, [accounts[0]])
     assert contract.call().balance(accounts[0], accounts[1]) == 80 - 2 + 1
-

@@ -222,7 +222,7 @@ def test_reduce_can_not_increase_creditline(currency_network_contract_with_trust
 def test_reduce_creditline_evenif_above_balance(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    contract.transact({"from":B}).transfer(A, 20, 0, [A])
+    contract.transact({"from": B}).transfer(A, 20, 0, [A])
     assert contract.call().balance(A, B) == 20
     contract.transact({"from": A}).updateCreditline(B, 10)
     assert contract.call().creditline(A, B) == 10
@@ -258,7 +258,7 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
     A, B, *rest = accounts
     assert contract.call().spendableTo(A, B) == 150
     assert contract.call().spendableTo(B, A) == 100
-    contract.transact({"from":A}).transfer(B, 40, 0, [B])
+    contract.transact({"from": A}).transfer(B, 40, 0, [B])
     assert contract.call().spendableTo(A, B) == 110
     assert contract.call().spendableTo(B, A) == 140
 
@@ -267,9 +267,9 @@ def test_balance_of(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, C, D, E, *rest = accounts
     assert contract.call().balanceOf(A) == 700
-    contract.transact({"from":A}).transfer(B, 40, 0, [B])
+    contract.transact({"from": A}).transfer(B, 40, 0, [B])
     assert contract.call().balanceOf(A) == 660
-    contract.transact({"from":A}).transfer(C, 20, 0, [E, D, C])
+    contract.transact({"from": A}).transfer(C, 20, 0, [E, D, C])
     assert contract.call().balanceOf(A) == 640
 
 
@@ -280,10 +280,43 @@ def test_total_supply(currency_network_contract_with_trustlines):
 def test_total_supply_after_credits(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    contract.transact({"from":A}).updateCreditline(B, 150)
-    contract.transact({"from":B}).acceptCreditline(A, 150)
+    contract.transact({"from": A}).updateCreditline(B, 150)
+    contract.transact({"from": B}).acceptCreditline(A, 150)
     assert contract.call().totalSupply() == 3300
-    contract.transact({"from":A}).updateCreditline(B, 0)
+    contract.transact({"from": A}).updateCreditline(B, 0)
     assert contract.call().totalSupply() == 3150
-    contract.transact({"from":B}).updateCreditline(A, 0)
+    contract.transact({"from": B}).updateCreditline(A, 0)
     assert contract.call().totalSupply() == 3000
+
+
+def test_balance_event(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    A, B, *rest = accounts
+    contract.transact({'from': A}).transfer(B, 110, 0, [B])
+    events = contract.pastEvents('BalanceUpdate').get()
+    assert len(events) == 1
+    args = events[0]['args']
+    from_ = args['_from']
+    to = args['_to']
+    value = args['_value']
+    if from_ == A and to == B:
+        assert value == -110
+    elif from_ == B and to == A:
+        assert value == 110
+    else:
+        assert False, 'Wrong _from and _to in the event: were: {}, {}, but expected: {}, {}'.format(from_, to, A, B)
+
+
+def test_transfer_event(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    A, B, *rest = accounts
+    contract.transact({'from': A}).transfer(B, 110, 0, [B])
+    events = contract.pastEvents('Transfer').get()
+    assert len(events) == 1
+    args = events[0]['args']
+    from_ = args['_from']
+    to = args['_to']
+    value = args['_value']
+    assert from_ == A
+    assert to == B
+    assert value == 110
