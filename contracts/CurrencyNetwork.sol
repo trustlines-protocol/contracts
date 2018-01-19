@@ -447,7 +447,7 @@ contract CurrencyNetwork {
         // store new balance
         _storeAccount(_sender, _receiver, account);
         // Should be removed later
-        BalanceUpdate(_receiver, _sender, newBalance);
+        BalanceUpdate(_sender, _receiver, newBalance);
     }
 
     function _mediatedTransfer(
