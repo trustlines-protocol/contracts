@@ -1,6 +1,6 @@
 import pytest
-
 from ethereum import tester
+
 
 trustlines = [(0, 1, 100, 150),
               (1, 2, 200, 250),

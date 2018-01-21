@@ -3,8 +3,9 @@ pragma solidity ^0.4.11;
 
 import "./lib/it_set_lib.sol";  // Library for Set iteration
 import "./lib/ECVerify.sol";  // Library for safer ECRecovery
-import "./lib/Receiver_Interface.sol";  // Library for Token Receiver ERC223 Interface
-import "./lib/ERC223_Interface.sol";  // Library for Token ERC223 Interface
+import "./tokens/Receiver_Interface.sol";  // Library for Token Receiver ERC223 Interface
+import "./lib/Ownable.sol";
+import "./lib/Authorizable.sol";
 import "./CurrencyNetworkInterface.sol";  // Interface for a currency Network
 
 
@@ -16,7 +17,7 @@ import "./CurrencyNetworkInterface.sol";  // Interface for a currency Network
  *
  * Note: use of CurrentNetworkFactory is highly recommended.
  */
-contract CurrencyNetwork {
+contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
     using ItSet for ItSet.AddressSet;
     mapping (bytes32 => Account) internal accounts;
@@ -98,7 +99,8 @@ contract CurrencyNetwork {
         uint16 _networkFeeDivisor,
         uint16 _capacityImbalanceFeeDivisor
     )
-        //TODO add modifier to restrict access
+        //TODO add modifier to restrict access after init stage
+        onlyOwner
         external
     {
         require(_decimals < 10);
@@ -184,7 +186,27 @@ contract CurrencyNetwork {
     {
         return _mediatedTransfer(
             msg.sender,
-            _to, _value,
+            _to,
+            _value,
+            _maxFee,
+            _path);
+    }
+
+    function transferFrom(
+        address _from,
+        address _to,
+        uint32 _value,
+        uint32 _maxFee,
+        address[] _path
+    )
+        external
+        returns (bool success)
+    {
+        require(authorized[msg.sender]);
+        return _mediatedTransfer(
+            _from,
+            _to,
+            _value,
             _maxFee,
             _path);
     }
@@ -288,7 +310,8 @@ contract CurrencyNetwork {
         uint16 _mtime,
         int64 _balanceAB
     )
-        /*TODO modifier to restrict access */
+        /*TODO modifier to restrict access after init stage*/
+        onlyOwner
         external
     {
         Account memory account;
