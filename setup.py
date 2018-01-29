@@ -14,20 +14,23 @@ from os import path, listdir
 
 here = path.abspath(path.dirname(__file__))
 
+
 # Get the long description from the README file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
-    
+
+
 with open(path.join(here, 'VERSION')) as version_file:
     version = version_file.read().strip()
-    
+
+
 class BuildPyCommand(build_py):
 
     def run(self):
         build_py.run(self)
         self.run_command('compile_contracts')
-   
-       
+
+
 class CompileContracts(Command):
     description = 'Compile contracts to json'
     user_options = []
@@ -44,12 +47,11 @@ class CompileContracts(Command):
         project = Project(user_config_file_path='config.json')
         compile_project(project, False)
 
-        
+
 def list_files(dir_path):
     base_dir = path.join(here, dir_path)
-    return [path.join(here, dir_path,f) for f in listdir(base_dir) if path.isfile(path.join(here, dir_path,f))]
+    return [path.join(here, dir_path, f) for f in listdir(base_dir) if path.isfile(path.join(here, dir_path, f))]
 
-        
 
 setup(
     name='trustlines-contracts',
@@ -89,7 +91,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-    
+
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
@@ -112,7 +114,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['populus',
-                      'web3',],
+                      'web3', ],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -124,7 +126,7 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={},
-    
+
     python_requires='>=3',
 
     # Although 'package_data' is the preferred approach, in some case you may
