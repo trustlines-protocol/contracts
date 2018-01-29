@@ -19,3 +19,7 @@ SafeMath: https://github.com/OpenZeppelin/zeppelin-solidity/
 ECVerify: https://gist.github.com/axic/5b33912c6f61ae6fd96d6c4a47afde6d
 
 SimpleMultiSig: https://github.com/christianlundkvist/simple-multisig
+
+These used libraries are licensed under Apache License, Version 2.0:
+
+Code for Exchange based on 0x Protocol: https://github.com/0xProject
