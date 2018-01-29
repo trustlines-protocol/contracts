@@ -138,6 +138,7 @@ setup(
                 ('trustlines-contracts/contracts', list_files('contracts')),
                 ('trustlines-contracts/contracts/gov', list_files('contracts/gov')),
                 ('trustlines-contracts/contracts/lib', list_files('contracts/lib')),
+                ('trustlines-contracts/contracts/tokens', list_files('contracts/tokens')),
                 ],
 
     # To provide executable scripts, use entry points in preference to the
