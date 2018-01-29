@@ -58,5 +58,17 @@ def eth_sign(hash, key):
     return v, r, s
 
 
+def eth_validate(msg_hash, vrs, address):
+    v, r, s = vrs
+    if v >= 27:
+        v -= 27
+    r = int.from_bytes(r, byteorder='big')
+    s = int.from_bytes(s, byteorder='big')
+    sig = keys.Signature(vrs=(v, r, s))
+    pubkey = sig.recover_public_key_from_msg_hash(keccak256(b'\x19Ethereum Signed Message:\n32', msg_hash))
+    return pubkey.to_checksum_address() == address
+
+
 def priv_to_pubkey(key):
     return keys.PrivateKey(key).public_key.to_checksum_address()
+
