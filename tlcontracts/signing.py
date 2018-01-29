@@ -71,4 +71,3 @@ def eth_validate(msg_hash, vrs, address):
 
 def priv_to_pubkey(key):
     return keys.PrivateKey(key).public_key.to_checksum_address()
-

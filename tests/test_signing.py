@@ -1,6 +1,6 @@
 from ethereum import tester
 from eth_utils import to_checksum_address
-from tlcontracts.signing import eth_validate, eth_sign, priv_to_pubkey
+from tlcontracts.signing import eth_validate, eth_sign
 
 
 def test_eth_validate():
