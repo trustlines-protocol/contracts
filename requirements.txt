@@ -1,6 +1,8 @@
 populus
 pycrypto
 web3
-eth-testrpc
 flake8
 pytest==3.2.5
+eth-keys==0.1.0b4
+eth-utils==0.7.4
+eth-keyfile==0.4.1
