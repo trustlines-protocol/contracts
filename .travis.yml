@@ -11,6 +11,7 @@ script:
   - populus compile
   - python -m pytest tests
   - docker build -t contracts .
+  - ./tests/smoketest.sh
 branches:
   only:
   - master
