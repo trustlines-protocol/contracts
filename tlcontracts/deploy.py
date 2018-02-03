@@ -17,7 +17,6 @@ def check_successful_tx(web3: Web3, txid: str, timeout=180) -> dict:
     receipt = wait_for_transaction_receipt(web3, txid, timeout=timeout)
     txinfo = web3.eth.getTransaction(txid)
     assert txinfo["gas"] != receipt["gasUsed"]
-    print("gas used: ", receipt["gasUsed"])
     return receipt
 
 
@@ -32,66 +31,85 @@ def deploy(contract_name, chain, *args):
     txhash = contract.deploy(args=args)
     receipt = check_successful_tx(chain.web3, txhash)
     id_address = receipt["contractAddress"]
-    print(contract_name, "contract address is", id_address)
     return contract(id_address)
 
 
-def deploy_factory_and_registry(chain):
-    registry = deploy("Registry", chain)
-    currencyNetworkFactory = deploy("CurrencyNetworkFactory", chain, registry.address)
-    return currencyNetworkFactory
+def contract(contract_name, address, chain):
+    return chain.provider.get_contract_factory(contract_name)(address)
 
 
-def deploy_network(chain, currency_network_factory, name, symbol, decimals):
+def deploy_exchange(chain):
+    exchange = deploy("Exchange", chain)
+    return exchange
+
+
+def deploy_unw_eth(chain, exchange_address=None):
     web3 = chain.web3
-    transfer_filter = currency_network_factory.on("CurrencyNetworkCreated")
-    txid = currency_network_factory.transact(
-        {"from": web3.eth.accounts[0]}).createCurrencyNetwork(name, symbol,
-                                                              web3.eth.accounts[0],
-                                                              1000,
-                                                              100,
-                                                              100)
-    check_successful_tx(web3, txid)
-    wait(transfer_filter)
-    log_entries = transfer_filter.get()
-    addr_trustlines = log_entries[0]['args']['_currencyNetworkContract']
-    print("Real CurrencyNetwork contract address is", addr_trustlines)
+    unw_eth = deploy("UnwEth", chain)
+    if exchange_address is not None:
+        if exchange_address is not None:
+            txid = unw_eth.transact(
+                {"from": web3.eth.accounts[0]}).addAuthorizedAddress(exchange_address)
+            check_successful_tx(web3, txid)
+    return unw_eth
 
-    resolver = deploy("Resolver", chain, addr_trustlines)
-    check_successful_tx(web3, txid)
-    transfer_filter = resolver.on("FallbackChanged")
-    proxy = deploy("EtherRouter", chain, resolver.address)
-    proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.transact(
+
+def deploy_network(chain, name, symbol, decimals, exchange_address=None):
+    web3 = chain.web3
+    currency_network = deploy("CurrencyNetwork", chain)
+
+    txid = currency_network.transact(
         {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 1000, 100)
     check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getUsers()",
-                                                                                    "getUsersReturnSize()",
-                                                                                    addr_trustlines)
-    check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getFriends(address)",
-                                                                                    "getFriendsReturnSize(address)",
-                                                                                    addr_trustlines)
-    check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("getAccount(address,address)",
-                                                                                    "getAccountLen()",
-                                                                                    addr_trustlines)
-    check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("name()", "nameLen()",
-                                                                                    addr_trustlines)
-    check_successful_tx(web3, txid)
-    txid = resolver.transact({"from": web3.eth.accounts[0]}).registerLengthFunction("symbol()", "symbolLen()",
-                                                                                    addr_trustlines)
-    check_successful_tx(web3, txid)
+    if exchange_address is not None:
+        txid = currency_network.transact(
+            {"from": web3.eth.accounts[0]}).addAuthorizedAddress(exchange_address)
+        check_successful_tx(web3, txid)
 
-    print("\n\naddress for accessing CurrencyNetwork through Proxy: ", proxied_trustlines.address, '\n\n')
-    return proxied_trustlines.address
+    return currency_network
+
+
+def deploy_proxied_network(chain, name, symbol, decimals, exchange_address=None):
+    web3 = chain.web3
+    currency_network = deploy("CurrencyNetwork", chain)
+    currency_network_address = currency_network.address
+    print(currency_network_address)
+    resolver = deploy("Resolver", chain, currency_network_address)
+    proxy = deploy("EtherRouter", chain, resolver.address)
+    print(proxy.address)
+    proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
+    txid = proxied_trustlines.transact().init(name, symbol, decimals, 1000, 100)
+    check_successful_tx(web3, txid)
+    if exchange_address is not None:
+        txid = proxied_trustlines.transact().addAuthorizedAddress(exchange_address)
+        check_successful_tx(web3, txid)
+
+    txid = resolver.transact().registerLengthFunction("getUsers()",
+                                                      "getUsersReturnSize()",
+                                                      currency_network_address)
+    check_successful_tx(web3, txid)
+    txid = resolver.transact().registerLengthFunction("getFriends(address)",
+                                                      "getFriendsReturnSize(address)",
+                                                      currency_network_address)
+    check_successful_tx(web3, txid)
+    txid = resolver.transact().registerLengthFunction("getAccount(address,address)",
+                                                      "getAccountLen()",
+                                                      currency_network_address)
+    check_successful_tx(web3, txid)
+    txid = resolver.transact().registerLengthFunction("name()", "nameLen()",
+                                                      currency_network_address)
+    check_successful_tx(web3, txid)
+    txid = resolver.transact().registerLengthFunction("symbol()", "symbolLen()",
+                                                      currency_network_address)
+    check_successful_tx(web3, txid)
+    return proxied_trustlines
 
 
 @contextmanager
 def cd_into_projectpath():
     cwd = os.getcwd()
     install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'config.json')
+
     if os.path.isfile(install_filepath):
         os.chdir(os.path.join(sys.prefix, 'trustlines-contracts'))
         yield
@@ -100,22 +118,29 @@ def cd_into_projectpath():
     os.chdir(cwd)
 
 
-def deploy_test_networks(chain_name, networks):
-    with cd_into_projectpath():
-        project = Project(user_config_file_path='config.json')
-        print("Make sure {} chain is running, you can connect to it, or you'll get timeout".format(chain_name))
+def deploy_networks(chain_name, networks, project=None):
+    if project is None:
+        with cd_into_projectpath():
+            project = Project(user_config_file_path='config.json')
 
-        with project.get_chain(chain_name) as chain:
-            web3 = chain.web3
+    with project.get_chain(chain_name) as chain:
+        exchange = deploy_exchange(chain)
 
-        print("Web3 provider is", web3.currentProvider)
+        unw_eth = deploy_unw_eth(chain, exchange.address)
 
-        currencyNetworkFactory = deploy_factory_and_registry(chain)
-        network_addresses = [deploy_network(chain, currencyNetworkFactory, name, symbol, decimals) for
-                             (name, symbol, decimals) in networks]
+        networks = [deploy_network(chain, name, symbol, decimals, exchange.address) for
+                    (name, symbol, decimals) in networks]
 
-    return network_addresses
+    return networks, exchange, unw_eth
 
 
-def deploy_test_network(chain_name):
-    return deploy_test_networks(chain_name, [('Trustlines', 'T', 6)])[0]
+def deploy_test_network(chain_name, project=None):
+    if project is None:
+        with cd_into_projectpath():
+            project = Project(user_config_file_path='config.json')
+
+    with project.get_chain(chain_name) as chain:
+
+        network = deploy_network(chain, 'Trustlines', 'T', 6)
+
+    return network
