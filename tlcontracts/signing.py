@@ -1,4 +1,5 @@
 from eth_keys import keys
+from eth_keys.exceptions import BadSignature
 from eth_utils import (
     decode_hex,
     keccak,
@@ -60,13 +61,20 @@ def eth_sign(hash, key):
 
 def eth_validate(msg_hash, vrs, address):
     v, r, s = vrs
+    if isinstance(v, bytes):
+        v = int.from_bytes(r, byteorder='big')
+    if isinstance(r, bytes):
+        r = int.from_bytes(r, byteorder='big')
+    if isinstance(s, bytes):
+        s = int.from_bytes(s, byteorder='big')
     if v >= 27:
         v -= 27
-    r = int.from_bytes(r, byteorder='big')
-    s = int.from_bytes(s, byteorder='big')
     sig = keys.Signature(vrs=(v, r, s))
-    pubkey = sig.recover_public_key_from_msg_hash(keccak256(b'\x19Ethereum Signed Message:\n32', msg_hash))
-    return pubkey.to_checksum_address() == address
+    try:
+        pubkey = sig.recover_public_key_from_msg_hash(keccak256(b'\x19Ethereum Signed Message:\n32', msg_hash))
+        return pubkey.to_checksum_address() == address
+    except BadSignature:
+        return False
 
 
 def priv_to_pubkey(key):
