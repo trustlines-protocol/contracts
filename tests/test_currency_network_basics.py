@@ -166,6 +166,8 @@ def test_update_without_accept_creditline_(currency_network_contract, accounts):
     A, B, *rest = accounts
     contract.transact({"from": A}).updateCreditline(B, 99)
     assert contract.call().creditline(A, B) == 0
+    assert contract.pastEvents('CreditlineUpdate').get() == []
+    assert contract.pastEvents('CreditlineUpdateRequest').get()[0]['args']['_value'] == 99
 
 
 def test_update_with_accept_creditline_(currency_network_contract, accounts):
@@ -174,6 +176,7 @@ def test_update_with_accept_creditline_(currency_network_contract, accounts):
     contract.transact({"from": A}).updateCreditline(B, 99)
     contract.transact({"from": B}).acceptCreditline(A, 99)
     assert contract.call().creditline(A, B) == 99
+    assert contract.pastEvents('CreditlineUpdate').get()[0]['args']['_value'] == 99
 
 
 def test_update_with_accept_different_creditline_(currency_network_contract, accounts):
@@ -183,6 +186,7 @@ def test_update_with_accept_different_creditline_(currency_network_contract, acc
     with pytest.raises(tester.TransactionFailed):
         contract.transact({"from": B}).acceptCreditline(A, 98)
     assert contract.call().creditline(A, B) == 0
+    assert contract.pastEvents('CreditlineUpdate').get() == []
 
 
 def test_update_with_accept_2nd_creditline_(currency_network_contract, accounts):
@@ -192,6 +196,18 @@ def test_update_with_accept_2nd_creditline_(currency_network_contract, accounts)
     contract.transact({"from": A}).updateCreditline(B, 98)
     contract.transact({"from": B}).acceptCreditline(A, 98)
     assert contract.call().creditline(A, B) == 98
+    assert contract.pastEvents('CreditlineUpdate').get()[0]['args']['_value'] == 98
+
+
+def test_cannot_accept_old_creditline_(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateCreditline(B, 99)
+    contract.transact({"from": A}).updateCreditline(B, 98)
+    with pytest.raises(tester.TransactionFailed):
+        contract.transact({"from": B}).acceptCreditline(A, 99)
+    assert contract.call().creditline(A, B) == 0
+    assert contract.pastEvents('CreditlineUpdate').get() == []
 
 
 def test_update_reduce_need_no_accept_creditline_(currency_network_contract_with_trustlines, accounts):
@@ -200,6 +216,71 @@ def test_update_reduce_need_no_accept_creditline_(currency_network_contract_with
     assert contract.call().creditline(A, B) == 100
     contract.transact({"from": A}).updateCreditline(B, 99)
     assert contract.call().creditline(A, B) == 99
+    assert contract.pastEvents('CreditlineUpdate').get()[0]['args']['_value'] == 99
+
+
+def test_update_without_accept_trustline(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    assert contract.call().creditline(A, B) == 0
+    assert contract.call().creditline(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get() == []
+    assert contract.pastEvents('TrustlineUpdateRequest').get()[0]['args']['_creditlineGiven'] == 50
+
+
+def test_update_with_accept_trustline(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    assert contract.call().creditline(A, B) == 50
+    assert contract.call().creditline(B, A) == 100
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == B
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 100
+
+
+def test_update_with_accept_different_trustline(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    contract.transact({"from": B}).updateTrustline(A, 100, 49)
+    assert contract.call().creditline(A, B) == 0
+    assert contract.call().creditline(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get() == []
+
+
+def test_update_with_accept_2nd_trustline(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    contract.transact({"from": A}).updateTrustline(B, 50, 99)
+    contract.transact({"from": B}).updateTrustline(A, 99, 50)
+    assert contract.call().creditline(A, B) == 50
+    assert contract.call().creditline(B, A) == 99
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 99
+
+
+def test_cannot_accept_old_trustline(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    contract.transact({"from": A}).updateTrustline(B, 50, 99)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    assert contract.call().creditline(A, B) == 0
+    assert contract.call().creditline(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get() == []
+
+
+def test_update_reduce_need_no_accept_trustline(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    A, B, *rest = accounts
+    assert contract.call().creditline(A, B) == 100
+    assert contract.call().creditline(B, A) == 150
+    contract.transact({"from": A}).updateTrustline(B, 99, 150)
+    assert contract.call().creditline(A, B) == 99
+    assert contract.call().creditline(B, A) == 150
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 99
 
 
 def test_reduce_creditline(currency_network_contract_with_trustlines, accounts):
