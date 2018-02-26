@@ -21,7 +21,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
     using ItSet for ItSet.AddressSet;
     mapping (bytes32 => Account) internal accounts;
-    // mapping (acceptId) => timestamp
+    // mapping (acceptId) => creditline value
     mapping (bytes32 => uint32) internal requestedCreditlineUpdates;
     mapping (bytes32 => TrustlineRequest) internal requestedTrustlineUpdates;
     // mapping (chequeId) => timestamp
@@ -46,7 +46,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     event Transfer(address indexed _from, address indexed _to, uint _value, bytes _data);
     event CreditlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _value);
     event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint _value);
-    event TrustlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint creditlineReceived);
+    event TrustlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
     event TrustlineUpdate(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
     event ChequeCashed(address indexed _from, address indexed _to, uint32 _value, bytes32 _id);
     // TODO: remove this due to gas costs, currently used by relay server
@@ -60,8 +60,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         uint32 creditlineGiven;        //  creditline given by A to B, always positive
         uint32 creditlineReceived;     //  creditline given by B to A, always positive
 
-        uint16 interestGiven;          //  interest rate set by A for creditline given by A to B
-        uint16 interestReceived;       //  interest rate set by B for creditline given from B to A
+        uint16 interestRateGiven;      //  interest rate set by A for creditline given by A to B
+        uint16 interestRateReceived;   //  interest rate set by B for creditline given from B to A
 
         uint16 feesOutstandingA;       //  fees outstanding by A
         uint16 feesOutstandingB;       //  fees outstanding by B
@@ -301,8 +301,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         return (
             account.creditlineGiven,
             account.creditlineReceived,
-            account.interestGiven,
-            account.interestReceived,
+            account.interestRateGiven,
+            account.interestRateReceived,
             account.feesOutstandingA,
             account.feesOutstandingB,
             account.mtime,
@@ -318,8 +318,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         address _b,
         uint32 _creditlineGiven,
         uint32 _creditlineReceived,
-        uint16 _interestGiven,
-        uint16 _interestReceived,
+        uint16 _interestRateGiven,
+        uint16 _interestRateReceived,
         uint16 _feesOutstandingA,
         uint16 _feesOutstandingB,
         uint16 _mtime,
@@ -333,8 +333,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
         account.creditlineGiven = _creditlineGiven;
         account.creditlineReceived = _creditlineReceived;
-        account.interestGiven = _interestGiven;
-        account.interestReceived = _interestReceived;
+        account.interestRateGiven = _interestRateGiven;
+        account.interestRateReceived = _interestRateReceived;
         account.feesOutstandingA = _feesOutstandingA;
         account.feesOutstandingB = _feesOutstandingB;
         account.mtime = _mtime;
@@ -555,8 +555,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         } else {
             result.creditlineReceived = account.creditlineGiven;
             result.creditlineGiven = account.creditlineReceived;
-            result.interestReceived = account.interestGiven;
-            result.interestGiven = account.interestReceived;
+            result.interestRateReceived = account.interestRateGiven;
+            result.interestRateGiven = account.interestRateReceived;
             result.feesOutstandingB = account.feesOutstandingA;
             result.feesOutstandingA = account.feesOutstandingB;
             result.mtime = account.mtime;
@@ -570,8 +570,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         if (_a < _b) {
             acc.creditlineGiven = account.creditlineGiven;
             acc.creditlineReceived = account.creditlineReceived;
-            acc.interestGiven = account.interestGiven;
-            acc.interestReceived = account.interestReceived;
+            acc.interestRateGiven = account.interestRateGiven;
+            acc.interestRateReceived = account.interestRateReceived;
             acc.feesOutstandingA = account.feesOutstandingA;
             acc.feesOutstandingB = account.feesOutstandingB;
             acc.mtime = account.mtime;
@@ -579,8 +579,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         } else {
             acc.creditlineReceived = account.creditlineGiven;
             acc.creditlineGiven = account.creditlineReceived;
-            acc.interestReceived = account.interestGiven;
-            acc.interestGiven = account.interestReceived;
+            acc.interestRateReceived = account.interestRateGiven;
+            acc.interestRateGiven = account.interestRateReceived;
             acc.feesOutstandingB = account.feesOutstandingA;
             acc.feesOutstandingA = account.feesOutstandingB;
             acc.mtime = account.mtime;
