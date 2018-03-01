@@ -678,6 +678,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     )
         internal
     {
+        addToUsersAndFriends(_creditor, _debtor);
         _account.creditlineGiven = _creditlineGiven;
         _account.creditlineReceived = _creditlineReceived;
         _storeAccount(_creditor, _debtor, _account);

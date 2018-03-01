@@ -401,3 +401,26 @@ def test_transfer_event(currency_network_contract_with_trustlines, accounts):
     assert from_ == A
     assert to == B
     assert value == 110
+
+
+def test_update_creditline_add_users(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateCreditline(B, 99)
+    contract.transact({"from": B}).acceptCreditline(A, 99)
+    assert len(contract.call().getUsers()) == 2
+
+
+def test_update_trustline_add_users(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    assert len(contract.call().getUsers()) == 2
+
+
+def test_update_set_account_add_users(currency_network_contract, accounts):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.transact().setAccount(A, B, 50, 100, 0, 0, 0, 0, 0, 0)
+    assert len(contract.call().getUsers()) == 2
