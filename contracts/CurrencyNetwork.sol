@@ -623,8 +623,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         Account memory account = _loadAccount(_creditor, _debtor);
 
         if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived) {
-            _updateTrustline(
-                account,
+            _setTrustline(
                 _creditor,
                 _debtor,
                 _creditlineGiven,
@@ -638,12 +637,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             if (trustlineRequest.creditlineGiven == _creditlineReceived &&
                 trustlineRequest.creditlineReceived == _creditlineGiven) {
 
-                _updateTrustline(
-                    account,
+                _setTrustline(
+                    trustlineRequest.initiator,
                     _creditor,
-                    _debtor,
-                    _creditlineGiven,
-                    _creditlineReceived
+                    trustlineRequest.creditlineGiven,
+                    trustlineRequest.creditlineReceived
                 );
 
                 return true;
@@ -669,8 +667,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         }
     }
 
-    function _updateTrustline(
-        Account _account,
+    function _setTrustline(
         address _creditor,
         address _debtor,
         uint32 _creditlineGiven,
@@ -678,6 +675,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     )
         internal
     {
+        Account memory _account = _loadAccount(_creditor, _debtor);
         addToUsersAndFriends(_creditor, _debtor);
         _account.creditlineGiven = _creditlineGiven;
         _account.creditlineReceived = _creditlineReceived;

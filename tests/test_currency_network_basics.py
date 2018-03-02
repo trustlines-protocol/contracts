@@ -236,8 +236,8 @@ def test_update_with_accept_trustline(currency_network_contract, accounts):
     contract.transact({"from": B}).updateTrustline(A, 100, 50)
     assert contract.call().creditline(A, B) == 50
     assert contract.call().creditline(B, A) == 100
-    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == B
-    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 100
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 50
 
 
 def test_update_with_accept_different_trustline(currency_network_contract, accounts):
@@ -258,7 +258,8 @@ def test_update_with_accept_2nd_trustline(currency_network_contract, accounts):
     contract.transact({"from": B}).updateTrustline(A, 99, 50)
     assert contract.call().creditline(A, B) == 50
     assert contract.call().creditline(B, A) == 99
-    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 99
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 50
 
 
 def test_cannot_accept_old_trustline(currency_network_contract, accounts):
