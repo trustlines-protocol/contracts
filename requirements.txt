@@ -1,8 +1,9 @@
 populus
 pycrypto
-web3
+web3<4
 flake8
-pytest==3.2.5
-eth-keys==0.1.0b4
+pytest
+eth-keys==v0.1.0-beta.4
 eth-utils==0.7.4
-eth-keyfile==0.4.1
+eth-abi==0.5.0
+
