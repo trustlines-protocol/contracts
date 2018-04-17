@@ -15,7 +15,7 @@ library ItSet {
     }
 
     function insert(AddressSet storage self, address address_) internal {
-        var entry = self.addressToEntry[address_];
+        SetEntry storage entry = self.addressToEntry[address_];
         if (entry.index == 0) {
             entry.index = self.list.length + 1;
             self.list.push(address_);
@@ -27,10 +27,10 @@ library ItSet {
     }
 
     function remove(AddressSet storage self, address address_) internal {
-        var entry = self.addressToEntry[address_];
+        SetEntry storage entry = self.addressToEntry[address_];
         if (entry.index > 0) {
             // remove from list
-            var lastAddress = self.list[self.list.length - 1];
+            address lastAddress = self.list[self.list.length - 1];
             self.list[entry.index - 1] = lastAddress;
             self.list.length -= 1;
             // update entries

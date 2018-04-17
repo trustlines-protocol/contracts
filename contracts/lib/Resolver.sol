@@ -17,7 +17,7 @@ contract Resolver {
         _;
     }
 
-    function Resolver(address _fallback) public {
+    function constructor(address _fallback) public {
         admin = msg.sender;
         fallback = _fallback;
     }
@@ -56,8 +56,8 @@ contract Resolver {
     }
 
     function setFallback(address _fallback) external onlyAdmin {
-        FallbackChanged(fallback, _fallback);
         fallback = _fallback;
+        emit FallbackChanged(fallback, _fallback);
     }
 
     // Helpers
