@@ -6,4 +6,5 @@ pytest==3.2.5
 eth-keys==v0.1.0-beta.4
 eth-utils==0.7.4
 eth-abi==0.5.0
+texttable==1.2.1
 

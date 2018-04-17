@@ -347,10 +347,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         _balance = account.balance;
     }
 
-    /*
-     * @notice gets friends of user
-     * @param Ethereum Address of the user
-     */
     function getFriends(address _user) public constant returns (address[]) {
         return friends[_user].list;
     }
@@ -359,9 +355,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         return getFriends(_user).length + 2;
     }
 
-    /*
-     * @notice gets users
-     */
     function getUsers() public constant returns (address[]) {
         return users.list;
     }
