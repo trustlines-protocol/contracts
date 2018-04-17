@@ -7,7 +7,7 @@ import "./Resolver.sol";
 contract EtherRouter {
     Resolver resolver;
 
-    function EtherRouter(Resolver _resolver) public {
+    function constructor(Resolver _resolver) public {
         resolver = _resolver;
     }
 
