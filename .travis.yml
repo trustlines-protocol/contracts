@@ -4,7 +4,7 @@ python:
 install:
   - pip install -r requirements.txt
   - npm install -g solium@>=1.0.9
-  - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.19/solc-static-linux && chmod +x $HOME/bin/solc
+  - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.22/solc-static-linux && chmod +x $HOME/bin/solc
 script:
   - flake8 tlcontracts tests setup.py
   - solium --dir contracts/
