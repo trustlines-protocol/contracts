@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.22;
 
 
 import "./lib/it_set_lib.sol";  // Library for Set iteration
@@ -88,7 +88,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         _;
     }
 
-    function constructor() public {
+    function CurrencyNetwork() public {
         // don't do anything here due to upgradeability issues (no contructor-call on replacement).
     }
 
