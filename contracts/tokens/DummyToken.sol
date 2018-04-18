@@ -10,7 +10,7 @@ contract DummyToken is Ownable, StandardToken, SafeMath {
     string public symbol;
     uint public decimals;
 
-    function constructor(
+    function DummyToken(
         string _name,
         string _symbol,
         uint _decimals,

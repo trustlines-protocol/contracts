@@ -86,7 +86,7 @@ contract Exchange is SafeMath {
         bytes32 orderHash;
     }
 
-    function constructor() public {
+    function Exchange() public {
     }
 
     /*

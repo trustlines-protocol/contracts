@@ -17,7 +17,7 @@ contract Resolver {
         _;
     }
 
-    function constructor(address _fallback) public {
+    function Resolver(address _fallback) public {
         admin = msg.sender;
         fallback = _fallback;
     }
