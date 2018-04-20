@@ -1,4 +1,4 @@
-pragma solidity ^0.4.22;
+pragma solidity ^0.4.21;
 
 
 import "./lib/it_set_lib.sol";  // Library for Set iteration
