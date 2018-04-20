@@ -1,12 +1,12 @@
 pragma solidity ^0.4.21;
 
 
-import "./lib/it_set_lib.sol";  // Library for Set iteration
-import "./lib/ECVerify.sol";  // Library for safer ECRecovery
-import "./tokens/Receiver_Interface.sol";  // Library for Token Receiver ERC223 Interface
+import "./lib/it_set_lib.sol";
+import "./lib/ECVerify.sol";
+import "./tokens/Receiver_Interface.sol";
 import "./lib/Ownable.sol";
 import "./lib/Authorizable.sol";
-import "./CurrencyNetworkInterface.sol";  // Interface for a currency Network
+import "./CurrencyNetworkInterface.sol";
 
 
 /*
@@ -43,12 +43,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     uint8 public decimals;
 
     // Events
-    event Transfer(address indexed _from, address indexed _to, uint _value, bytes _data);
+    event Transfer(address indexed _from, address indexed _to, uint _value);
     event CreditlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _value);
     event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint _value);
     event TrustlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
     event TrustlineUpdate(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
-    event ChequeCashed(address indexed _from, address indexed _to, uint32 _value, bytes32 _id);
     // TODO: remove this due to gas costs, currently used by relay server
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
@@ -68,7 +67,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
         uint16 mtime;                  //  last modification time
 
-        int64 balance;               //  balance between A and B, A->B (x(-1) for B->A)
+        int64 balance;                 //  balance between A and B, A->B (x(-1) for B->A)
     }
 
     struct TrustlineRequest {
@@ -105,7 +104,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         string _tokenName,
         string _tokenSymbol,
         uint8 _decimals,
-        uint16 _networkFeeDivisor,
         uint16 _capacityImbalanceFeeDivisor
     )
         //TODO add modifier to restrict access after init stage
@@ -116,65 +114,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         name = _tokenName;
         symbol = _tokenSymbol;
         decimals = _decimals;
-        networkFeeDivisor = _networkFeeDivisor;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
-    }
-
-    /*
-     * @notice cashCheque required a signature which must be provided by the UI
-     * @param _from The address of the account able to transfer the tokens
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     * @param _expiresOn Days till the cheque expires
-     * @param _signature the values _from, _to, _value and _expiresOn signed by _from
-     * @return true, if there was no error in transfer
-     */
-    function cashCheque(
-        address _from,
-        address _to,
-        uint32 _value,
-        uint32 _maxFee,
-        uint16 _expiresOn,
-        uint _nounce,
-        address[] _path,
-        bytes _signature
-    )
-        external
-        returns (bool success)
-    {
-        bytes32 id = chequeId(
-            _from,
-            _to,
-            _value,
-            _maxFee,
-            _expiresOn,
-            _nounce);
-        address signer = ECVerify.ecverify(id, _signature);
-        require(signer == _from);
-
-        // was it not cashed yet
-        require(cheques[id] == 0);
-
-        uint16 mtime = calculateMtime();
-        // is it still valid
-        require(_expiresOn >= mtime);
-
-        _mediatedTransfer(
-            _from,
-            _to,
-            _value,
-            _maxFee,
-            _path);
-
-        // set to cashed
-        cheques[id] = mtime;
-
-        emit ChequeCashed(
-            _from,
-            _to,
-            _value,
-            id);
-        success = true;
     }
 
     /*
@@ -309,7 +249,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             account.balance);
     }
 
-    function getAccountLen() external constant returns (uint) {
+    function getAccountLen() external pure returns (uint) {
         return 8 * 32 + 2;
     }
 
@@ -439,8 +379,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         mtime = uint16((now / (24 * 60 * 60)) - ((2017 - 1970) * 365));
     }
 
-    // ERC 223 Interface
-
     function name() public constant returns (string) {
         return name;
     }
@@ -464,8 +402,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     function _directTransfer(
         address _sender,
         address _receiver,
-        uint32 _value,
-        uint _hopNumber
+        uint32 _value
     )
         internal
         returns (uint32 fees)
@@ -516,26 +453,17 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             fee = _directTransfer(
                 sender,
                 receiver,
-                rValue,
-                i);
+                rValue);
             rValue += fee;
             fees += fee;
             require(fees <= _maxFee);
         }
-        bytes memory empty;
 
         emit Transfer(
             _from,
             _to,
-            _value,
-            empty);
+            _value);
 
-        // For ERC223, callback to receiver if it is contract
-        if (isContract(_to)) {
-            ContractReceiver contractReceiver = ContractReceiver(_to);
-
-            contractReceiver.tokenFallback(_to, _value, empty);
-        }
         success = true;
     }
 
@@ -710,28 +638,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         );
     }
 
-    function _calculateNetworkFee(uint32 _value, uint16 _networkFeeDivisor) internal pure returns (uint16) {
-        if (_networkFeeDivisor == 0) {
-            return 0;
-        }
-        return uint16((_value / _networkFeeDivisor));
-    }
-
-    /*
-     * @notice With every update of the account the interest inccurred
-     * @notice since the last update is calculated and added to the balance.
-     * @notice The interest is calculated linearily. Effective compounding depends on frequent updates.
-     * @param sender User wishing to send funds to receiver, incurring the interest(interest gets added to the balance)
-     * @param receiver User receiving the funds, the beneficiary of the interest
-     * @param mtime the current day since system start
-     */
-    function _occurredInterest(int64 _balance, uint16 _interest, uint16 _elapsed) internal pure returns (int64 interest) {
-        if ((_elapsed == 0) || (_interest == 0)) {
-            return;
-        }
-        interest = int64(_balance / (_interest * 256) * _elapsed);
-    }
-
     function _calculateFees(uint32 _value, int64 _balance, uint16 _capacityImbalanceFeeDivisor) internal pure returns (uint32) {
         if (_capacityImbalanceFeeDivisor == 0) {
             return 0;
@@ -756,27 +662,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         }
     }
 
-    function chequeId(
-        address _from,
-        address _to,
-        uint32 _value,
-        uint32 _maxFee,
-        uint16 _expiresOn,
-        uint _nounce
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
-        return keccak256(
-            _from,
-            _to,
-            _value,
-            _maxFee,
-            _expiresOn,
-            _nounce);
-    }
-
     function acceptId(
         address _creditor,
         address _debtor
@@ -796,13 +681,4 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         }
     }
 
-    //assemble the given address bytecode. If bytecode exists then the _addr is a contract.
-    function isContract(address _addr) internal returns (bool) {
-        uint length;
-        assembly {
-            //retrieve the size of the code on target address, this needs assembly
-            length := extcodesize(_addr)
-        }
-        return (length > 0);
-    }
 }
