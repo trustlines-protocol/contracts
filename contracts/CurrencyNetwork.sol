@@ -9,25 +9,22 @@ import "./lib/Authorizable.sol";
 import "./CurrencyNetworkInterface.sol";
 
 
-/*
+/**
  * CurrencyNetwork
  *
- * Main contract of Trustlines, encapsulates all creditlines and trustlines.
+ * Main contract of Trustlines, encapsulates all trustlines of one currency network.
  * Implements ERC20 token interface and functionality, adds fees on different levels.
  *
- * Note: use of CurrentNetworkFactory is highly recommended.
- */
+ **/
 contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
     using ItSet for ItSet.AddressSet;
     mapping (bytes32 => Account) internal accounts;
-    // mapping (acceptId) => creditline value
+    // mapping acceptId => creditline value
     mapping (bytes32 => uint32) internal requestedCreditlineUpdates;
+    // mapping uniqueId => trustline request
     mapping (bytes32 => TrustlineRequest) internal requestedTrustlineUpdates;
-    // mapping (chequeId) => timestamp
-    mapping (bytes32 => uint16) internal cheques;
 
-    // TODO: this should be removed later, but currently it is used by the relay server
     // friends, users address has an account with
     mapping (address => ItSet.AddressSet) internal friends;
     //list of all users of the system
@@ -35,7 +32,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 internal capacityImbalanceFeeDivisor;
-    uint16 internal networkFeeDivisor;
 
     // meta data for token part
     string public name;
@@ -48,7 +44,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint _value);
     event TrustlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
     event TrustlineUpdate(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
-    // TODO: remove this due to gas costs, currently used by relay server
+
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
     // for accounting balance and trustline between two users introducing fees and interests
@@ -93,37 +89,36 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
     function() external {}
 
-    /*
-     * @notice initialize the contract
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     * @param _maxFee Maximum for fee which occurs when the path is used for transfer
-     * @param _path Path of Trustlines calculated by external service (relay server)
+    /**
+     * @notice Initialize the currency Network
+     * @param _name The name of the currency
+     * @param _symbol The symbol of the currency
+     * @param _decimals Number of decimals of the currency
+     * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
      */
     function init(
-        string _tokenName,
-        string _tokenSymbol,
+        string _name,
+        string _symbol,
         uint8 _decimals,
         uint16 _capacityImbalanceFeeDivisor
     )
-        //TODO add modifier to restrict access after init stage
         onlyOwner
         external
     {
         require(_decimals < 10);
-        name = _tokenName;
-        symbol = _tokenSymbol;
+        name = _name;
+        symbol = _symbol;
         decimals = _decimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
     }
 
-    /*
-     * @notice send `_value` token to `_to` from `msg.sender`, the path must have been prepared with function `prepare` first
+    /**
+     * @notice send `_value` token to `_to` from `msg.sender`
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
      * @param _path Path between msg.sender and _to
-     */
+     **/
     function transfer(
         address _to,
         uint32 _value,
@@ -141,6 +136,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             _path);
     }
 
+    /**
+     * @notice send `_value` token to `_to` from `_from`
+     * msg.sender needs to be authorized to call this function
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _maxFee Maximum fee the sender wants to pay
+     * @param _path Path between msg.sender and _to
+     **/
     function transferFrom(
         address _from,
         address _to,
@@ -160,8 +163,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             _path);
     }
 
-    /*
-     * @notice `msg.sender` gives a creditline to `_debtor` of `_value` tokens, must be accepted by debtor
+    /**
+     * @notice `msg.sender` offers a creditline to `_debtor` of `_value` tokens, must be accepted by debtor
      * @param _debtor The account that can spend tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
      */
@@ -177,8 +180,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         _success = true;
     }
 
-    /*
-     * @notice `msg.sender` accepts a creditline from `_creditor` of `_value` tokens
+    /**
+     * @notice `msg.sender` accepts a creditline offered before from `_creditor` of `_value` tokens
      * @param _creditor The account that spends tokens up to the given amount
      * @param _value The maximum amount of tokens that can be spend
      * @return true, if the credit was successful
@@ -193,15 +196,23 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         _success = true;
     }
 
-    function updateTrustline(address _debtor, uint32 _valueGiven, uint32 _creditlineReceived) external returns (bool _success) {
+    /**
+     * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived` token
+     * Needs to be accepted by the other party
+     * @param _debtor The other party of the trustline agreement
+     * @param _creditlineGiven The creditline limit given by msg.sender
+     * @param _creditlineReceived The creditline limit given _debtor
+     * @return true, if the credit was successful
+     */
+    function updateTrustline(address _debtor, uint32 _creditlineGiven, uint32 _creditlineReceived) external returns (bool _success) {
         return _updateTrustline(
             msg.sender,
             _debtor,
-            _valueGiven,
+            _creditlineGiven,
             _creditlineReceived);
     }
 
-    /*
+    /**
      * @notice `msg.sender` reduces a creditline from `_creditor` to `_value` tokens
      * @param _creditor The account the creditline was given from
      * @param _value The new maximum amount of tokens that can be spend, must be smaller than the old one
@@ -214,7 +225,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         _success = true;
     }
 
-    /*
+    /**
      * @dev The ERC20 Token balance for the spender. This is different from the balance within a trustline.
      *      In Trustlines this is the spendable amount
      * @param _owner The address from which the balance will be retrieved
@@ -224,7 +235,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         return spendable(_owner);
     }
 
-    /*
+    /**
      * @return total amount of tokens. In Trustlines this is the sum of all creditlines
      */
     function totalSupply() external constant returns (uint256 supply) {
@@ -235,6 +246,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         }
     }
 
+    /**
+    * Query the trustline account between two users.
+    * Can be removed once structs are supported in the ABI
+    */
     function getAccount(address _a, address _b) external constant returns (int, int, int, int, int, int, int, int) {
         Account memory account = _loadAccount(_a, _b);
 
@@ -253,6 +268,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         return 8 * 32 + 2;
     }
 
+    /**
+    * Set the trustline account between two users.
+    * Can be removed once structs are supported in the ABI
+    */
     function setAccount(
         address _a,
         address _b,
@@ -265,7 +284,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         uint16 _mtime,
         int64 _balance
     )
-        /*TODO modifier to restrict access after init stage*/
         onlyOwner
         external
     {
@@ -285,17 +303,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         addToUsersAndFriends(_a, _b);
     }
 
-    /*
-     * @notice Gets the sum of system fees as applicable when A sends B and transfer
-     * @dev Gets the sum of system fees as applicable when A sends B and transfer
-     * @param Ethereum Addresses of A and B
-     */
-    function getFeesOutstanding(address _a, address _b) external constant returns (int fees) {
-        Account memory account = _loadAccount(_a, _b);
-        fees = account.feesOutstandingA;
-    }
-
-    /*
+    /**
      * @notice Checks for the spendable amount by spender
      * @param _spender The address from which the balance will be retrieved
      * @return spendable The spendable amount
@@ -308,7 +316,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         }
     }
 
-    /*
+    /**
      * @notice the maximum spendable amount by the spender to the receiver.
      * @param _spender The account spending the tokens
      * @param _receiver the receiver that receives the tokens
@@ -321,11 +329,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         remaining = uint(creditline + balance);
     }
 
-    // PUBLIC GETTERS
-
-    /*
-     * @param _owner The address of the account owning tokens
-     * @param _spender The address of the account able to transfer the tokens
+    /**
+     * @notice The creditline limit given by `_creditor` to `_debtor`
      * @return Amount tokens allowed to spent
      */
     function creditline(address _creditor, address _debtor) public constant returns (uint _creditline) {
@@ -336,8 +341,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
     /*
      * @notice returns what B owes to A
-     * @dev If negative A owes B, if positive B owes A
-     * @param Ethereum addresses A and B which have trustline relationship established between them
      */
     function balance(address _a, address _b) public constant returns (int _balance) {
         Account memory account = _loadAccount(_a, _b);
@@ -357,10 +360,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     }
 
     /*
-     * @notice gets friends of user
-     * @param Ethereum Address of the user
+     * @notice gets users
      */
-
     function getUsers() public constant returns (address[]) {
         return users.list;
     }
@@ -371,10 +372,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         return getUsers().length + 2;
     }
 
-    /*
-     * @notice Calculates the current modification day since system start.
-     * @notice now is an alias for block.timestamp gives the epoch time of the current block.
-     */
     function calculateMtime() public constant returns (uint16 mtime) {
         mtime = uint16((now / (24 * 60 * 60)) - ((2017 - 1970) * 365));
     }
@@ -409,12 +406,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     {
         Account memory account = _loadAccount(_sender, _receiver);
 
-
-        // check Creditlines (value + balance must not exceed creditline)
         uint32 creditlineReceived = account.creditlineReceived;
         fees = _calculateFees(_value, account.balance, capacityImbalanceFeeDivisor);
         int64 newBalance = account.balance - _value - fees;
 
+        // check if creditline is not exceeded
         require(-newBalance <= creditlineReceived);
         account.balance = newBalance;
 
@@ -437,11 +433,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         // check Path: is there a Path and is _to the last address? Otherwise throw
         require((_path.length > 0) && (_to == _path[_path.length - 1]));
 
-        // calculate inverse and set as real value
-        uint32 rValue = _value;
+        uint32 forwardedValue = _value;
         uint32 fees = 0;
         uint32 fee = 0;
 
+        // check path in reverse to correctly accumulate the fee
         for (uint i = _path.length; i > 0; i--) {
             address receiver = _path[i-1];
             address sender;
@@ -453,8 +449,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             fee = _directTransfer(
                 sender,
                 receiver,
-                rValue);
-            rValue += fee;
+                forwardedValue);
+            // forward the value + the fee
+            forwardedValue += fee;
             fees += fee;
             require(fees <= _maxFee);
         }
@@ -549,6 +546,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     {
         Account memory account = _loadAccount(_creditor, _debtor);
 
+        // reduce of creditline is always possible
         if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived) {
             _setTrustline(
                 _creditor,
@@ -560,6 +558,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
         TrustlineRequest memory trustlineRequest = _loadTrustlineRequest(_creditor, _debtor);
 
+        // if original initiator is debtor, try to accept request
         if (trustlineRequest.initiator == _debtor) {
             if (trustlineRequest.creditlineGiven == _creditlineReceived &&
                 trustlineRequest.creditlineReceived == _creditlineGiven) {
@@ -582,6 +581,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
 
                 return true;
             }
+        // update the trustline request
         } else {
             _requestTrustlineUpdate(
                 _creditor,

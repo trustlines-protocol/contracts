@@ -139,19 +139,19 @@ contract Exchange is SafeMath {
         ));
 
         if (block.timestamp >= order.expirationTimestampInSec) {
-            LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
+            emit LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
             return 0;
         }
 
         uint remainingTakerTokenAmount = safeSub(order.takerTokenAmount, getUnavailableTakerTokenAmount(order.orderHash));
         filledTakerTokenAmount = min256(fillTakerTokenAmount, remainingTakerTokenAmount);
         if (filledTakerTokenAmount == 0) {
-            LogError(uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED), order.orderHash);
+            emit LogError(uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED), order.orderHash);
             return 0;
         }
 
         if (isRoundingError(filledTakerTokenAmount, order.takerTokenAmount, order.makerTokenAmount)) {
-            LogError(uint8(Errors.ROUNDING_ERROR_TOO_LARGE), order.orderHash);
+            emit LogError(uint8(Errors.ROUNDING_ERROR_TOO_LARGE), order.orderHash);
             return 0;
         }
 
@@ -172,7 +172,7 @@ contract Exchange is SafeMath {
                 filledTakerTokenAmount
         ));
 
-        LogFill(
+        emit LogFill(
             order.maker,
             msg.sender,
             order.feeRecipient,
@@ -188,10 +188,12 @@ contract Exchange is SafeMath {
         return filledTakerTokenAmount;
     }
 
-    /// @dev Fills the input order.
+    /// @dev Fills the input order and also accepts trustlines token
     /// @param orderAddresses Array of order's maker, taker, makerToken, takerToken, and feeRecipient.
     /// @param orderValues Array of order's makerTokenAmount, takerTokenAmount, makerFee, takerFee, expirationTimestampInSec, and salt.
     /// @param fillTakerTokenAmount Desired amount of takerToken to fill.
+    /// @param makerPath path of the payment of the maker token, if it is a trustlines token
+    /// @param takerPath path of the payment of the taker token, if it is a trustlines token
     /// @param v ECDSA signature parameter v.
     /// @param r ECDSA signature parameters r.
     /// @param s ECDSA signature parameters s.
@@ -234,19 +236,19 @@ contract Exchange is SafeMath {
         ));
 
         if (block.timestamp >= order.expirationTimestampInSec) {
-            LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
+            emit LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
             return 0;
         }
 
         uint remainingTakerTokenAmount = safeSub(order.takerTokenAmount, getUnavailableTakerTokenAmount(order.orderHash));
         filledTakerTokenAmount = min256(fillTakerTokenAmount, remainingTakerTokenAmount);
         if (filledTakerTokenAmount == 0) {
-            LogError(uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED), order.orderHash);
+            emit LogError(uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED), order.orderHash);
             return 0;
         }
 
         if (isRoundingError(filledTakerTokenAmount, order.takerTokenAmount, order.makerTokenAmount)) {
-            LogError(uint8(Errors.ROUNDING_ERROR_TOO_LARGE), order.orderHash);
+            emit LogError(uint8(Errors.ROUNDING_ERROR_TOO_LARGE), order.orderHash);
             return 0;
         }
 
@@ -292,7 +294,7 @@ contract Exchange is SafeMath {
             ));
         }
 
-        LogFill(
+        emit LogFill(
             order.maker,
             msg.sender,
             order.feeRecipient,
@@ -338,20 +340,20 @@ contract Exchange is SafeMath {
         require(order.makerTokenAmount > 0 && order.takerTokenAmount > 0 && cancelTakerTokenAmount > 0);
 
         if (block.timestamp >= order.expirationTimestampInSec) {
-            LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
+            emit LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
             return 0;
         }
 
         uint remainingTakerTokenAmount = safeSub(order.takerTokenAmount, getUnavailableTakerTokenAmount(order.orderHash));
         uint cancelledTakerTokenAmount = min256(cancelTakerTokenAmount, remainingTakerTokenAmount);
         if (cancelledTakerTokenAmount == 0) {
-            LogError(uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED), order.orderHash);
+            emit LogError(uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED), order.orderHash);
             return 0;
         }
 
         cancelled[order.orderHash] = safeAdd(cancelled[order.orderHash], cancelledTakerTokenAmount);
 
-        LogCancel(
+        emit LogCancel(
             order.maker,
             order.feeRecipient,
             order.makerToken,
