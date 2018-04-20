@@ -36,7 +36,7 @@ def currency_network_contract(chain):
     deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('Teuro', 'TEUR', 2, 0, 100)
+    contract.transact().init('Teuro', 'TEUR', 2, 100)
 
     return contract
 
