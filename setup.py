@@ -136,7 +136,6 @@ setup(
     data_files=[('trustlines-contracts', ['config.json']),
                 ('trustlines-contracts/build', ['build/contracts.json']),
                 ('trustlines-contracts/contracts', list_files('contracts')),
-                ('trustlines-contracts/contracts/gov', list_files('contracts/gov')),
                 ('trustlines-contracts/contracts/lib', list_files('contracts/lib')),
                 ('trustlines-contracts/contracts/tokens', list_files('contracts/tokens')),
                 ],
