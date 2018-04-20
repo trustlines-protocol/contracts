@@ -56,7 +56,7 @@ contract Authorizable is Ownable {
         targetNotAuthorized(target)
     {
         authorized[target] = true;
-        LogAuthorizedAddressAdded(target, msg.sender);
+        emit LogAuthorizedAddressAdded(target, msg.sender);
     }
 
     /// @dev Removes authorizion of an address.
@@ -67,7 +67,7 @@ contract Authorizable is Ownable {
         targetAuthorized(target)
     {
         delete authorized[target];
-        LogAuthorizedAddressRemoved(target, msg.sender);
+        emit LogAuthorizedAddressRemoved(target, msg.sender);
     }
 }
 

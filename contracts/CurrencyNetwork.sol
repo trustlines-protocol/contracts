@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.21;
 
 
 import "./lib/it_set_lib.sol";  // Library for Set iteration
@@ -169,7 +169,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         // set to cashed
         cheques[id] = mtime;
 
-        ChequeCashed(
+        emit ChequeCashed(
             _from,
             _to,
             _value,
@@ -232,7 +232,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         } else {
             bytes32 id = acceptId(creditor, _debtor);
             requestedCreditlineUpdates[id] = _value;
-            CreditlineUpdateRequest(creditor, _debtor, _value);
+            emit CreditlineUpdateRequest(creditor, _debtor, _value);
         }
         _success = true;
     }
@@ -289,7 +289,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
      */
     function totalSupply() external constant returns (uint256 supply) {
         supply = 0;
-        var userList = users.list;
+        address[] storage userList = users.list;
         for (uint i = 0; i < userList.length; i++) {
             supply += spendable(userList[i]);
         }
@@ -362,7 +362,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
      */
     function spendable(address _spender) public constant returns (uint _spendable) {
         _spendable = 0;
-        var myfriends = friends[_spender].list;
+        address[] storage myfriends = friends[_spender].list;
         for (uint i = 0; i < myfriends.length; i++) {
             _spendable += spendableTo(_spender, myfriends[i]);
         }
@@ -472,12 +472,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
     {
         Account memory account = _loadAccount(_sender, _receiver);
 
-        int64 balance = account.balance;
 
         // check Creditlines (value + balance must not exceed creditline)
         uint32 creditlineReceived = account.creditlineReceived;
-        fees = _calculateFees(_value, balance, capacityImbalanceFeeDivisor);
-        int64 newBalance = balance - _value - fees;
+        fees = _calculateFees(_value, account.balance, capacityImbalanceFeeDivisor);
+        int64 newBalance = account.balance - _value - fees;
 
         require(-newBalance <= creditlineReceived);
         account.balance = newBalance;
@@ -485,7 +484,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         // store new balance
         _storeAccount(_sender, _receiver, account);
         // Should be removed later
-        BalanceUpdate(_sender, _receiver, newBalance);
+        emit BalanceUpdate(_sender, _receiver, newBalance);
     }
 
     function _mediatedTransfer(
@@ -525,7 +524,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         }
         bytes memory empty;
 
-        Transfer(
+        emit Transfer(
             _from,
             _to,
             _value,
@@ -607,7 +606,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         account.creditlineGiven = _value;
 
         _storeAccount(_creditor, _debtor, account);
-        CreditlineUpdate(_creditor, _debtor, _value);
+        emit CreditlineUpdate(_creditor, _debtor, _value);
         success = true;
     }
 
@@ -681,7 +680,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
         _account.creditlineReceived = _creditlineReceived;
         _storeAccount(_creditor, _debtor, _account);
 
-        TrustlineUpdate(
+        emit TrustlineUpdate(
             _creditor,
             _debtor,
             _creditlineGiven,
@@ -703,7 +702,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
             TrustlineRequest(_creditlineGiven, _creditlineReceived, _creditor)
         );
 
-        TrustlineUpdateRequest(
+        emit TrustlineUpdateRequest(
             _creditor,
             _debtor,
             _creditlineGiven,

@@ -56,8 +56,8 @@ contract Resolver {
     }
 
     function setFallback(address _fallback) external onlyAdmin {
-        FallbackChanged(fallback, _fallback);
         fallback = _fallback;
+        emit FallbackChanged(fallback, _fallback);
     }
 
     // Helpers
