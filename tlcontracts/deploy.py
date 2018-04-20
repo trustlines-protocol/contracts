@@ -59,7 +59,7 @@ def deploy_network(chain, name, symbol, decimals, exchange_address=None):
     currency_network = deploy("CurrencyNetwork", chain)
 
     txid = currency_network.transact(
-        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 1000, 100)
+        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 100)
     check_successful_tx(web3, txid)
     if exchange_address is not None:
         txid = currency_network.transact(
@@ -78,7 +78,7 @@ def deploy_proxied_network(chain, name, symbol, decimals, exchange_address=None)
     proxy = deploy("EtherRouter", chain, resolver.address)
     print(proxy.address)
     proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.transact().init(name, symbol, decimals, 1000, 100)
+    txid = proxied_trustlines.transact().init(name, symbol, decimals, 100)
     check_successful_tx(web3, txid)
     if exchange_address is not None:
         txid = proxied_trustlines.transact().addAuthorizedAddress(exchange_address)

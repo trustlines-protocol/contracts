@@ -26,6 +26,6 @@ contract CurrencyNetworkInterface {
 
     function creditline(address _creditor, address _debtor) public constant returns (uint);
 
-    event Transfer(address indexed _from, address indexed _to, uint _value, bytes _data);
+    event Transfer(address indexed _from, address indexed _to, uint _value);
     event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint _value);
 }
