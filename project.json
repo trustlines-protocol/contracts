@@ -174,30 +174,6 @@
         }
       },
     "backends": {
-      "SolcAutoBackend": {
-        "class": "populus.compilation.backends.SolcAutoBackend",
-        "settings": {
-          "optimize": true,
-          "output_values": [
-            "abi",
-            "bin",
-            "bin-runtime",
-            "metadata"
-          ]
-        }
-      },
-      "SolcCombinedJSON": {
-        "class": "populus.compilation.backends.SolcCombinedJSONBackend",
-        "settings": {
-          "optimize": true,
-          "output_values": [
-            "abi",
-            "bin",
-            "bin-runtime",
-            "metadata"
-          ]
-        }
-      },
       "SolcStandardJSON": {
         "class": "populus.compilation.backends.SolcStandardJSONBackend",
         "settings": {
