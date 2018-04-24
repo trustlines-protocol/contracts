@@ -5,6 +5,7 @@ import "./lib/it_set_lib.sol";
 import "./lib/ECVerify.sol";
 import "./tokens/Receiver_Interface.sol";
 import "./lib/Ownable.sol";
+import "./lib/Destructable.sol";
 import "./lib/Authorizable.sol";
 import "./CurrencyNetworkInterface.sol";
 
@@ -13,10 +14,10 @@ import "./CurrencyNetworkInterface.sol";
  * CurrencyNetwork
  *
  * Main contract of Trustlines, encapsulates all trustlines of one currency network.
- * Implements ERC20 token interface and functionality, adds fees on different levels.
+ * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable {
+contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable {
 
     using ItSet for ItSet.AddressSet;
     mapping (bytes32 => Account) internal accounts;
