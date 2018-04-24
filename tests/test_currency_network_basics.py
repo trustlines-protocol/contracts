@@ -436,5 +436,4 @@ def test_selfdestruct(currency_network_contract):
 
 def test_only_owner_selfdestruct(currency_network_contract, accounts):
     with pytest.raises(tester.TransactionFailed):
-        currency_network_contract.transact({"from":accounts[1]}).destruct()
-
+        currency_network_contract.transact({"from": accounts[1]}).destruct()

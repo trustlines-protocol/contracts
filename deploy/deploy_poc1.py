@@ -1,12 +1,10 @@
-import json
-
 from tlcontracts.deploy import deploy_networks
 
 
 def main():
     chain_name = "dockerrpc"
 
-    networks = [("Euro", "EUR", 2), ("US Dollar", "USD", 2), ("Testcoin", "T", 6)]
+    networks = [("Fugger", "FUG", 2), ("Hours", "HOU", 2)]
 
     networks, exchange, unw_eth = deploy_networks(chain_name, networks)
 
@@ -15,11 +13,10 @@ def main():
     addresses['exchange'] = exchange.address
     addresses['unwEth'] = unw_eth.address
 
-    with open('addresses.json', 'w') as outfile:
-        json.dump(addresses, outfile)
+    print(addresses)
 
     # small test if deployment worked
-    assert networks[0].call().name() == 'Euro'
+    assert networks[0].call().decimals() == 2
     assert unw_eth.call().decimals() == 18
 
 
