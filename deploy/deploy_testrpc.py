@@ -5,9 +5,9 @@ from tlcontracts.deploy import deploy_networks
 
 def main():
     chain_name = "testrpclocal"
-    
+
     networks = [("Euro", "EUR", 2), ("US Dollar", "USD", 2), ("Testcoin", "T", 6)]
-    
+
     networks, exchange, unw_eth = deploy_networks(chain_name, networks)
 
     addresses = dict()
@@ -21,7 +21,7 @@ def main():
     # small test if deployment worked
     assert networks[0].call().name() == 'Euro'
     assert unw_eth.call().decimals() == 18
-    
-    
+
+
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ def test_deploy_networks(project):
     networks, exchange, unw_eth = deploy_networks(chain_name, networks, project)
 
     assert networks[0].call().name() == 'Euro'
-    assert unw_eth.call().name() == 'Unwrapping Ether'
+    assert unw_eth.call().decimals() == 18
 
 
 def test_deploy_network(project):
