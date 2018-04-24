@@ -1,5 +1,6 @@
 import pytest
 from ethereum import tester
+from web3.exceptions import BadFunctionCallOutput
 
 
 trustlines = [(0, 1, 100, 150),
@@ -425,3 +426,15 @@ def test_update_set_account_add_users(currency_network_contract, accounts):
     A, B, *rest = accounts
     contract.transact().setAccount(A, B, 50, 100, 0, 0, 0, 0, 0, 0)
     assert len(contract.call().getUsers()) == 2
+
+
+def test_selfdestruct(currency_network_contract):
+    currency_network_contract.transact().destruct()
+    with pytest.raises(BadFunctionCallOutput):  # contract does not exist
+        currency_network_contract.call().decimals()
+
+
+def test_only_owner_selfdestruct(currency_network_contract, accounts):
+    with pytest.raises(tester.TransactionFailed):
+        currency_network_contract.transact({"from":accounts[1]}).destruct()
+

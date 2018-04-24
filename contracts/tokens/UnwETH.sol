@@ -16,11 +16,12 @@
 pragma solidity ^0.4.18;
 
 import "../lib/Authorizable.sol";
+import "./lib/Destructable.sol";
 
 
-contract UnwEth is Authorizable {
-    string public name     = "Unwrapping Ether";
-    string public symbol   = "UETH";
+contract UnwEth is Authorizable, Destructable {
+    string public name     = "Unwrapping Kovan Ether";
+    string public symbol   = "UKETH";
     uint8  public decimals = 18;
 
     event  Approval(address indexed src, address indexed guy, uint wad);
