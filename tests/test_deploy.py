@@ -17,7 +17,7 @@ def blockchain():
 
 @pytest.fixture(scope='session')
 def project():
-    return Project(user_config_file_path='config.json')
+    return Project()
 
 
 def test_deploy_networks(project):

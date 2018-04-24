@@ -108,7 +108,7 @@ def deploy_proxied_network(chain, name, symbol, decimals, exchange_address=None)
 @contextmanager
 def cd_into_projectpath():
     cwd = os.getcwd()
-    install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'config.json')
+    install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'project.json')
 
     if os.path.isfile(install_filepath):
         os.chdir(os.path.join(sys.prefix, 'trustlines-contracts'))
@@ -121,7 +121,7 @@ def cd_into_projectpath():
 def deploy_networks(chain_name, networks, project=None):
     if project is None:
         with cd_into_projectpath():
-            project = Project(user_config_file_path='config.json')
+            project = Project()
 
     with project.get_chain(chain_name) as chain:
         exchange = deploy_exchange(chain)
@@ -137,7 +137,7 @@ def deploy_networks(chain_name, networks, project=None):
 def deploy_test_network(chain_name, project=None):
     if project is None:
         with cd_into_projectpath():
-            project = Project(user_config_file_path='config.json')
+            project = Project()
 
     with project.get_chain(chain_name) as chain:
 

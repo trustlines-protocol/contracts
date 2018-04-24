@@ -44,7 +44,7 @@ class CompileContracts(Command):
     def run(self):
         from populus import Project
         from populus.api.compile_contracts import compile_project
-        project = Project(user_config_file_path='config.json')
+        project = Project()
         compile_project(project, False)
 
 
@@ -133,7 +133,7 @@ setup(
     # need to place data files outside of your packages. See:
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    data_files=[('trustlines-contracts', ['config.json']),
+    data_files=[('trustlines-contracts', ['project.json']),
                 ('trustlines-contracts/build', ['build/contracts.json']),
                 ('trustlines-contracts/contracts', list_files('contracts')),
                 ('trustlines-contracts/contracts/lib', list_files('contracts/lib')),
