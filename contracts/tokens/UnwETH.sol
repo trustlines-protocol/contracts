@@ -16,7 +16,7 @@
 pragma solidity ^0.4.18;
 
 import "../lib/Authorizable.sol";
-import "./lib/Destructable.sol";
+import "../lib/Destructable.sol";
 
 
 contract UnwEth is Authorizable, Destructable {

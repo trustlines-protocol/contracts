@@ -20,7 +20,7 @@ def main():
 
     # small test if deployment worked
     assert networks[0].call().name() == 'Euro'
-    assert unw_eth.call().name() == 'Unwrapping Ether'
+    assert unw_eth.call().decimals() == 18
     
     
 if __name__ == "__main__":
