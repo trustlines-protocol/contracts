@@ -7,6 +7,7 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages, Command
 from setuptools.command.build_py import build_py
+from setuptools.command.sdist import sdist
 # To use a consistent encoding
 from codecs import open
 import os
@@ -23,6 +24,13 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 with open(path.join(here, 'VERSION')) as version_file:
     version = version_file.read().strip()
+
+
+class SdistCommand(sdist):
+
+    def run(self):
+        self.run_command('compile_contracts')
+        sdist.run(self)
 
 
 class BuildPyCommand(build_py):
@@ -46,6 +54,8 @@ class CompileContracts(Command):
         cwd = os.getcwd()
         os.chdir("trustlines-contracts")
         try:
+            if os.path.exists("build/contracts.json"):
+                return
             from populus import Project
             from populus.api.compile_contracts import compile_project
             project = Project()
@@ -153,5 +163,6 @@ setup(
     cmdclass={
         'compile_contracts': CompileContracts,
         'build_py': BuildPyCommand,
+        'sdist': SdistCommand
     },
 )
