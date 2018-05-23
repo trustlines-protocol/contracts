@@ -12,7 +12,7 @@ script:
   - flake8 tlcontracts tests deploy setup.py
   - solium --dir trustlines-contracts/contracts/
   - sh -c "cd trustlines-contracts; populus compile"
-  - python -m pytest tests
+  - sh -c "cd trustlines-contracts; python -m pytest ../tests"
   - docker build -t contracts .
   - ./tests/smoketest.sh
 branches:
