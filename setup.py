@@ -7,8 +7,10 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages, Command
 from setuptools.command.build_py import build_py
+from setuptools.command.sdist import sdist
 # To use a consistent encoding
 from codecs import open
+import os
 from os import path, listdir
 
 
@@ -22,6 +24,13 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 with open(path.join(here, 'VERSION')) as version_file:
     version = version_file.read().strip()
+
+
+class SdistCommand(sdist):
+
+    def run(self):
+        self.run_command('compile_contracts')
+        sdist.run(self)
 
 
 class BuildPyCommand(build_py):
@@ -42,10 +51,17 @@ class CompileContracts(Command):
         pass
 
     def run(self):
-        from populus import Project
-        from populus.api.compile_contracts import compile_project
-        project = Project()
-        compile_project(project, False)
+        cwd = os.getcwd()
+        os.chdir("trustlines-contracts")
+        try:
+            if os.path.exists("build/contracts.json"):
+                return
+            from populus import Project
+            from populus.api.compile_contracts import compile_project
+            project = Project()
+            compile_project(project, False)
+        finally:
+            os.chdir(cwd)
 
 
 def list_files(dir_path):
@@ -133,11 +149,11 @@ setup(
     # need to place data files outside of your packages. See:
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    data_files=[('trustlines-contracts', ['project.json']),
-                ('trustlines-contracts/build', ['build/contracts.json']),
-                ('trustlines-contracts/contracts', list_files('contracts')),
-                ('trustlines-contracts/contracts/lib', list_files('contracts/lib')),
-                ('trustlines-contracts/contracts/tokens', list_files('contracts/tokens')),
+    data_files=[('trustlines-contracts', ['trustlines-contracts/project.json']),
+                ('trustlines-contracts/build', ['trustlines-contracts/build/contracts.json']),
+                ('trustlines-contracts/contracts', list_files('trustlines-contracts/contracts')),
+                ('trustlines-contracts/contracts/lib', list_files('trustlines-contracts/contracts/lib')),
+                ('trustlines-contracts/contracts/tokens', list_files('trustlines-contracts/contracts/tokens')),
                 ],
 
     # To provide executable scripts, use entry points in preference to the
@@ -147,5 +163,6 @@ setup(
     cmdclass={
         'compile_contracts': CompileContracts,
         'build_py': BuildPyCommand,
+        'sdist': SdistCommand
     },
 )
