@@ -7,10 +7,11 @@ RUN curl -L -o /usr/bin/solc https://github.com/ethereum/solidity/releases/downl
     chmod +x /usr/bin/solc
     
 COPY ./requirements.txt /contracts/requirements.txt
+COPY ./constraints.txt /contracts/constraints.txt
 
 WORKDIR /contracts
 
-RUN pip install -r requirements.txt
+RUN pip install -c constraints.txt -r requirements.txt
 
 COPY . /contracts
 
