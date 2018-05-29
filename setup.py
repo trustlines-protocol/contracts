@@ -9,8 +9,11 @@ from setuptools import setup, find_packages, Command
 from setuptools.command.build_py import build_py
 # To use a consistent encoding
 from codecs import open
-from os import path, listdir
+from os import path, listdir, environ
 
+# make sure we don't need any non-standard libraries like gevent in
+# CompileContracts (in case we have set THREADING_BACKEND=gevent)
+environ.pop("THREADING_BACKEND", None)
 
 here = path.abspath(path.dirname(__file__))
 
