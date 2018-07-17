@@ -17,5 +17,5 @@ COPY . /contracts
 
 RUN pip install .
 
-ENTRYPOINT [ "python"]
-CMD ["deploy/deploy_testnetwork.py"] 
+ENTRYPOINT [ "tl-deploy"]
+CMD ["test"]

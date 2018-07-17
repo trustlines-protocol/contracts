@@ -117,7 +117,8 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['populus',
-                      'web3', ],
+                      'web3',
+                      'click'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -146,7 +147,10 @@ setup(
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
-    entry_points={},
+    entry_points="""
+    [console_scripts]
+    tl-deploy=tlcontracts.cli:cli
+    """,
     cmdclass={
         'compile_contracts': CompileContracts,
         'build_py': BuildPyCommand,
