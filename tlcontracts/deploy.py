@@ -10,13 +10,19 @@ from web3.utils.compat import (
 )
 
 
+class TransactionFailed(Exception):
+    pass
+
+
 def check_successful_tx(web3: Web3, txid: str, timeout=180) -> dict:
     """See if transaction went through (Solidity code did not throw).
     :return: Transaction receipt
     """
     receipt = wait_for_transaction_receipt(web3, txid, timeout=timeout)
-    txinfo = web3.eth.getTransaction(txid)
-    assert txinfo["gas"] != receipt["gasUsed"]
+    tx_info = web3.eth.getTransaction(txid)
+    status = receipt.get("status", None)
+    if receipt["gasUsed"] == tx_info["gas"] or status is False:
+        raise TransactionFailed
     return receipt
 
 
@@ -54,12 +60,12 @@ def deploy_unw_eth(chain, exchange_address=None):
     return unw_eth
 
 
-def deploy_network(chain, name, symbol, decimals, exchange_address=None):
+def deploy_network(chain, name, symbol, decimals, fee_divisor=100, exchange_address=None):
     web3 = chain.web3
     currency_network = deploy("CurrencyNetwork", chain)
 
     txid = currency_network.transact(
-        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, 100)
+        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, fee_divisor)
     check_successful_tx(web3, txid)
     if exchange_address is not None:
         txid = currency_network.transact(
@@ -69,7 +75,7 @@ def deploy_network(chain, name, symbol, decimals, exchange_address=None):
     return currency_network
 
 
-def deploy_proxied_network(chain, name, symbol, decimals, exchange_address=None):
+def deploy_proxied_network(chain, name, symbol, decimals, fee_divisor=100, exchange_address=None):
     web3 = chain.web3
     currency_network = deploy("CurrencyNetwork", chain)
     currency_network_address = currency_network.address
@@ -78,7 +84,7 @@ def deploy_proxied_network(chain, name, symbol, decimals, exchange_address=None)
     proxy = deploy("EtherRouter", chain, resolver.address)
     print(proxy.address)
     proxied_trustlines = chain.provider.get_contract_factory("CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.transact().init(name, symbol, decimals, 100)
+    txid = proxied_trustlines.transact().init(name, symbol, decimals, fee_divisor)
     check_successful_tx(web3, txid)
     if exchange_address is not None:
         txid = proxied_trustlines.transact().addAuthorizedAddress(exchange_address)
@@ -118,29 +124,16 @@ def cd_into_projectpath():
     os.chdir(cwd)
 
 
-def deploy_networks(chain_name, networks, project=None):
-    if project is None:
-        with cd_into_projectpath():
-            project = Project()
+def deploy_networks(chain, networks):
+    exchange = deploy_exchange(chain)
+    unw_eth = deploy_unw_eth(chain, exchange.address)
 
-    with project.get_chain(chain_name) as chain:
-        exchange = deploy_exchange(chain)
-
-        unw_eth = deploy_unw_eth(chain, exchange.address)
-
-        networks = [deploy_network(chain, name, symbol, decimals, exchange.address) for
-                    (name, symbol, decimals) in networks]
+    networks = [deploy_network(chain, name, symbol, decimals=decimals, exchange_address=exchange.address) for
+                (name, symbol, decimals) in networks]
 
     return networks, exchange, unw_eth
 
 
-def deploy_test_network(chain_name, project=None):
-    if project is None:
-        with cd_into_projectpath():
-            project = Project()
-
-    with project.get_chain(chain_name) as chain:
-
-        network = deploy_network(chain, 'Trustlines', 'T', 6)
-
-    return network
+def get_project():
+    with cd_into_projectpath():
+        return Project()

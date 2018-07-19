@@ -4,7 +4,7 @@ from time import sleep
 import pytest
 from populus import Project
 
-from tlcontracts.deploy import deploy_networks, deploy_test_network
+from tlcontracts.deploy import deploy_networks, deploy_network
 
 
 @pytest.fixture(autouse=True, scope='session')
@@ -21,19 +21,18 @@ def project():
 
 
 def test_deploy_networks(project):
-    chain_name = 'testrpclocal'
+    chain = project.get_chain('testrpclocal')
 
-    networks = [('Euro', 'EUR', 2), ('US Dollar', 'USD', 2), ('Testcoin', 'T', 6)]
+    networks = [('Fugger', 'FUG', 2), ('Hours', 'HOU', 2), ('Testcoin', 'T', 6)]
+    with chain:
+        networks, exchange, unw_eth = deploy_networks(chain, networks)
 
-    networks, exchange, unw_eth = deploy_networks(chain_name, networks, project)
-
-    assert networks[0].call().name() == 'Euro'
+    assert networks[0].call().name() == 'Fugger'
     assert unw_eth.call().decimals() == 18
 
 
 def test_deploy_network(project):
-    chain_name = 'testrpclocal'
+    with project.get_chain('testrpclocal') as chain:
+        network = deploy_network(chain, 'Testcoin', 'T', 2)
 
-    network = deploy_test_network(chain_name, project)
-
-    assert network.call().name() == 'Trustlines'
+    assert network.call().name() == 'Testcoin'
