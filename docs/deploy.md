@@ -1,10 +1,8 @@
 # Trustlines deploy
 
-The command line tool `tl-deploy` allows you to deploy the relevant Trustlines contracts. You need a running
+The command line tool `tl-deploy` allows you to deploy the Trustlines contracts for both, creating a new currency network or a trustlines exchange. Make sure that you have a running ethereum client with enough ether as described [here](../README.md).
 
-Use `tl-deploy --help` to find out about the relevant commands
-
-You will see the following output:
+Use `tl-deploy --help` to find out about the relevant commands:
 
 ```
 Usage: tl-deploy [OPTIONS] COMMAND [ARGS]...
@@ -20,8 +18,8 @@ Commands:
   test             Deploy contracts for testing.
 ```
 
-## Deploy a currency networks
-A currency network contract handles all trustlines with the same denomination and allows for transfer between the users of this network.
+## Deploy a currency network
+A currency network contract handles all trustlines with the same denomination. It allows for transfers between the users of this network.
 
 You can deploy a currency network Testcoin with
 `tl-deploy currencynetwork Testcoin TST`
@@ -33,7 +31,7 @@ you will see the following output
 Usage: tl-deploy currencynetwork [OPTIONS] NAME SYMBOL
 
   Deploy a currency network contract with custom settings and optionally
-  connect it to an exchange contract
+  connect it to an exchange contract.
 
 Options:
   --decimals INTEGER           Number of decimals of the network  [default: 2]
@@ -51,10 +49,11 @@ The mandatory arguments are the name and the symbol of the network.
 All other parameters are optional as they have either default values or are not needed in some cases.
 
 ## Deploy an exchange
-An exchange allows users of different currency networks to exchange trustlines money or to exchange trustlines money for tokens.
-This includes ether via a ether wrapping contract. This exchange is based on the 0x protocol with an addition to support currency networks.
+An exchange allows users of different currency networks to exchange 1. trustlines currencies, 2. trustlines currency for [ERC 20](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) tokens and 3. trustlines currency for wrapped Ether.
+This exchange is an extension to the [0x protocol](https://github.com/0xProject), adding support for Trustlines currencies.
 
 You can deploy an exchange with
+
 `tl-deploy exchange`
 
 To get further information use
@@ -64,8 +63,7 @@ To get further information use
 ```
 Usage: tl-deploy exchange [OPTIONS]
 
-  Deploy an exchange contract based on 0x that can work with Trustlines
-  currency networks. This will also deploy a contract to wrap Ether into a
+  Deploy an exchange contract and a contract to wrap Ether into an ERC 20
   token.
 
 Options:
@@ -74,7 +72,4 @@ Options:
   --help         Show this message and exit.
 ```
 The address of this exchange can be used as input for the exchange-contract option when creating a currency network.
-
-
-
 
