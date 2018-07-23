@@ -58,8 +58,8 @@ def currencynetwork(name: str, symbol: str, decimals: int, jsonrpc: str, fee_div
 @cli.command(short_help='Deploy an exchange contract.')
 @jsonrpc_option
 def exchange(jsonrpc: str):
-    """Deploy an exchange contract based on 0x that can work with Trustlines currency networks.
-    This will also deploy a contract to wrap Ether into a token.
+    """Deploy an exchange contract and a contract to wrap Ether into an ERC 20
+  token.
     """
     config_chain = create_config_chain(jsonrpc)
     with config_chain:
