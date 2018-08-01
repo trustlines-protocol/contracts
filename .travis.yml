@@ -1,6 +1,8 @@
 language: python
 python:
   - "3.6"
+git:
+  depth: false
 install:
   - pip install -c constraints.txt -r requirements.txt
   - npm install -g 'solium@>=1.0.9'
