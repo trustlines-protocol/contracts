@@ -23,10 +23,6 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 
-with open(path.join(here, 'VERSION')) as version_file:
-    version = version_file.read().strip()
-
-
 class BuildPyCommand(build_py):
 
     def run(self):
@@ -62,7 +58,9 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version=version,
+
+    setup_requires=["setuptools_scm"],
+    use_scm_version=True,
 
     description='Smart Contracts for Trustlines-Network',
     long_description=long_description,
