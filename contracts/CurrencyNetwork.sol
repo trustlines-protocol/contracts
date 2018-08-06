@@ -50,7 +50,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
     // for accounting balance and trustline between two users introducing fees and interests
-    // currently uses 256 + 232 bits, 24 remaining
+    // currently uses 256 + 232 bits, 24 remaining to make two structs
     struct Account {
         // A < B (A is the lower address)
 
@@ -101,7 +101,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
      * @param _defaultInterests The default interests for every trustlines in 0.001% per year
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
-     * @param _safeInterestRippling Flag to allow or disallow transactions resulting in loss of interests for intermediaries
+     * @param _safeInterestRippling Flag to allow or disallow transactions resulting in loss of interests for intermediaries, unless the transaction exclusively reduces balances
      */
     function init(
         string _name,
@@ -205,6 +205,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
+    /**
+     * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived` token with default interests
+     * Needs to be accepted by the other party, unless we reduce both values.
+     * @param _debtor The other party of the trustline agreement
+     * @param _creditlineGiven The creditline limit given by msg.sender
+     * @param _creditlineReceived The creditline limit given _debtor
+     * @return true, if the credit was successful
+     */
     function updateTrustlineDefaultInterests(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived) external returns (bool _success) {
         address _creditor = msg.sender;
 
@@ -296,6 +304,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
+    /**
+    * Set the trustline account between two users with default interests.
+    * Can be removed once structs are supported in the ABI
+    */
     function setAccountDefaultInterests(
         address _a,
         address _b,
@@ -359,6 +371,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         _creditline = account.creditlineGiven;
     }
 
+    /**
+     * @notice The interest rate given by `_creditor` to `_debtor`
+     * @return Interest rate on the balance of the line
+     */
     function interestRate(address _creditor, address _debtor) public constant returns (int16 _interestRate) {
         // returns the current interests given by A to B
         Account memory account = _loadAccount(_creditor, _debtor);
@@ -421,12 +437,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         Account memory account = _loadAccount(_sender, _receiver);
 
-        fees = _calculateFees(_value, account.balance, capacityImbalanceFeeDivisor);
-
         uint32 mtime = account.mtime;
         int136 interests = _calculateInterests(account.balance, mtime, account.interestRateGiven, account.interestRateReceived);
+        int136 newBalance = account.balance + interests;
 
-        int136 newBalance = account.balance - _value - fees + interests; // switched - to +
+        fees = _calculateFees(_value, newBalance, capacityImbalanceFeeDivisor);
+        newBalance = newBalance - _value - fees;
 
         // check if creditline is not exceeded
         uint128 creditlineReceived = account.creditlineReceived;
@@ -478,13 +494,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
             if (safeInterestRippling) {
                 // we want to prevent intermediaries to pay more interests than they receive
-                // If the transaction does not result in them paying interests but the other paying less interests then transaction is valid
-                // i.e. it is ok if the receiver still owes the sender after transfer
+                // If the transaction does not result in them paying interests but getting paid less interests then transaction is valid
+                // i.e. transaction is valid if the receiver still owes the sender after transfer
                 Account memory account = _loadAccount(sender, receiver);
                 int136 nextInterestsWeight = _calculateInterestWeight(sender, receiver, forwardedValue);
-                //require(nextInterestsWeight >= previousInterestsWeight || previousInterestsWeight <= 0);
-                require(nextInterestsWeight <= previousInterestsWeight || account.balance - forwardedValue >= 0);
 
+                require(nextInterestsWeight <= previousInterestsWeight || account.balance - forwardedValue >= 0);
 
                 previousInterestsWeight = nextInterestsWeight;
             }
@@ -559,11 +574,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         if (_a < _b) {
             acc.creditlineGiven = account.creditlineGiven;
             acc.creditlineReceived = account.creditlineReceived;
-            if (! customInterests){
+            if (! customInterests) {
                 acc.interestRateGiven = defaultInterests;
                 acc.interestRateReceived = defaultInterests;
-            }
-            else {
+            } else {
                 acc.interestRateGiven = account.interestRateGiven;
                 acc.interestRateReceived = account.interestRateReceived;
             }
@@ -574,11 +588,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         } else {
             acc.creditlineReceived = account.creditlineGiven;
             acc.creditlineGiven = account.creditlineReceived;
-            if (! customInterests){
+            if (!customInterests) {
                 acc.interestRateGiven = defaultInterests;
                 acc.interestRateReceived = defaultInterests;
-            }
-            else {
+            } else {
                 acc.interestRateReceived = account.interestRateGiven;
                 acc.interestRateGiven = account.interestRateReceived;
             }
@@ -598,11 +611,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         TrustlineRequest storage trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
         trustlineRequest.creditlineGiven = _trustlineRequest.creditlineGiven;
         trustlineRequest.creditlineReceived = _trustlineRequest.creditlineReceived;
-        if (!customInterests){
+        if (!customInterests) {
             trustlineRequest.interestRateGiven = defaultInterests;
             trustlineRequest.interestRateReceived = defaultInterests;
-        }
-        else{
+        } else {
             trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
             trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
         }
@@ -786,7 +798,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         } else {
             int136 remainingTransfer = transfer - _abs(account.balance);
-            if(account.balance > 0) {
+            if (account.balance > 0) {
                 return account.balance * account.interestRateGiven + remainingTransfer * account.interestRateReceived;
             } else {
                 return account.balance * account.interestRateReceived + remainingTransfer * account.interestRateGiven;

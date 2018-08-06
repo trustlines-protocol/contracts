@@ -36,8 +36,8 @@ def currency_network_contract_custom_interest(chain):
     deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
-    # init(name, symbol, decimal, feeDivisor, defaultInterest, customInterests)
+    contract.transact().init(_name='TestCoin', _symbol='T', _decimals=6, _capacityImbalanceFeeDivisor=0,
+                             _defaultInterests=0, _customInterests=True, _safeInterestRippling=False)
     return contract
 
 
@@ -201,7 +201,7 @@ def test_update_with_accept_trustline(currency_network_contract, accounts):
 def test_update_with_accept_different_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0 ,0)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)
     contract.transact({"from": B}).updateTrustline(A, 100, 49, 0, 0)
     assert contract.call().creditline(A, B) == 49
     assert contract.call().creditline(B, A) == 100
@@ -319,7 +319,6 @@ def test_update_trustline_with_custom_while_forbidden_lowering_interests(currenc
 
     A, B, *rest = accounts
     contract.transact().setAccountDefaultInterests(A, B, 200, 200, 0, 0, 0, 0)
-
 
     with pytest.raises(tester.TransactionFailed):
         contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 1)

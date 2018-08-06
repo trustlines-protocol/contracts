@@ -34,7 +34,7 @@ def currency_network_contract(chain):
     deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('Teuro', 'TEUR', 2, 100)
+    contract.transact().init('Teuro', 'TEUR', 2, 100, 0, False, False)
 
     return contract
 
@@ -82,7 +82,7 @@ def test_cost_transfer_3_mediators(web3, currency_network_contract_with_trustlin
 def test_cost_first_trustline_request(web3, currency_network_contract, accounts, table):
     contract = currency_network_contract
     A, B, *rest = accounts
-    tx_hash = contract.transact({"from": A}).updateTrustline(B, 150, 150)
+    tx_hash = contract.transact({"from": A}).updateTrustline(B, 150, 150, 0, 0)
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, 'First Trustline Update Request', gas_cost, limit=64000)
 
@@ -90,8 +90,8 @@ def test_cost_first_trustline_request(web3, currency_network_contract, accounts,
 def test_cost_second_trustline_request(web3, currency_network_contract, accounts, table):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 149, 149)
-    tx_hash = contract.transact({"from": A}).updateTrustline(B, 150, 150)
+    contract.transact({"from": A}).updateTrustline(B, 149, 149, 0, 0)
+    tx_hash = contract.transact({"from": A}).updateTrustline(B, 150, 150, 0, 0)
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, 'Second Trustline Update Request', gas_cost, limit=49000)
 
@@ -100,8 +100,8 @@ def test_cost_first_trustline(web3, currency_network_contract, accounts, table):
     contract = currency_network_contract
     A, B, *rest = accounts
     assert contract.call().creditline(A, B) == 0
-    contract.transact({"from": A}).updateTrustline(B, 150, 150)
-    tx_hash = contract.transact({"from": B}).updateTrustline(A, 150, 150)
+    contract.transact({"from": A}).updateTrustline(B, 150, 150, 0, 0)
+    tx_hash = contract.transact({"from": B}).updateTrustline(A, 150, 150, 0, 0)
     assert contract.call().creditline(A, B) == 150
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, 'First Trustline', gas_cost, limit=325000)
@@ -111,8 +111,8 @@ def test_cost_update_trustline(web3, currency_network_contract_with_trustlines, 
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
     assert contract.call().creditline(A, B) == 100
-    contract.transact({"from": A}).updateTrustline(B, 150, 150)
-    tx_hash = contract.transact({"from": B}).updateTrustline(A, 150, 150)
+    contract.transact({"from": A}).updateTrustline(B, 150, 150, 0, 0)
+    tx_hash = contract.transact({"from": B}).updateTrustline(A, 150, 150, 0, 0)
     assert contract.call().creditline(A, B) == 150
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, 'Update Trustline', gas_cost, limit=82000)
@@ -122,48 +122,7 @@ def test_cost_update_reduce_need_no_accept_trustline(web3, currency_network_cont
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
     assert contract.call().creditline(A, B) == 100
-    tx_hash = contract.transact({"from": A}).updateTrustline(B, 99, 150)
+    tx_hash = contract.transact({"from": A}).updateTrustline(B, 99, 150, 0, 0)
     assert contract.call().creditline(A, B) == 99
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, 'Reduce Trustline', gas_cost, limit=80000)
-
-
-def test_cost_first_update_creditline_request(web3, currency_network_contract, accounts, table):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 0
-    tx_hash = contract.transact({"from": A}).updateCreditline(B, 150)
-    gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, 'First Update Creditline Request', gas_cost, limit=51000)
-
-
-def test_cost_second_update_creditline_request(web3, currency_network_contract, accounts, table):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 0
-    contract.transact({"from": A}).updateCreditline(B, 149)
-    tx_hash = contract.transact({"from": A}).updateCreditline(B, 150)
-    gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, 'Second Update Creditline Request', gas_cost, limit=36000)
-
-
-def test_cost_update_first_creditline(web3, currency_network_contract, accounts, table):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 0
-    contract.transact({"from": A}).updateCreditline(B, 150)
-    tx_hash = contract.transact({"from": B}).acceptCreditline(A, 150)
-    assert contract.call().creditline(A, B) == 150
-    gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, 'Update First Creditline', gas_cost, limit=310000)
-
-
-def test_cost_update_second_creditline(web3, currency_network_contract_with_trustlines, accounts, table):
-    contract = currency_network_contract_with_trustlines
-    A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 100
-    contract.transact({"from": A}).updateCreditline(B, 150)
-    tx_hash = contract.transact({"from": B}).acceptCreditline(A, 150)
-    assert contract.call().creditline(A, B) == 150
-    gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, 'Update Second Creditline', gas_cost, limit=66000)
