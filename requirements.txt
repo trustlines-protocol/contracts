@@ -1,10 +1,11 @@
 populus
 pycrypto
 web3<4
-flake8
-pytest==3.2.5
 eth-keys==v0.1.0-beta.4
 eth-utils==0.7.4
 eth-abi==0.5.0
 texttable==1.2.1
 click
+# --- development dependencies, i.e. dependencies not needed for running ethindex
+flake8
+pytest
