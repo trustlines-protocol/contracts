@@ -1,5 +1,6 @@
 import click
 import json
+import pkg_resources
 
 from eth_utils import is_checksum_address, to_checksum_address
 
@@ -11,10 +12,16 @@ from tlcontracts.deploy import (deploy_network,
 from tlcontracts.configurable_chain import ConfigurableChain
 
 
-@click.group()
-def cli():
+@click.group(invoke_without_command=True)
+@click.option('--version', help='Prints the version of the software', is_flag=True)
+@click.pass_context
+def cli(ctx, version):
     """Commandline tool to deploy the Trustlines contracts"""
-    pass
+    if version:
+        click.echo(pkg_resources.get_distribution('trustlines-contracts').version)
+    elif ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+        ctx.exit()
 
 
 jsonrpc_option = click.option('--jsonrpc',
