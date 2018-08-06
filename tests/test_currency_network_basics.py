@@ -65,6 +65,7 @@ def test_friends(currency_network_contract_with_trustlines, accounts):
 
 def test_set_get_Account(currency_network_contract, accounts):
     contract = currency_network_contract
+    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
     contract.transact().setAccount(accounts[0], accounts[1], 10, 20, 2, 3, 100, 200, 0, 4)
     assert contract.call().getAccount(accounts[0], accounts[1]) == [10, 20, 2, 3, 100, 200, 0, 4]
     assert contract.call().getAccount(accounts[1], accounts[0]) == [20, 10, 3, 2, 200, 100, 0, -4]
@@ -73,9 +74,20 @@ def test_set_get_Account(currency_network_contract, accounts):
     assert contract.call().getAccount(accounts[0], accounts[1]) == [20, 10, 3, 2, 200, 100, 0, -4]
 
 
+def test_set_get_Account_default_interests(currency_network_contract, accounts):
+    contract = currency_network_contract
+    contract.transact().setAccountDefaultInterests(accounts[0], accounts[1], 10, 20, 100, 200, 0, 4)
+    # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
+    assert contract.call().getAccount(accounts[0], accounts[1]) == [10, 20, 0, 0, 100, 200, 0, 4]
+    assert contract.call().getAccount(accounts[1], accounts[0]) == [20, 10, 0, 0, 200, 100, 0, -4]
+    contract.transact().setAccountDefaultInterests(accounts[1], accounts[0], 10, 20, 100, 200, 0, 4)
+    assert contract.call().getAccount(accounts[1], accounts[0]) == [10, 20, 0, 0, 100, 200, 0, 4]
+    assert contract.call().getAccount(accounts[0], accounts[1]) == [20, 10, 0, 0, 200, 100, 0, -4]
+
+
 def test_balance(currency_network_contract, accounts):
     contract = currency_network_contract
-    contract.transact().setAccount(accounts[0], accounts[1], 10, 20, 2, 3, 100, 200, 0, 4)
+    contract.transact().setAccount(accounts[0], accounts[1], 10, 20, 0, 0, 100, 200, 0, 4)
     assert contract.call().balance(accounts[0], accounts[1]) == 4
     assert contract.call().balance(accounts[1], accounts[0]) == -4
 
@@ -296,11 +308,21 @@ def test_update_trustline_with_custom_while_forbidden(currency_network_contract,
     contract = currency_network_contract
 
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100, 2, 1)
-    contract.transact({"from": B}).updateTrustline(A, 100, 50, 1, 2)
-    assert contract.call().interestRate(A, B) == 0
-    assert contract.call().interestRate(B, A) == 0
-    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_interestRateGiven'] == 0
+    with pytest.raises(tester.TransactionFailed):
+        contract.transact({"from": A}).updateTrustline(B, 50, 100, 2, 1)
+
+
+def test_update_trustline_with_custom_while_forbidden_lowering_interests(currency_network_contract, accounts):
+    '''Verifies that if the network uses default interests of 0, no custom interests can be put'''
+    contract = currency_network_contract
+    contract.transact().init('TestCoin', 'T', 6, 0, 5, False, False)
+
+    A, B, *rest = accounts
+    contract.transact().setAccountDefaultInterests(A, B, 200, 200, 0, 0, 0, 0)
+
+
+    with pytest.raises(tester.TransactionFailed):
+        contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 1)
 
 
 def test_spendable(currency_network_contract_with_trustlines, accounts):

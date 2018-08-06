@@ -186,17 +186,13 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _debtor The other party of the trustline agreement
      * @param _creditlineGiven The creditline limit given by msg.sender
      * @param _creditlineReceived The creditline limit given _debtor
-     * @param _interestRateGivenArgument The interest given by msg.sender
-     * @param _interestRateReceivedArgument The interest given by _debtor
+     * @param _interestRateGiven The interest given by msg.sender
+     * @param _interestRateReceived The interest given by _debtor
      * @return true, if the credit was successful
      */
-    function updateTrustline(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived, int16 _interestRateGivenArgument, int16 _interestRateReceivedArgument) external returns (bool _success) {
-        int16 _interestRateGiven = _interestRateGivenArgument;
-        int16 _interestRateReceived = _interestRateReceivedArgument;
-        if (!customInterests) {
-            _interestRateGiven = defaultInterests;
-            _interestRateReceived = defaultInterests;
-        }
+    function updateTrustline(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived, int16 _interestRateGiven, int16 _interestRateReceived) external returns (bool _success) {
+        require(customInterests || (_interestRateGiven == defaultInterests && _interestRateReceived == defaultInterests));
+
         address _creditor = msg.sender;
 
         return _updateTrustline(
@@ -206,6 +202,19 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineReceived,
             _interestRateGiven,
             _interestRateReceived
+        );
+    }
+
+    function updateTrustlineDefaultInterests(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived) external returns (bool _success) {
+        address _creditor = msg.sender;
+
+        return _updateTrustline(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived,
+            defaultInterests,
+            defaultInterests
         );
     }
 
@@ -265,26 +274,53 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         int16 _interestRateReceived,
         uint16 _feesOutstandingA,
         uint16 _feesOutstandingB,
-        uint16 _mtime,
+        uint32 _mtime,
         int136 _balance
     )
         onlyOwner
         external
     {
-        Account memory account;
+        require(customInterests || (_interestRateGiven == defaultInterests && _interestRateReceived == defaultInterests));
 
-        account.creditlineGiven = _creditlineGiven;
-        account.creditlineReceived = _creditlineReceived;
-        account.interestRateGiven = _interestRateGiven;
-        account.interestRateReceived = _interestRateReceived;
-        account.feesOutstandingA = _feesOutstandingA;
-        account.feesOutstandingB = _feesOutstandingB;
-        account.mtime = _mtime;
-        account.balance = _balance;
+        _setAccount(
+            _a,
+            _b,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _feesOutstandingA,
+            _feesOutstandingB,
+            _mtime,
+            _balance
+        );
+    }
 
-        _storeAccount(_a, _b, account);
-
-        addToUsersAndFriends(_a, _b);
+    function setAccountDefaultInterests(
+        address _a,
+        address _b,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        uint16 _feesOutstandingA,
+        uint16 _feesOutstandingB,
+        uint32 _mtime,
+        int136 _balance
+    )
+        onlyOwner
+        external
+    {
+        _setAccount(
+            _a,
+            _b,
+            _creditlineGiven,
+            _creditlineReceived,
+            defaultInterests,
+            defaultInterests,
+            _feesOutstandingA,
+            _feesOutstandingB,
+            _mtime,
+            _balance
+        );
     }
 
     /**
@@ -390,7 +426,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint32 mtime = account.mtime;
         int136 interests = _calculateInterests(account.balance, mtime, account.interestRateGiven, account.interestRateReceived);
 
-        int136 newBalance = account.balance - _value - fees - interests;
+        int136 newBalance = account.balance - _value - fees + interests; // switched - to +
 
         // check if creditline is not exceeded
         uint128 creditlineReceived = account.creditlineReceived;
@@ -469,6 +505,36 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         friends[_b].insert(_a);
     }
 
+    function _setAccount(
+        address _a,
+        address _b,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
+        uint16 _feesOutstandingA,
+        uint16 _feesOutstandingB,
+        uint32 _mtime,
+        int136 _balance
+    )
+        internal
+    {
+        Account memory account;
+
+        account.creditlineGiven = _creditlineGiven;
+        account.creditlineReceived = _creditlineReceived;
+        account.interestRateGiven = _interestRateGiven;
+        account.interestRateReceived = _interestRateReceived;
+        account.feesOutstandingA = _feesOutstandingA;
+        account.feesOutstandingB = _feesOutstandingB;
+        account.mtime = _mtime;
+        account.balance = _balance;
+
+        _storeAccount(_a, _b, account);
+
+        addToUsersAndFriends(_a, _b);
+    }
+
     function _loadAccount(address _a, address _b) internal constant returns (Account) {
         Account memory account = accounts[uniqueIdentifier(_a, _b)];
         Account memory result;
@@ -493,8 +559,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         if (_a < _b) {
             acc.creditlineGiven = account.creditlineGiven;
             acc.creditlineReceived = account.creditlineReceived;
-            acc.interestRateGiven = account.interestRateGiven;
-            acc.interestRateReceived = account.interestRateReceived;
+            if (! customInterests){
+                acc.interestRateGiven = defaultInterests;
+                acc.interestRateReceived = defaultInterests;
+            }
+            else {
+                acc.interestRateGiven = account.interestRateGiven;
+                acc.interestRateReceived = account.interestRateReceived;
+            }
             acc.feesOutstandingA = account.feesOutstandingA;
             acc.feesOutstandingB = account.feesOutstandingB;
             acc.mtime = account.mtime;
@@ -502,8 +574,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         } else {
             acc.creditlineReceived = account.creditlineGiven;
             acc.creditlineGiven = account.creditlineReceived;
-            acc.interestRateReceived = account.interestRateGiven;
-            acc.interestRateGiven = account.interestRateReceived;
+            if (! customInterests){
+                acc.interestRateGiven = defaultInterests;
+                acc.interestRateReceived = defaultInterests;
+            }
+            else {
+                acc.interestRateReceived = account.interestRateGiven;
+                acc.interestRateGiven = account.interestRateReceived;
+            }
             acc.feesOutstandingB = account.feesOutstandingA;
             acc.feesOutstandingA = account.feesOutstandingB;
             acc.mtime = account.mtime;
@@ -520,8 +598,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         TrustlineRequest storage trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
         trustlineRequest.creditlineGiven = _trustlineRequest.creditlineGiven;
         trustlineRequest.creditlineReceived = _trustlineRequest.creditlineReceived;
-        trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
-        trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
+        if (!customInterests){
+            trustlineRequest.interestRateGiven = defaultInterests;
+            trustlineRequest.interestRateReceived = defaultInterests;
+        }
+        else{
+            trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
+            trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
+        }
         trustlineRequest.initiator = _trustlineRequest.initiator;
     }
 
@@ -670,16 +754,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function _calculateInterests(int136 _balance, uint32 _mtime, int16 _interestRateGiven, int16 _interestRateReceived) internal view returns (int136) {
         int16 rate = defaultInterests;
 
-        // if the balance is negative, the interests should decrease the balance for a positive interest rate.
-        if (_balance < 0) {
-            rate = -rate;
-        }
-
         if (customInterests) {
             if (_balance > 0) {
                 rate = _interestRateGiven;
             }else {
-                rate = -_interestRateReceived;
+                rate = _interestRateReceived;
             }
         }
 
