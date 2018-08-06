@@ -5,8 +5,8 @@ contract CurrencyNetworkInterface {
 
     function transfer(
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint128 _value,
+        uint128 _maxFee,
         address[] _path
     )
         external
@@ -15,8 +15,8 @@ contract CurrencyNetworkInterface {
     function transferFrom(
         address _from,
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint128 _value,
+        uint128 _maxFee,
         address[] _path
     )
         external

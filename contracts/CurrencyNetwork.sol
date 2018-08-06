@@ -21,8 +21,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     using ItSet for ItSet.AddressSet;
     mapping (bytes32 => Account) internal accounts;
-    // mapping acceptId => creditline value
-    mapping (bytes32 => uint32) internal requestedCreditlineUpdates;
     // mapping uniqueId => trustline request
     mapping (bytes32 => TrustlineRequest) internal requestedTrustlineUpdates;
 
@@ -39,37 +37,42 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     string public symbol;
     uint8 public decimals;
 
+    // interests settings, interests are expressed in 0.001% per year
+    int16 public defaultInterests;
+    bool public customInterests;
+    bool public safeInterestRippling;
+
     // Events
     event Transfer(address indexed _from, address indexed _to, uint _value);
-    event CreditlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _value);
-    event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint _value);
-    event TrustlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
-    event TrustlineUpdate(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived);
+    event TrustlineUpdateRequest(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived, int _interestRateGiven, int _interestRateReceived);
+    event TrustlineUpdate(address indexed _creditor, address indexed _debtor, uint _creditlineGiven, uint _creditlineReceived, int _interestRateGiven, int _interestRateReceived);
 
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
     // for accounting balance and trustline between two users introducing fees and interests
-    // currently uses 208 bits, 48 remaining
+    // currently uses 256 + 232 bits, 24 remaining
     struct Account {
         // A < B (A is the lower address)
 
-        uint32 creditlineGiven;        //  creditline given by A to B, always positive
-        uint32 creditlineReceived;     //  creditline given by B to A, always positive
+        uint128 creditlineGiven;        //  creditline given by A to B, always positive
+        uint128 creditlineReceived;     //  creditline given by B to A, always positive
 
-        uint16 interestRateGiven;      //  interest rate set by A for creditline given by A to B
-        uint16 interestRateReceived;   //  interest rate set by B for creditline given from B to A
+        int16 interestRateGiven;      //  interest rate set by A for creditline given by A to B in 0.001% per year
+        int16 interestRateReceived;   //  interest rate set by B for creditline given from B to A in 0.001% per year
 
         uint16 feesOutstandingA;       //  fees outstanding by A
         uint16 feesOutstandingB;       //  fees outstanding by B
 
-        uint16 mtime;                  //  last modification time
+        uint32 mtime;                  //  last modification time
 
-        int64 balance;                 //  balance between A and B, A->B (x(-1) for B->A)
+        int136 balance;                 //  balance between A and B, A->B (x(-1) for B->A)
     }
 
     struct TrustlineRequest {
-        uint32 creditlineGiven;
-        uint32 creditlineReceived;
+        uint128 creditlineGiven;
+        uint128 creditlineReceived;
+        int16 interestRateGiven;
+        int16 interestRateReceived;
         address initiator;
     }
 
@@ -96,21 +99,34 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _symbol The symbol of the currency
      * @param _decimals Number of decimals of the currency
      * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
+     * @param _defaultInterests The default interests for every trustlines in 0.001% per year
+     * @param _customInterests Flag to allow or disallow trustlines to have custom interests
+     * @param _safeInterestRippling Flag to allow or disallow transactions resulting in loss of interests for intermediaries
      */
     function init(
         string _name,
         string _symbol,
         uint8 _decimals,
-        uint16 _capacityImbalanceFeeDivisor
+        uint16 _capacityImbalanceFeeDivisor,
+        int16 _defaultInterests,
+        bool _customInterests,
+        bool _safeInterestRippling
     )
         onlyOwner
         external
     {
-        require(_decimals < 10);
+        require(_decimals < 19);
+        // verifies that one parameter is selected.
+        require(! ((_defaultInterests > 0) && _customInterests));
+        require(!_safeInterestRippling || (_safeInterestRippling && _customInterests));
+
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
+        defaultInterests = _defaultInterests;
+        customInterests = _customInterests;
+        safeInterestRippling = _safeInterestRippling;
     }
 
     /**
@@ -122,8 +138,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      **/
     function transfer(
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint128 _value,
+        uint128 _maxFee,
         address[] _path
     )
         external
@@ -148,8 +164,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function transferFrom(
         address _from,
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint128 _value,
+        uint128 _maxFee,
         address[] _path
     )
         external
@@ -165,65 +181,32 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     /**
-     * @notice `msg.sender` offers a creditline to `_debtor` of `_value` tokens, must be accepted by debtor
-     * @param _debtor The account that can spend tokens up to the given amount
-     * @param _value The maximum amount of tokens that can be spend
-     */
-    function updateCreditline(address _debtor, uint32 _value) external notSender(_debtor) returns (bool _success) {
-        address creditor = msg.sender;
-        if (_value < creditline(creditor, _debtor)) {
-            _updateCreditline(creditor, _debtor, _value);
-        } else {
-            bytes32 id = acceptId(creditor, _debtor);
-            requestedCreditlineUpdates[id] = _value;
-            emit CreditlineUpdateRequest(creditor, _debtor, _value);
-        }
-        _success = true;
-    }
-
-    /**
-     * @notice `msg.sender` accepts a creditline offered before from `_creditor` of `_value` tokens
-     * @param _creditor The account that spends tokens up to the given amount
-     * @param _value The maximum amount of tokens that can be spend
-     * @return true, if the credit was successful
-     */
-    function acceptCreditline(address _creditor, uint32 _value) external returns (bool _success) {
-        address debtor = msg.sender;
-        // retrieve acceptId to validate that updateCreditline has been called
-        bytes32 id = acceptId(_creditor, debtor);
-        require(requestedCreditlineUpdates[id] == _value);
-        delete requestedCreditlineUpdates[id];
-        _updateCreditline(_creditor, debtor, _value);
-        _success = true;
-    }
-
-    /**
      * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived` token
-     * Needs to be accepted by the other party
+     * Needs to be accepted by the other party, unless we reduce both values.
      * @param _debtor The other party of the trustline agreement
      * @param _creditlineGiven The creditline limit given by msg.sender
      * @param _creditlineReceived The creditline limit given _debtor
+     * @param _interestRateGivenArgument The interest given by msg.sender
+     * @param _interestRateReceivedArgument The interest given by _debtor
      * @return true, if the credit was successful
      */
-    function updateTrustline(address _debtor, uint32 _creditlineGiven, uint32 _creditlineReceived) external returns (bool _success) {
+    function updateTrustline(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived, int16 _interestRateGivenArgument, int16 _interestRateReceivedArgument) external returns (bool _success) {
+        int16 _interestRateGiven = _interestRateGivenArgument;
+        int16 _interestRateReceived = _interestRateReceivedArgument;
+        if (!customInterests) {
+            _interestRateGiven = defaultInterests;
+            _interestRateReceived = defaultInterests;
+        }
+        address _creditor = msg.sender;
+
         return _updateTrustline(
-            msg.sender,
+            _creditor,
             _debtor,
             _creditlineGiven,
-            _creditlineReceived);
-    }
-
-    /**
-     * @notice `msg.sender` reduces a creditline from `_creditor` to `_value` tokens
-     * @param _creditor The account the creditline was given from
-     * @param _value The new maximum amount of tokens that can be spend, must be smaller than the old one
-     * @return true, if the creditline update was successful
-     */
-    function reduceCreditline(address _creditor, uint32 _value) external returns (bool _success) {
-        address debtor = msg.sender;
-        require(_value < creditline(_creditor, debtor));
-        _updateCreditline(_creditor, debtor, _value);
-        _success = true;
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived
+        );
     }
 
     /**
@@ -276,14 +259,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function setAccount(
         address _a,
         address _b,
-        uint32 _creditlineGiven,
-        uint32 _creditlineReceived,
-        uint16 _interestRateGiven,
-        uint16 _interestRateReceived,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
         uint16 _feesOutstandingA,
         uint16 _feesOutstandingB,
         uint16 _mtime,
-        int64 _balance
+        int136 _balance
     )
         onlyOwner
         external
@@ -325,8 +308,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      */
     function spendableTo(address _spender, address _receiver) public constant returns (uint remaining) {
         Account memory account = _loadAccount(_spender, _receiver);
-        int64 balance = account.balance;
-        uint32 creditline = account.creditlineReceived;
+        int136 balance = account.balance;
+        uint128 creditline = account.creditlineReceived;
         remaining = uint(creditline + balance);
     }
 
@@ -338,6 +321,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         // returns the current creditline given by A to B
         Account memory account = _loadAccount(_creditor, _debtor);
         _creditline = account.creditlineGiven;
+    }
+
+    function interestRate(address _creditor, address _debtor) public constant returns (int16 _interestRate) {
+        // returns the current interests given by A to B
+        Account memory account = _loadAccount(_creditor, _debtor);
+        _interestRate = account.interestRateGiven;
     }
 
     /*
@@ -366,10 +355,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return getUsers().length + 2;
     }
 
-    function calculateMtime() public constant returns (uint16 mtime) {
-        mtime = uint16((now / (24 * 60 * 60)) - ((2017 - 1970) * 365));
-    }
-
     function name() public constant returns (string) {
         return name;
     }
@@ -393,20 +378,25 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function _directTransfer(
         address _sender,
         address _receiver,
-        uint32 _value
+        uint128 _value
     )
         internal
-        returns (uint32 fees)
+        returns (uint128 fees)
     {
         Account memory account = _loadAccount(_sender, _receiver);
 
-        uint32 creditlineReceived = account.creditlineReceived;
         fees = _calculateFees(_value, account.balance, capacityImbalanceFeeDivisor);
-        int64 newBalance = account.balance - _value - fees;
+
+        uint32 mtime = account.mtime;
+        int136 interests = _calculateInterests(account.balance, mtime, account.interestRateGiven, account.interestRateReceived);
+
+        int136 newBalance = account.balance - _value - fees - interests;
 
         // check if creditline is not exceeded
-        require(-newBalance <= creditlineReceived);
+        uint128 creditlineReceived = account.creditlineReceived;
+        require(-newBalance <= int136(creditlineReceived));
         account.balance = newBalance;
+        account.mtime = uint32(now);
 
         // store new balance
         _storeAccount(_sender, _receiver, account);
@@ -417,8 +407,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function _mediatedTransfer(
         address _from,
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint128 _value,
+        uint128 _maxFee,
         address[] _path
     )
         internal
@@ -427,9 +417,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         // check Path: is there a Path and is _to the last address? Otherwise throw
         require((_path.length > 0) && (_to == _path[_path.length - 1]));
 
-        uint32 forwardedValue = _value;
-        uint32 fees = 0;
-        uint32 fee = 0;
+        uint128 forwardedValue = _value;
+        uint128 fees = 0;
+        uint128 fee = 0;
+        int136 previousInterestsWeight = 0;
 
         // check path in reverse to correctly accumulate the fee
         for (uint i = _path.length; i > 0; i--) {
@@ -448,6 +439,19 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             forwardedValue += fee;
             fees += fee;
             require(fees <= _maxFee);
+
+            if (safeInterestRippling) {
+                // we want to prevent intermediaries to pay more interests than they receive
+                // If the transaction does not result in them paying interests but the other paying less interests then transaction is valid
+                // i.e. it is ok if the receiver still owes the sender after transfer
+                Account memory account = _loadAccount(sender, receiver);
+                int136 nextInterestsWeight = _calculateInterestWeight(sender, receiver, forwardedValue);
+                //require(nextInterestsWeight >= previousInterestsWeight || previousInterestsWeight <= 0);
+                require(nextInterestsWeight <= previousInterestsWeight || account.balance - forwardedValue >= 0);
+
+
+                previousInterestsWeight = nextInterestsWeight;
+            }
         }
 
         emit Transfer(
@@ -478,11 +482,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             result.feesOutstandingB = account.feesOutstandingA;
             result.feesOutstandingA = account.feesOutstandingB;
             result.mtime = account.mtime;
-            result.balance = -account.balance;
+            result.balance = -account.balance; // balance is value receiver owes sender
         }
         return result;
     }
 
+    // Provides the abstraction of whether a < b or b < a.
     function _storeAccount(address _a, address _b, Account account) internal {
         Account storage acc = accounts[uniqueIdentifier(_a, _b)];
         if (_a < _b) {
@@ -515,38 +520,35 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         TrustlineRequest storage trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
         trustlineRequest.creditlineGiven = _trustlineRequest.creditlineGiven;
         trustlineRequest.creditlineReceived = _trustlineRequest.creditlineReceived;
+        trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
+        trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
         trustlineRequest.initiator = _trustlineRequest.initiator;
     }
 
-    function _updateCreditline(address _creditor, address _debtor, uint32 _value) internal returns (bool success) {
-        Account memory account = _loadAccount(_creditor, _debtor);
-
-        addToUsersAndFriends(_creditor, _debtor);
-        account.creditlineGiven = _value;
-
-        _storeAccount(_creditor, _debtor, account);
-        emit CreditlineUpdate(_creditor, _debtor, _value);
-        success = true;
-    }
-
+    // in this function, it is assumed _creditor is the initator of the trustline update (see _requestTrustlineUpdate())
     function _updateTrustline(
         address _creditor,
         address _debtor,
-        uint32 _creditlineGiven,
-        uint32 _creditlineReceived
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived
     )
         internal
         returns (bool success)
     {
         Account memory account = _loadAccount(_creditor, _debtor);
 
-        // reduce of creditline is always possible
-        if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived) {
+        // reduce of creditlines and interests is always possible
+        if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived && _interestRateGiven == account.interestRateGiven && _interestRateReceived == account.interestRateReceived) {
             _setTrustline(
                 _creditor,
                 _debtor,
                 _creditlineGiven,
-                _creditlineReceived);
+                _creditlineReceived,
+                _interestRateGiven,
+                _interestRateReceived
+            );
             return true;
         }
 
@@ -554,23 +556,29 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         // if original initiator is debtor, try to accept request
         if (trustlineRequest.initiator == _debtor) {
-            if (trustlineRequest.creditlineGiven == _creditlineReceived &&
-                trustlineRequest.creditlineReceived == _creditlineGiven) {
+            if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateReceived == trustlineRequest.interestRateGiven && _interestRateGiven == trustlineRequest.interestRateReceived) {
 
+                // _debtor and _creditor is switched because we want the initiator of the trustline to be _debtor.
+                // So every Given / Received has to be switched.
                 _setTrustline(
-                    trustlineRequest.initiator,
+                    _debtor,
                     _creditor,
-                    trustlineRequest.creditlineGiven,
-                    trustlineRequest.creditlineReceived
+                    _creditlineReceived,
+                    _creditlineGiven,
+                    _interestRateReceived,
+                    _interestRateGiven
                 );
 
                 return true;
+
             } else {
                 _requestTrustlineUpdate(
                     _creditor,
                     _debtor,
                     _creditlineGiven,
-                    _creditlineReceived
+                    _creditlineReceived,
+                    _interestRateGiven,
+                    _interestRateReceived
                 );
 
                 return true;
@@ -581,7 +589,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _creditor,
                 _debtor,
                 _creditlineGiven,
-                _creditlineReceived
+                _creditlineReceived,
+                _interestRateGiven,
+                _interestRateReceived
             );
 
             return true;
@@ -591,8 +601,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function _setTrustline(
         address _creditor,
         address _debtor,
-        uint32 _creditlineGiven,
-        uint32 _creditlineReceived
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived
     )
         internal
     {
@@ -600,51 +612,107 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         addToUsersAndFriends(_creditor, _debtor);
         _account.creditlineGiven = _creditlineGiven;
         _account.creditlineReceived = _creditlineReceived;
+        _account.interestRateGiven = _interestRateGiven;
+        _account.interestRateReceived = _interestRateReceived;
         _storeAccount(_creditor, _debtor, _account);
 
         emit TrustlineUpdate(
             _creditor,
             _debtor,
             _creditlineGiven,
-            _creditlineReceived
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived
         );
     }
 
     function _requestTrustlineUpdate(
         address _creditor,
         address _debtor,
-        uint32 _creditlineGiven,
-        uint32 _creditlineReceived
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived
     )
         internal
     {
         _storeTrustlineRequest(
             _creditor,
             _debtor,
-            TrustlineRequest(_creditlineGiven, _creditlineReceived, _creditor)
+            TrustlineRequest(_creditlineGiven, _creditlineReceived, _interestRateGiven, _interestRateReceived, _creditor)
         );
 
         emit TrustlineUpdateRequest(
             _creditor,
             _debtor,
             _creditlineGiven,
-            _creditlineReceived
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived
         );
     }
 
-    function _calculateFees(uint32 _value, int64 _balance, uint16 _capacityImbalanceFeeDivisor) internal pure returns (uint32) {
+    function _calculateFees(uint128 _value, int136 _balance, uint16 _capacityImbalanceFeeDivisor) internal pure returns (uint128) {
         if (_capacityImbalanceFeeDivisor == 0) {
             return 0;
         }
 
-        int64 imbalanceGenerated = int64(_value);
+        int136 imbalanceGenerated = int136(_value);
         if (_balance > 0) {
             imbalanceGenerated = _value - _balance;
             if (imbalanceGenerated <= 0) {
                 return 0;
             }
         }
-        return uint32(uint32(imbalanceGenerated / _capacityImbalanceFeeDivisor) + 1);  // minimum fee is 1
+        return uint128(uint128(imbalanceGenerated / _capacityImbalanceFeeDivisor) + 1);  // minimum fee is 1
+    }
+
+    function _calculateInterests(int136 _balance, uint32 _mtime, int16 _interestRateGiven, int16 _interestRateReceived) internal view returns (int136) {
+        int16 rate = defaultInterests;
+
+        // if the balance is negative, the interests should decrease the balance for a positive interest rate.
+        if (_balance < 0) {
+            rate = -rate;
+        }
+
+        if (customInterests) {
+            if (_balance > 0) {
+                rate = _interestRateGiven;
+            }else {
+                rate = -_interestRateReceived;
+            }
+        }
+
+        return int136(_balance * int136(now - _mtime)/(60*60*24*365) * int136(rate)/100000);
+    }
+
+    // Calculates a representation of how much interests intermediaries (_b) gain participating in a transfer
+    // It is only calculating for one side and does not take into accounts the gains or loss from the whole mediation.
+    function _calculateInterestWeight(address _a, address _b, uint128 _transfer) internal view returns (int136) {
+
+        Account memory account = _loadAccount(_a, _b);
+
+        int136 transfer = int136(_transfer);
+
+        if (transfer <= _abs(account.balance) || account.balance <= 0) {
+            // this means the_transfer will impact only one interest rate
+            if (account.balance > 0) {
+                // _b owes to _a; the interests rate to take into account are interests rate given by _a
+                return transfer * account.interestRateGiven;
+            } else {
+                // _a owes to _b; the interests rate to take into account are interests rate received by _a
+                // _b is actually losing, so the value is negative (for a positive interest rate)
+                return - transfer * account.interestRateReceived;
+            }
+
+        } else {
+            int136 remainingTransfer = transfer - _abs(account.balance);
+            if(account.balance > 0) {
+                return account.balance * account.interestRateGiven + remainingTransfer * account.interestRateReceived;
+            } else {
+                return account.balance * account.interestRateReceived + remainingTransfer * account.interestRateGiven;
+            }
+        }
     }
 
     function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
@@ -667,7 +735,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return keccak256(_creditor, _debtor);
     }
 
-    function _abs(int64 _balance) internal pure returns (int64 _absBalance) {
+    function _abs(int136 _balance) internal pure returns (int136 _absBalance) {
         if (_balance < 0) {
             _absBalance = - _balance;
         } else {

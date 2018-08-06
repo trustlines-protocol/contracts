@@ -17,7 +17,7 @@ def currency_network_contract(chain):
     deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
     contract_address = chain.wait.for_contract_address(deploy_txn_hash)
     contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('TestCoin', 'T', 6, 0)
+    contract.transact().init('TestCoin', 'T', 6, 0, 0, False, False)
 
     return contract
 
@@ -27,6 +27,17 @@ def currency_network_contract_with_trustlines(currency_network_contract, account
     contract = currency_network_contract
     for (A, B, clAB, clBA) in trustlines:
         contract.transact().setAccount(accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0)
+    return contract
+
+
+@pytest.fixture()
+def currency_network_contract_custom_interest(chain):
+    CurrencyNetworkFactory = chain.provider.get_contract_factory('CurrencyNetwork')
+    deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
+    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
+    contract = CurrencyNetworkFactory(address=contract_address)
+    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
+    # init(name, symbol, decimal, feeDivisor, defaultInterest, customInterests)
     return contract
 
 
@@ -60,14 +71,6 @@ def test_set_get_Account(currency_network_contract, accounts):
     contract.transact().setAccount(accounts[1], accounts[0], 10, 20, 2, 3, 100, 200, 0, 4)
     assert contract.call().getAccount(accounts[1], accounts[0]) == [10, 20, 2, 3, 100, 200, 0, 4]
     assert contract.call().getAccount(accounts[0], accounts[1]) == [20, 10, 3, 2, 200, 100, 0, -4]
-
-
-def test_creditlines(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    for (A, B, clAB, clBA) in trustlines:
-        assert contract.call().creditline(accounts[A], accounts[B]) == clAB
-        assert contract.call().creditline(accounts[B], accounts[A]) == clBA
-        assert contract.call().balance(accounts[A], accounts[B]) == 0
 
 
 def test_balance(currency_network_contract, accounts):
@@ -162,68 +165,10 @@ def test_send_more(currency_network_contract_with_trustlines, accounts):
     assert contract.call().balance(accounts[0], accounts[1]) == 80
 
 
-def test_update_without_accept_creditline_(currency_network_contract, accounts):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    assert contract.call().creditline(A, B) == 0
-    assert contract.pastEvents('CreditlineUpdate').get() == []
-    assert contract.pastEvents('CreditlineUpdateRequest').get()[0]['args']['_value'] == 99
-
-
-def test_update_with_accept_creditline_(currency_network_contract, accounts):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    contract.transact({"from": B}).acceptCreditline(A, 99)
-    assert contract.call().creditline(A, B) == 99
-    assert contract.pastEvents('CreditlineUpdate').get()[0]['args']['_value'] == 99
-
-
-def test_update_with_accept_different_creditline_(currency_network_contract, accounts):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    with pytest.raises(tester.TransactionFailed):
-        contract.transact({"from": B}).acceptCreditline(A, 98)
-    assert contract.call().creditline(A, B) == 0
-    assert contract.pastEvents('CreditlineUpdate').get() == []
-
-
-def test_update_with_accept_2nd_creditline_(currency_network_contract, accounts):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    contract.transact({"from": A}).updateCreditline(B, 98)
-    contract.transact({"from": B}).acceptCreditline(A, 98)
-    assert contract.call().creditline(A, B) == 98
-    assert contract.pastEvents('CreditlineUpdate').get()[0]['args']['_value'] == 98
-
-
-def test_cannot_accept_old_creditline_(currency_network_contract, accounts):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    contract.transact({"from": A}).updateCreditline(B, 98)
-    with pytest.raises(tester.TransactionFailed):
-        contract.transact({"from": B}).acceptCreditline(A, 99)
-    assert contract.call().creditline(A, B) == 0
-    assert contract.pastEvents('CreditlineUpdate').get() == []
-
-
-def test_update_reduce_need_no_accept_creditline_(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 100
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    assert contract.call().creditline(A, B) == 99
-    assert contract.pastEvents('CreditlineUpdate').get()[0]['args']['_value'] == 99
-
-
 def test_update_without_accept_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)
     assert contract.call().creditline(A, B) == 0
     assert contract.call().creditline(B, A) == 0
     assert contract.pastEvents('TrustlineUpdate').get() == []
@@ -233,8 +178,8 @@ def test_update_without_accept_trustline(currency_network_contract, accounts):
 def test_update_with_accept_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
-    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 0)
     assert contract.call().creditline(A, B) == 50
     assert contract.call().creditline(B, A) == 100
     assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
@@ -244,19 +189,19 @@ def test_update_with_accept_trustline(currency_network_contract, accounts):
 def test_update_with_accept_different_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
-    contract.transact({"from": B}).updateTrustline(A, 100, 49)
-    assert contract.call().creditline(A, B) == 0
-    assert contract.call().creditline(B, A) == 0
-    assert contract.pastEvents('TrustlineUpdate').get() == []
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0 ,0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 49, 0, 0)
+    assert contract.call().creditline(A, B) == 49
+    assert contract.call().creditline(B, A) == 100
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
 
 
 def test_update_with_accept_2nd_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
-    contract.transact({"from": A}).updateTrustline(B, 50, 99)
-    contract.transact({"from": B}).updateTrustline(A, 99, 50)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)
+    contract.transact({"from": A}).updateTrustline(B, 50, 99, 0, 0)
+    contract.transact({"from": B}).updateTrustline(A, 99, 50, 0, 0)
     assert contract.call().creditline(A, B) == 50
     assert contract.call().creditline(B, A) == 99
     assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
@@ -266,9 +211,9 @@ def test_update_with_accept_2nd_trustline(currency_network_contract, accounts):
 def test_cannot_accept_old_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
-    contract.transact({"from": A}).updateTrustline(B, 50, 99)
-    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)
+    contract.transact({"from": A}).updateTrustline(B, 50, 99, 0, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 0)
     assert contract.call().creditline(A, B) == 0
     assert contract.call().creditline(B, A) == 0
     assert contract.pastEvents('TrustlineUpdate').get() == []
@@ -279,61 +224,83 @@ def test_update_reduce_need_no_accept_trustline(currency_network_contract_with_t
     A, B, *rest = accounts
     assert contract.call().creditline(A, B) == 100
     assert contract.call().creditline(B, A) == 150
-    contract.transact({"from": A}).updateTrustline(B, 99, 150)
+    contract.transact({"from": A}).updateTrustline(B, 99, 150, 0, 0)
     assert contract.call().creditline(A, B) == 99
     assert contract.call().creditline(B, A) == 150
     assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditlineGiven'] == 99
 
 
-def test_reduce_creditline(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
+def test_update_without_accept_trustline_interests(currency_network_contract_custom_interest, accounts):
+    contract = currency_network_contract_custom_interest
+
     A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 100
-    contract.transact({"from": B}).reduceCreditline(A, 99)
-    assert contract.call().creditline(A, B) == 99
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 0)
+
+    assert contract.call().interestRate(A, B) == 0
+    assert contract.call().interestRate(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get() == []
+    assert contract.pastEvents('TrustlineUpdateRequest').get()[0]['args']['_interestRateGiven'] == 1
 
 
-def test_reduce_can_not_increase_creditline(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
+def test_update_with_accept_trustline_interests(currency_network_contract_custom_interest, accounts):
+    contract = currency_network_contract_custom_interest
+
     A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 100
-    with pytest.raises(tester.TransactionFailed):
-        contract.transact({"from": B}).reduceCreditline(A, 101)
-    assert contract.call().creditline(A, B) == 100
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 1)
+
+    assert contract.call().interestRate(A, B) == 1
+    assert contract.call().interestRate(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_interestRateGiven'] == 1
 
 
-def test_reduce_creditline_evenif_above_balance(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
+def test_update_with_accept_different_trustline_interests(currency_network_contract_custom_interest, accounts):
+    contract = currency_network_contract_custom_interest
+
     A, B, *rest = accounts
-    contract.transact({"from": B}).transfer(A, 20, 0, [A])
-    assert contract.call().balance(A, B) == 20
-    contract.transact({"from": A}).updateCreditline(B, 10)
-    assert contract.call().creditline(A, B) == 10
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 2)
+    assert contract.call().interestRate(A, B) == 0
+    assert contract.call().interestRate(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get() == []
 
 
-def test_transfer_after_creditline_update(currency_network_contract, accounts):
+def test_update_with_accept_2nd_trustline_interests(currency_network_contract_custom_interest, accounts):
+    contract = currency_network_contract_custom_interest
+
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 2, 0)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 1)
+    assert contract.call().interestRate(A, B) == 1
+    assert contract.call().interestRate(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_creditor'] == A
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_interestRateGiven'] == 1
+
+
+def test_cannot_accept_old_trustline_interests(currency_network_contract_custom_interest, accounts):
+    contract = currency_network_contract_custom_interest
+
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 2, 0)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 2)
+    assert contract.call().interestRate(A, B) == 0
+    assert contract.call().interestRate(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get() == []
+
+
+def test_update_trustline_with_custom_while_forbidden(currency_network_contract, accounts):
+    '''Verifies that if the network uses default interests of 0, no custom interests can be put'''
     contract = currency_network_contract
-    A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 0
-    with pytest.raises(tester.TransactionFailed):
-        contract.transact({"from": A}).transfer(B, 100, 0, [B])
-    contract.transact({"from": A}).updateCreditline(B, 100)
-    contract.transact({"from": B}).acceptCreditline(A, 100)
-    contract.transact({"from": B}).transfer(A, 100, 0, [A])
-    assert contract.call().balance(A, B) == 100
 
-
-def test_transfer_after_update_reduce(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    assert contract.call().creditline(A, B) == 100
-    contract.transact({"from": B}).transfer(A, 100, 0, [A])
-    assert contract.call().balance(A, B) == 100
-    contract.transact({"from": A}).updateCreditline(B, 50)
-    assert contract.call().creditline(A, B) == 50
-    assert contract.call().balance(A, B) == 100
-    contract.transact({"from": A}).transfer(B, 5, 0, [B])
-    assert contract.call().balance(A, B) == 95
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 2, 1)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 1, 2)
+    assert contract.call().interestRate(A, B) == 0
+    assert contract.call().interestRate(B, A) == 0
+    assert contract.pastEvents('TrustlineUpdate').get()[0]['args']['_interestRateGiven'] == 0
 
 
 def test_spendable(currency_network_contract_with_trustlines, accounts):
@@ -358,18 +325,6 @@ def test_balance_of(currency_network_contract_with_trustlines, accounts):
 
 def test_total_supply(currency_network_contract_with_trustlines):
     assert currency_network_contract_with_trustlines.call().totalSupply() == 3250
-
-
-def test_total_supply_after_credits(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 150)
-    contract.transact({"from": B}).acceptCreditline(A, 150)
-    assert contract.call().totalSupply() == 3300
-    contract.transact({"from": A}).updateCreditline(B, 0)
-    assert contract.call().totalSupply() == 3150
-    contract.transact({"from": B}).updateCreditline(A, 0)
-    assert contract.call().totalSupply() == 3000
 
 
 def test_balance_event(currency_network_contract_with_trustlines, accounts):
@@ -405,19 +360,11 @@ def test_transfer_event(currency_network_contract_with_trustlines, accounts):
     assert value == 110
 
 
-def test_update_creditline_add_users(currency_network_contract, accounts):
-    contract = currency_network_contract
-    A, B, *rest = accounts
-    contract.transact({"from": A}).updateCreditline(B, 99)
-    contract.transact({"from": B}).acceptCreditline(A, 99)
-    assert len(contract.call().getUsers()) == 2
-
-
 def test_update_trustline_add_users(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
-    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 0)
     assert len(contract.call().getUsers()) == 2
 
 
