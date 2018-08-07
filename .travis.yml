@@ -1,28 +1,62 @@
+dist: trusty
+sudo: false
 language: python
 python:
-  - "3.6"
+- "3.6"
 git:
   depth: false
-install:
-  - pip install -c constraints.txt -r requirements.txt
-  - npm install -g 'solium@>=1.0.9'
-  - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
-script:
-  - flake8 tlcontracts tests deploy setup.py
-  - solium --dir contracts/
-  - populus compile
-  - python -m pytest tests
-  - docker build -t contracts .
-  - ./tests/smoketest.sh
 branches:
   only:
   - master
   - develop
-services:
-  - docker
+  - /^[0-9]+/
+stages:
+  - name: testing
+  - name: deploying
+
 notifications:
   webhooks:
     urls:
       - secure: "47kfxfxOWTBPkAiDI0hsD7qA1aHRWAMJmHP7IdJLTwiRX2PhFOkjkaM98IiAZMHkPbvgXo8rSqfvzyBlztrWP78VHIZmL38ICt3sZ+VZ/WM+TKtq67jV4/ENPdkqPRPA6KCPQzQy93gtGM222ql9PCIYy8xz55fb9vqulYwis7H36zLXnwqywIXwJNa/w37UTmWSyzgHAeKOPfXosdoYU9N+0pQHnxJOI2JHQlwok2sJQZXWjRnp/ZLKl/chkdlW02mjnqwFeLBe+4laySYhFZ5WFcyrhV93bm4MLVLQp0lHAFT4u2hw2S2Kn8Bjv13wN/7wDhEwJ5IRGenM4JMfIxCdyeAwsA1g5crDrBPa0mrj0eTzA+X1mgmyWfd3seNpDb+COEzO5WT/+VGmMFp1boDN5SJgp4KDLiw2oJRefvdQufQmCmB01pbHcGwsFljIcP33VA4sk5/uhsz7RAV+Y1k/2vfO0Yv79HfO5yYIN04Xp5jZCla4QQ3WYmYWsE8O1V2IG1oyp6LRB1ssC2bJWOtHcUbpjMqXFQSL3wW2erKNwMEg8IaXBGUGxVHo1P79bvblrgGna+p64bAFb5tR57eCSmgB2cRiUzeU4M1C7xBnXT4zOwGNQ2M8M0PU9LzqtXD2TYRR0VdMPvmL7ikFzntQWXeGs9dFCMRiVI5QlCo="
     on_success: change
     on_failure: always
+
+jobs:
+  include:
+    - stage: testing
+      name: tests
+      install:
+      - pip install -c constraints.txt -r requirements.txt
+      - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
+      script:
+      - flake8 tlcontracts tests setup.py
+      - populus compile
+      - python -m pytest tests
+
+    - stage: testing
+      name: contractslinter
+      install:
+      - npm install -g 'solium@>=1.0.9'
+      script:
+      - solium --dir contracts/
+
+    - stage: deploying
+      name: docker
+      sudo: true
+      service: docker
+      env:
+        - DOCKER_USER=trustlinesautomation
+        - secure: "OUd7EDE965JGrz/q09FM+lNmKCIfFF+wHAjt87+T3CLHLspY0vnXuONPLYDG95fZKPFy0IP1irHHvfjji3PGh278lfrcBxcILXaK+1qTfHIewHzu3/kv+ltyjQY4KRctO3wcD/5XUmpQO6ENrBPqh+6sn8VmhwbxyFJUEwX9wWvxc2H2fghaFtcH3apYpWgfCXsMGHwX/NWn1ifJvNVVhZUAsdjNyun9gz+SIqa+YdT17xstoE35DctbdBKsn5z2PLvGqE8LVC1CguAUGZO0RJR1WIlpNcxc8lkoZvezvi0b2q5xMfiJ62cA2l/WQFXVkqtY5l/qNwDn8Vnm+6H5warsD6paMu/6rgSfKzujte4GK3lXAs2AHBy5q81UV40XWCsZojC7OcKBNKglBGq/YysPs0O6xUKoT+FcHbdem+NPMTz3bbeOomGSaure5L3Lh30WzOzDK648m3eNdyt7lo/E0AbnJ8gDzCiAP4t1/GvCuv78ZxktD5TpA4TI3oIDHLqTNk6YtfcrtyKPfBjBKWlYiOY2AeqwOY3fYSp3A/BgYtqKWwr+zZpWnVv0jWz0vsqYrQzvAb3PLrX3yTWrK9fwrZlOi1t44qq+OF4PDog1Snd8/7KtW3rwMpPqWywinWJP3sUkJkTBEdW+fksVKzS1to51aOtZgJJ+Ehg43lk="
+      install:
+        - pip install eth-testrpc
+      script:
+        - docker build -t contracts .
+        - ./tests/smoketest.sh
+
+      deploy:
+        skip_cleanup: true
+        provider: script
+        script: ".travis/push-docker-image.sh"
+        on:
+          all_branches: true
+          condition: $TRAVIS_BRANCH =~ ^(develop|[0-9]+.*)$
