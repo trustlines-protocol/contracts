@@ -229,33 +229,4 @@ def test_negative_interests_default_negative_balance(currency_network_contract_w
     assert contract.call().balance(accounts[0], accounts[1]) == -100000000 * 0.99 - 1
 
 
-def test_negative_interests_custom_positive_balance(currency_network_contract_with_trustlines, accounts, chain):
-    '''Tests interests with a default setting with a negative balance'''
 
-    contract = currency_network_contract_with_trustlines
-    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
-
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -1000, -1000, 0, 0, 1442509455,
-                                   100000000)
-    # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
-
-    chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
-    contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
-
-    assert contract.call().balance(accounts[0], accounts[1]) == 100000000 * 0.99 - 1
-
-
-def test_negative_interests_custom_negative_balance(currency_network_contract_with_trustlines, accounts, chain):
-    '''Tests interests with a default setting with a negative balance'''
-
-    contract = currency_network_contract_with_trustlines
-    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
-
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -1000, -1000, 0, 0, 1442509455,
-                                   -100000000)
-    # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
-
-    chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
-    contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
-
-    assert contract.call().balance(accounts[0], accounts[1]) == -100000000 * 0.99 - 1

@@ -116,7 +116,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
     {
         // verifies that one parameter is selected.
-        require(! ((_defaultInterests > 0) && _customInterests));
+        require(! ((_defaultInterests != 0) && _customInterests));
         require(!_safeInterestRippling || (_safeInterestRippling && _customInterests));
 
         name = _name;
@@ -191,6 +191,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      */
     function updateTrustline(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived, int16 _interestRateGiven, int16 _interestRateReceived) external returns (bool _success) {
         require(customInterests || (_interestRateGiven == defaultInterests && _interestRateReceived == defaultInterests));
+        if (customInterests) {
+            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
+        }
 
         address _creditor = msg.sender;
 
@@ -288,6 +291,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
     {
         require(customInterests || (_interestRateGiven == defaultInterests && _interestRateReceived == defaultInterests));
+        if (customInterests) {
+            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
+        }
 
         _setAccount(
             _a,
@@ -576,6 +582,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             if (! customInterests) {
                 assert(account.interestRateGiven == defaultInterests);
                 assert(account.interestRateReceived == defaultInterests);
+            } else {
+                assert(account.interestRateGiven >= 0);
+                assert(account.interestRateReceived >= 0);
             }
             acc.interestRateGiven = account.interestRateGiven;
             acc.interestRateReceived = account.interestRateReceived;

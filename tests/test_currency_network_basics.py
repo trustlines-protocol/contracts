@@ -349,6 +349,23 @@ def test_update_trustline_lowering_interest_received(currency_network_contract, 
     assert contract.pastEvents('TrustlineUpdate').get() == []
 
 
+def test_setting_trustline_with_negative_interests_with_custom_interests(currency_network_contract_with_trustlines, accounts, chain):
+    '''Verifies we cannot use negative interests if the flag for custom is set'''
+
+    contract = currency_network_contract_with_trustlines
+    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
+
+    with pytest.raises(tester.TransactionFailed):
+        contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -1000, -1000, 0, 0,
+                                       1442509455, 100000000)
+    # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
+
+    A, B, *rest = accounts
+    with pytest.raises(tester.TransactionFailed):
+        contract.transact({"from": A}).updateTrustline(B, 100, 100, -2, 0)
+
+
+
 def test_spendable(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
