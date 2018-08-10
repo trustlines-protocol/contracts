@@ -577,8 +577,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function _storeAccount(address _a, address _b, Account account) internal {
         Account storage acc = accounts[uniqueIdentifier(_a, _b)];
         if (_a < _b) {
-            acc.creditlineGiven = account.creditlineGiven;
-            acc.creditlineReceived = account.creditlineReceived;
             if (! customInterests) {
                 assert(account.interestRateGiven == defaultInterests);
                 assert(account.interestRateReceived == defaultInterests);
@@ -586,6 +584,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 assert(account.interestRateGiven >= 0);
                 assert(account.interestRateReceived >= 0);
             }
+            acc.creditlineGiven = account.creditlineGiven;
+            acc.creditlineReceived = account.creditlineReceived;
             acc.interestRateGiven = account.interestRateGiven;
             acc.interestRateReceived = account.interestRateReceived;
             acc.feesOutstandingA = account.feesOutstandingA;
@@ -593,15 +593,17 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             acc.mtime = account.mtime;
             acc.balance = account.balance;
         } else {
+            if (!customInterests) {
+                assert(account.interestRateGiven == defaultInterests);
+                assert(account.interestRateReceived == defaultInterests);
+            } else {
+                assert(account.interestRateGiven >= 0);
+                assert(account.interestRateReceived >= 0);
+            }
             acc.creditlineReceived = account.creditlineGiven;
             acc.creditlineGiven = account.creditlineReceived;
-            if (!customInterests) {
-                acc.interestRateGiven = defaultInterests;
-                acc.interestRateReceived = defaultInterests;
-            } else {
-                acc.interestRateReceived = account.interestRateGiven;
-                acc.interestRateGiven = account.interestRateReceived;
-            }
+            acc.interestRateReceived = account.interestRateGiven;
+            acc.interestRateGiven = account.interestRateReceived;
             acc.feesOutstandingB = account.feesOutstandingA;
             acc.feesOutstandingA = account.feesOutstandingB;
             acc.mtime = account.mtime;
