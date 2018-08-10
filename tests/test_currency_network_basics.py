@@ -324,6 +324,31 @@ def test_update_trustline_with_custom_while_forbidden_lowering_interests(currenc
         contract.transact({"from": A}).updateTrustline(B, 50, 100, 1, 1)
 
 
+def test_update_trustline_lowering_interest_given(currency_network_contract, accounts):
+    '''Verifies that one can update a trustline by lowering interests rate given without agreement of debtor'''
+    contract = currency_network_contract
+    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
+
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 100, 100, 0, 2)
+    contract.transact({"from": B}).updateTrustline(A, 100, 100, 1, 0)
+
+    assert contract.call().creditline(A, B) == 100
+    assert contract.call().interestRate(B, A) == 1
+
+
+def test_update_trustline_lowering_interest_received(currency_network_contract, accounts):
+    '''Verifies that one can update a trustline by lowering interests rate given without agreement of debtor'''
+    contract = currency_network_contract
+    contract.transact().init('TestCoin', 'T', 6, 0, 0, True, False)
+
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 100, 100, 2, 0)
+    contract.transact({"from": B}).updateTrustline(A, 100, 100, 0, 1)
+
+    assert contract.pastEvents('TrustlineUpdate').get() == []
+
+
 def test_spendable(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts

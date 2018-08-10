@@ -115,7 +115,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         onlyOwner
         external
     {
-        require(_decimals < 19);
         // verifies that one parameter is selected.
         require(! ((_defaultInterests > 0) && _customInterests));
         require(!_safeInterestRippling || (_safeInterestRippling && _customInterests));
@@ -575,12 +574,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             acc.creditlineGiven = account.creditlineGiven;
             acc.creditlineReceived = account.creditlineReceived;
             if (! customInterests) {
-                acc.interestRateGiven = defaultInterests;
-                acc.interestRateReceived = defaultInterests;
-            } else {
-                acc.interestRateGiven = account.interestRateGiven;
-                acc.interestRateReceived = account.interestRateReceived;
+                assert(account.interestRateGiven == defaultInterests);
+                assert(account.interestRateReceived == defaultInterests);
             }
+            acc.interestRateGiven = account.interestRateGiven;
+            acc.interestRateReceived = account.interestRateReceived;
             acc.feesOutstandingA = account.feesOutstandingA;
             acc.feesOutstandingB = account.feesOutstandingB;
             acc.mtime = account.mtime;
@@ -635,8 +633,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         Account memory account = _loadAccount(_creditor, _debtor);
 
-        // reduce of creditlines and interests is always possible
-        if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived && _interestRateGiven == account.interestRateGiven && _interestRateReceived == account.interestRateReceived) {
+        // reduce of creditlines and interests given is always possible
+        if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived && _interestRateGiven <= account.interestRateGiven && _interestRateReceived == account.interestRateReceived) {
             _setTrustline(
                 _creditor,
                 _debtor,
@@ -652,7 +650,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         // if original initiator is debtor, try to accept request
         if (trustlineRequest.initiator == _debtor) {
-            if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateReceived == trustlineRequest.interestRateGiven && _interestRateGiven == trustlineRequest.interestRateReceived) {
+            if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateReceived == trustlineRequest.interestRateGiven && _interestRateGiven <= trustlineRequest.interestRateReceived) {
 
                 // _debtor and _creditor is switched because we want the initiator of the trustline to be _debtor.
                 // So every Given / Received has to be switched.
