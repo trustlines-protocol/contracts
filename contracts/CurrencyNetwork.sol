@@ -499,11 +499,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
             if (safeInterestRippling) {
                 // we want to prevent intermediaries to pay more interests than they receive
-                // If the transaction does not result in them paying interests but getting paid less interests then transaction is valid
+                // If the transaction does not result in them paying interests but getting paid less interests, then transaction is valid
                 // i.e. transaction is valid if the receiver still owes the sender after transfer
                 Account memory account = _loadAccount(sender, receiver);
                 int136 nextInterestsWeight = _calculateInterestWeight(sender, receiver, forwardedValue);
 
+                // for the transfer A -> B -> C. Considering B
+                // nextInterestsWeight is the interestWeight B loses (in the sense that he is unhappy about it) from A -> B
+                // previousInterestsWeight is the interestWeight C loses from B -> C
+                // previousInterestsWeight is also the interestWeight B gains from C (in the sense that he is happy about it)
                 require(nextInterestsWeight <= previousInterestsWeight || account.balance - forwardedValue >= 0);
 
                 previousInterestsWeight = nextInterestsWeight;
@@ -575,15 +579,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     // Provides the abstraction of whether a < b or b < a.
     function _storeAccount(address _a, address _b, Account account) internal {
+        if (!customInterests) {
+            assert(account.interestRateGiven == defaultInterests);
+            assert(account.interestRateReceived == defaultInterests);
+        } else {
+            assert(account.interestRateGiven >= 0);
+            assert(account.interestRateReceived >= 0);
+        }
+
         Account storage acc = accounts[uniqueIdentifier(_a, _b)];
         if (_a < _b) {
-            if (! customInterests) {
-                assert(account.interestRateGiven == defaultInterests);
-                assert(account.interestRateReceived == defaultInterests);
-            } else {
-                assert(account.interestRateGiven >= 0);
-                assert(account.interestRateReceived >= 0);
-            }
             acc.creditlineGiven = account.creditlineGiven;
             acc.creditlineReceived = account.creditlineReceived;
             acc.interestRateGiven = account.interestRateGiven;
@@ -593,13 +598,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             acc.mtime = account.mtime;
             acc.balance = account.balance;
         } else {
-            if (!customInterests) {
-                assert(account.interestRateGiven == defaultInterests);
-                assert(account.interestRateReceived == defaultInterests);
-            } else {
-                assert(account.interestRateGiven >= 0);
-                assert(account.interestRateReceived >= 0);
-            }
             acc.creditlineReceived = account.creditlineGiven;
             acc.creditlineGiven = account.creditlineReceived;
             acc.interestRateReceived = account.interestRateGiven;
@@ -617,16 +615,21 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function _storeTrustlineRequest(address _a, address _b, TrustlineRequest _trustlineRequest) internal {
+         if (!customInterests) {
+            assert(_trustlineRequest.interestRateGiven == defaultInterests);
+            assert(_trustlineRequest.interestRateReceived == defaultInterests);
+        } else {
+            assert(_trustlineRequest.interestRateGiven >= 0);
+            assert(_trustlineRequest.interestRateReceived >= 0);
+
+        }
+
         TrustlineRequest storage trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
+
         trustlineRequest.creditlineGiven = _trustlineRequest.creditlineGiven;
         trustlineRequest.creditlineReceived = _trustlineRequest.creditlineReceived;
-        if (!customInterests) {
-            trustlineRequest.interestRateGiven = defaultInterests;
-            trustlineRequest.interestRateReceived = defaultInterests;
-        } else {
-            trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
-            trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
-        }
+        trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
+        trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
         trustlineRequest.initiator = _trustlineRequest.initiator;
     }
 
@@ -786,7 +789,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return int136(_balance * int136(now - _mtime)/(60*60*24*365) * int136(rate)/100000);
     }
 
-    // Calculates a representation of how much interests intermediaries (_b) gain participating in a transfer
+    // Calculates a representation of how much interests intermediaries (_b) loses (in the sense that he is unhappy about it) participating in a transfer
+    // The higher the value returned, the higher the unhappiness of _b
     // It is only calculating for one side and does not take into accounts the gains or loss from the whole mediation.
     function _calculateInterestWeight(address _a, address _b, uint128 _transfer) internal view returns (int136) {
 
@@ -798,20 +802,22 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             // this means the_transfer will impact only one interest rate
             if (account.balance > 0) {
                 // _b owes to _a; the interests rate to take into account are interests rate given by _a
+                // The unhappiness of _b increases, so the value is > 0
                 return transfer * account.interestRateGiven;
             } else {
                 // _a owes to _b; the interests rate to take into account are interests rate received by _a
-                // _b is actually losing, so the value is negative (for a positive interest rate)
+                // The unhappiness of _b decreases, so the value is < 0
                 return - transfer * account.interestRateReceived;
             }
 
         } else {
             int136 remainingTransfer = transfer - _abs(account.balance);
-            if (account.balance > 0) {
-                return account.balance * account.interestRateGiven + remainingTransfer * account.interestRateReceived;
-            } else {
-                return account.balance * account.interestRateReceived + remainingTransfer * account.interestRateGiven;
-            }
+            // Before the transfer: _b owes to _a account.balance;
+            // After the transfer: _a owes to _b remainingTransfer;
+
+            // The interests "account.balance * account.interestRateGiven" are not here anymore and _b is unhappy about it.
+            // The interests "remainingTransfer * account.interestRateReceived" appeared and _b is happy about it.
+            return account.balance * account.interestRateGiven - remainingTransfer * account.interestRateReceived;
         }
     }
 
