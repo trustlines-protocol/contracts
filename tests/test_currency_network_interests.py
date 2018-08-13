@@ -47,8 +47,8 @@ def test_interests_default(currency_network_contract_with_trustlines, accounts, 
     contract = currency_network_contract_with_trustlines
     contract.transact().init('TestCoin', 'T', 6, 0, 1000, False, False)
 
-    chain.rpc_methods.testing_timeTravel(1442509455)
-    contract.transact({'from': accounts[0]}).transfer(accounts[1], 100000000, 2000000, [accounts[1]])
+    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 1000, 1000, 0, 0, 1442509455,
+                                   -100000000)
 
     chain.rpc_methods.testing_timeTravel(1442509455 + 60*60*24*365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
@@ -227,6 +227,3 @@ def test_negative_interests_default_negative_balance(currency_network_contract_w
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
     assert contract.call().balance(accounts[0], accounts[1]) == -100000000 * 0.99 - 1
-
-
-
