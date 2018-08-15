@@ -81,3 +81,8 @@ Testing
 
 For testing we use pytest with an ethereum tester plugin. The tests can
 be run with ``python -m pytest tests``
+
+Change log
+----------
+
+See `CHANGELOG <https://github.com/trustlines-network/contracts/blob/develop/CHANGELOG.rst>`_.
