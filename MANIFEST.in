@@ -2,3 +2,5 @@ include README.md
 include requirements.txt
 recursive-include contracts *.sol
 include populus.json
+include build/contracts.json
+exclude .compile-contracts.txt

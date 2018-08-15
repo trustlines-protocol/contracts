@@ -7,6 +7,9 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages, Command
 from setuptools.command.build_py import build_py
+from distutils.command.build import build
+from setuptools.command.sdist import sdist
+
 # To use a consistent encoding
 from codecs import open
 from os import path, listdir, environ
@@ -22,12 +25,26 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+# we need to use another build directory in order to be able to include
+# the populus generated build/contracts.json file in a sdist.
+class BuildCommand(build):
+
+    def initialize_options(self):
+        super().initialize_options()
+        self.build_base = "_build"
 
 class BuildPyCommand(build_py):
 
     def run(self):
-        build_py.run(self)
         self.run_command('compile_contracts')
+        super().run()
+
+
+class SdistCommand(sdist):
+
+    def run(self):
+        self.run_command('compile_contracts')
+        super().run()
 
 
 class CompileContracts(Command):
@@ -41,6 +58,11 @@ class CompileContracts(Command):
         pass
 
     def run(self):
+        # .compile-contracts.txt is not shipped in sdist releases, but we ship
+        # the compiled contracts and don't want to recompile them
+        if not path.exists('.compile-contracts.txt'):
+            return
+
         from populus import Project
         from populus.api.compile_contracts import compile_project
         project = Project()
@@ -70,7 +92,7 @@ setup(
 
     # Author details
     author='Trustlines-Network',
-    author_email='',
+    author_email='contact@brainbot.com',
 
     # Choose your license
     license='MIT',
@@ -152,5 +174,7 @@ setup(
     cmdclass={
         'compile_contracts': CompileContracts,
         'build_py': BuildPyCommand,
+        'build': BuildCommand,
+        'sdist': SdistCommand,
     },
 )

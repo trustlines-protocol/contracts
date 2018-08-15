@@ -1,0 +1,6 @@
+This file is here as a marker for setup.py. This file is not being distributed
+with sdist generated releases.
+
+If the file exists, setup.py will try to compile the contracts, otherwise it
+will assume it's being run from a source distribution and use the contracts.json
+that's shipped in sdist releases.
