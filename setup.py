@@ -25,6 +25,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
+
 # we need to use another build directory in order to be able to include
 # the populus generated build/contracts.json file in a sdist.
 class BuildCommand(build):
@@ -32,6 +33,7 @@ class BuildCommand(build):
     def initialize_options(self):
         super().initialize_options()
         self.build_base = "_build"
+
 
 class BuildPyCommand(build_py):
 
