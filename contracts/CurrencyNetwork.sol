@@ -542,13 +542,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return true;
     }
 
-    function _emitTransfer(address _from, address _to, uint128 _value) internal {
-        emit Transfer(
-            _from,
-            _to,
-            _value);
-    }
-
     function addToUsersAndFriends(address _a, address _b) internal {
         users.insert(_a);
         users.insert(_b);
