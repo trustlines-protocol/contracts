@@ -60,9 +60,8 @@ class CompileContracts(Command):
         pass
 
     def run(self):
-        # .compile-contracts.txt is not shipped in sdist releases, but we ship
-        # the compiled contracts and don't want to recompile them
-        if not path.exists('.compile-contracts.txt'):
+        # the contracts directory is not shipped in sdist releases.
+        if not path.exists('contracts'):
             return
 
         from populus import Project

@@ -1,6 +1,8 @@
 include README.rst
 include requirements.txt
-recursive-include contracts *.sol
 include populus.json
 include build/contracts.json
-exclude .compile-contracts.txt
+prune contracts
+prune .travis
+exclude .travis.yml
+exclude .pre-commit-config.yaml
