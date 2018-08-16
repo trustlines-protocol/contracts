@@ -65,7 +65,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         uint32 mtime;                  //  last modification time
 
-        int136 balance;                 //  balance between A and B, A->B (x(-1) for B->A)
+        int136 balance;                 //  balance between A and B, balance is >0 if B owes A, negative otherwise. balance(B,A) = - balance(A,B)
     }
 
     struct TrustlineRequest {
@@ -144,12 +144,19 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         returns (bool _success)
     {
-        return _mediatedTransfer(
+        _success = _mediatedTransfer(
             msg.sender,
             _to,
             _value,
             _maxFee,
             _path);
+
+        if (_success) {
+            emit Transfer(
+                msg.sender,
+                _to,
+                _value);
+        }
     }
 
     /**
@@ -171,12 +178,20 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         returns (bool success)
     {
         require(authorized[msg.sender]);
-        return _mediatedTransfer(
+
+        success = _mediatedTransfer(
             _from,
             _to,
             _value,
             _maxFee,
             _path);
+
+        if (success) {
+            emit Transfer(
+                _from,
+                _to,
+                _value);
+        }
     }
 
     /**
@@ -432,9 +447,13 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return decimals;
     }
 
-    function _directTransfer(
+    // This function modifies the value of the balance stored in the account for sender and receiver.
+    // It calculates the fees, applies them to the balance and returns them.
+    // We ask this function to apply the interests too for optimisation (only one call to _storeAccount)
+    function _applyDirectTransfer(
         address _sender,
         address _receiver,
+        int136 _accountBalanceAfterInterests,
         uint128 _value
     )
         internal
@@ -442,12 +461,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         Account memory account = _loadAccount(_sender, _receiver);
 
-        uint32 mtime = account.mtime;
-        int136 interests = _calculateInterests(account.balance, mtime, account.interestRateGiven, account.interestRateReceived);
-        int136 newBalance = account.balance + interests;
-
-        fees = _calculateFees(_value, newBalance, capacityImbalanceFeeDivisor);
-        newBalance = newBalance - _value - fees;
+        fees = _calculateFees(_value, _accountBalanceAfterInterests, capacityImbalanceFeeDivisor);
+        int136 newBalance = _accountBalanceAfterInterests - _value - fees;
 
         // check if creditline is not exceeded
         uint128 creditlineReceived = account.creditlineReceived;
@@ -469,7 +484,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address[] _path
     )
         internal
-        returns (bool success)
+        returns (bool)
     {
         // check Path: is there a Path and is _to the last address? Otherwise throw
         require((_path.length > 0) && (_to == _path[_path.length - 1]));
@@ -477,20 +492,31 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint128 forwardedValue = _value;
         uint128 fees = 0;
         uint128 fee = 0;
-        int136 previousInterestsWeight = 0;
+        int136 accountBalanceAfterInterests;
+        int136 previousHopInterestsWeight;
+        int136 nextHopInterestsWeight = 0;
+        bool reducingDebtOfNextHopOnly = true;
 
         // check path in reverse to correctly accumulate the fee
         for (uint i = _path.length; i > 0; i--) {
-            address receiver = _path[i-1];
+            // the address of the receiver is _path[i-1]
             address sender;
             if (i == 1) {
                 sender = _from;
             } else {
                 sender = _path[i-2];
             }
-            fee = _directTransfer(
+            // We want to load the account first and calculate the interests on it before any other action
+            // We want all following calculations to take into consideration accountBalanceAfterInterests instead of account.balance
+            Account memory account = _loadAccount(sender, _path[i-1]);
+
+            accountBalanceAfterInterests = account.balance + _calculateInterests(account.balance, account.mtime, account.interestRateGiven, account.interestRateReceived);
+            previousHopInterestsWeight = _singleHopInterestWeight(sender, _path[i-1], accountBalanceAfterInterests, forwardedValue);
+
+            fee = _applyDirectTransfer(
                 sender,
-                receiver,
+                _path[i-1],
+                accountBalanceAfterInterests,
                 forwardedValue);
             // forward the value + the fee
             forwardedValue += fee;
@@ -499,27 +525,28 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
             if (safeInterestRippling) {
                 // we want to prevent intermediaries to pay more interests than they receive
-                // If the transaction does not result in them paying interests but getting paid less interests, then transaction is valid
-                // i.e. transaction is valid if the receiver still owes the sender after transfer
-                Account memory account = _loadAccount(sender, receiver);
-                int136 nextInterestsWeight = _calculateInterestWeight(sender, receiver, forwardedValue);
+                // unless the transaction helps in reducing the debt of the next hop in the path
 
                 // for the transfer A -> B -> C. Considering B
-                // nextInterestsWeight is the interestWeight B loses (in the sense that he is unhappy about it) from A -> B
-                // previousInterestsWeight is the interestWeight C loses from B -> C
-                // previousInterestsWeight is also the interestWeight B gains from C (in the sense that he is happy about it)
-                require(nextInterestsWeight <= previousInterestsWeight || account.balance - forwardedValue >= 0);
+                // previousHopInterestsWeight is the interestWeight B loses (in the sense that he is unhappy about it) from A -> B
+                // nextHopInterestsWeight is the interestWeight C loses from B -> C
+                // nextHopInterestsWeight is also the interestWeight B gains from C (in the sense that he is happy about it)
+                // we require: unhappiness <= happiness
+                require(previousHopInterestsWeight <= nextHopInterestsWeight || reducingDebtOfNextHopOnly);
 
-                previousInterestsWeight = nextInterestsWeight;
+                reducingDebtOfNextHopOnly = accountBalanceAfterInterests - forwardedValue >= 0;
+                nextHopInterestsWeight = previousHopInterestsWeight;
             }
         }
 
+        return true;
+    }
+
+    function _emitTransfer(address _from, address _to, uint128 _value) internal {
         emit Transfer(
             _from,
             _to,
             _value);
-
-        success = true;
     }
 
     function addToUsersAndFriends(address _a, address _b) internal {
@@ -615,7 +642,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function _storeTrustlineRequest(address _a, address _b, TrustlineRequest _trustlineRequest) internal {
-         if (!customInterests) {
+        if (!customInterests) {
             assert(_trustlineRequest.interestRateGiven == defaultInterests);
             assert(_trustlineRequest.interestRateReceived == defaultInterests);
         } else {
@@ -789,35 +816,39 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return int136(_balance * int136(now - _mtime)/(60*60*24*365) * int136(rate)/100000);
     }
 
-    // Calculates a representation of how much interests intermediaries (_b) loses (in the sense that he is unhappy about it) participating in a transfer
-    // The higher the value returned, the higher the unhappiness of _b
+    // Calculates a representation of how much interests intermediaries (_receiver) loses (in the sense that he is unhappy about it) participating in a transfer
+    // The higher the value returned, the higher the unhappiness of _receiver
     // It is only calculating for one side and does not take into accounts the gains or loss from the whole mediation.
-    function _calculateInterestWeight(address _a, address _b, uint128 _transfer) internal view returns (int136) {
+    // accountBalanceAfterInterests is the balance of the account between _sender and _receiver after applying interests
+    // represents the impact of the transfer, establish the difference of satisfaction between before the transfer and after the transfer.
+    // The value returned must be greater, the greater the unhappiness of _receiver
+    function _singleHopInterestWeight(address _sender, address _receiver, int136 accountBalanceAfterInterests, uint128 _transferedValue) internal view returns (int136) {
 
-        Account memory account = _loadAccount(_a, _b);
+        Account memory account = _loadAccount(_sender, _receiver);
 
-        int136 transfer = int136(_transfer);
+        int136 balance = accountBalanceAfterInterests;
+        int136 transferedValue = int136(_transferedValue);
 
-        if (transfer <= _abs(account.balance) || account.balance <= 0) {
+        if (transferedValue <= _abs(balance) || balance <= 0) {
             // this means the_transfer will impact only one interest rate
-            if (account.balance > 0) {
-                // _b owes to _a; the interests rate to take into account are interests rate given by _a
-                // The unhappiness of _b increases, so the value is > 0
-                return transfer * account.interestRateGiven;
+            if (balance > 0) {
+                // _receiver owes to _sender; the interests rate to take into account are interests rate given by _sender
+                // after the transfer _receiver owes less to _sender so the unhappiness of _reciever decreases, the value is < 0
+                return - transferedValue * account.interestRateGiven;
             } else {
-                // _a owes to _b; the interests rate to take into account are interests rate received by _a
-                // The unhappiness of _b decreases, so the value is < 0
-                return - transfer * account.interestRateReceived;
+                // _sender owes to _receiver; the interests rate to take into account are interests rate received by _sender
+                // after the transfer _sender owes more to _receiver so the unhappiness of _receiver decreases, the value is < 0
+                return - transferedValue * account.interestRateReceived;
             }
 
         } else {
-            int136 remainingTransfer = transfer - _abs(account.balance);
-            // Before the transfer: _b owes to _a account.balance;
-            // After the transfer: _a owes to _b remainingTransfer;
+            int136 remainingTransfer = transferedValue - _abs(balance);
+            // Before the transfer: _receiver owes to _sender account.balance;
+            // After the transfer: _sender owes to _receiver remainingTransfer;
 
-            // The interests "account.balance * account.interestRateGiven" are not here anymore and _b is unhappy about it.
-            // The interests "remainingTransfer * account.interestRateReceived" appeared and _b is happy about it.
-            return account.balance * account.interestRateGiven - remainingTransfer * account.interestRateReceived;
+            // The interests "account.balance * account.interestRateGiven" are not here anymore and _receiver is happy about it.
+            // The interests "remainingTransfer * account.interestRateReceived" appeared and _receiver is happy about it.
+            return - balance * account.interestRateGiven - remainingTransfer * account.interestRateReceived;
         }
     }
 

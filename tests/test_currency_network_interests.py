@@ -167,8 +167,8 @@ def test_safe_interest_disallows_transactions_mediated(currency_network_contract
     '''Tests that the safeInterestRippling prevents certain transactions'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
-    contract.transact().setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, 0, 1)
-    contract.transact().setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, 0, 1)
+    contract.transact().setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, 0, 0)
+    contract.transact().setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, 0, 0)
 
     with pytest.raises(tester.TransactionFailed):
         contract.transact({'from': accounts[0]}).transfer(accounts[2], 1, 2, [accounts[1], accounts[2]])
@@ -190,11 +190,13 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
     '''Tests that the safeInterestRippling allows transactions that reduce imbalances'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
-    contract.transact().setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, 0, 100)
-    contract.transact().setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, 0, 100)
+    contract.transact().setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, 1442509455, 100)
+    contract.transact().setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, 1442509455, 100)
+
+    chain.rpc_methods.testing_timeTravel(1442509455)
 
     with pytest.raises(tester.TransactionFailed):
-        contract.transact({'from': accounts[0]}).transfer(accounts[2], 101, 2, [accounts[1], accounts[2]])
+        contract.transact({'from': accounts[0]}).transfer(accounts[2], 201, 2, [accounts[1], accounts[2]])
 
 
 def test_negative_interests_default_positive_balance(currency_network_contract_with_trustlines, accounts, chain):
