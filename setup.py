@@ -7,9 +7,12 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages, Command
 from setuptools.command.build_py import build_py
+from distutils.command.build import build
+from setuptools.command.sdist import sdist
+
 # To use a consistent encoding
 from codecs import open
-from os import path, listdir, environ
+from os import path, environ
 
 # make sure we don't need any non-standard libraries like gevent in
 # CompileContracts (in case we have set THREADING_BACKEND=gevent)
@@ -19,15 +22,31 @@ here = path.abspath(path.dirname(__file__))
 
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
+
+
+# we need to use another build directory in order to be able to include
+# the populus generated build/contracts.json file in a sdist.
+class BuildCommand(build):
+
+    def initialize_options(self):
+        super().initialize_options()
+        self.build_base = "_build"
 
 
 class BuildPyCommand(build_py):
 
     def run(self):
-        build_py.run(self)
         self.run_command('compile_contracts')
+        super().run()
+
+
+class SdistCommand(sdist):
+
+    def run(self):
+        self.run_command('compile_contracts')
+        super().run()
 
 
 class CompileContracts(Command):
@@ -41,15 +60,14 @@ class CompileContracts(Command):
         pass
 
     def run(self):
+        # the contracts directory is not shipped in sdist releases.
+        if not path.exists('contracts'):
+            return
+
         from populus import Project
         from populus.api.compile_contracts import compile_project
         project = Project()
         compile_project(project, False)
-
-
-def list_files(dir_path):
-    base_dir = path.join(here, dir_path)
-    return [path.join(here, dir_path, f) for f in listdir(base_dir) if path.isfile(path.join(here, dir_path, f))]
 
 
 setup(
@@ -70,7 +88,7 @@ setup(
 
     # Author details
     author='Trustlines-Network',
-    author_email='',
+    author_email='contact@brainbot.com',
 
     # Choose your license
     license='MIT',
@@ -85,7 +103,6 @@ setup(
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
-        'Topic :: Software Development :: Build Tools',
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: MIT License',
@@ -137,10 +154,7 @@ setup(
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
     data_files=[('trustlines-contracts', ['project.json']),
                 ('trustlines-contracts/build', ['build/contracts.json']),
-                ('trustlines-contracts/contracts', list_files('contracts')),
-                ('trustlines-contracts/contracts/lib', list_files('contracts/lib')),
-                ('trustlines-contracts/contracts/tokens', list_files('contracts/tokens')),
-                ],
+               ],
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
@@ -152,5 +166,7 @@ setup(
     cmdclass={
         'compile_contracts': CompileContracts,
         'build_py': BuildPyCommand,
+        'build': BuildCommand,
+        'sdist': SdistCommand,
     },
 )

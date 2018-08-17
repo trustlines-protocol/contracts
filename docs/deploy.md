@@ -72,4 +72,3 @@ Options:
   --help         Show this message and exit.
 ```
 The address of this exchange can be used as input for the exchange-contract option when creating a currency network.
-
