@@ -12,7 +12,7 @@ from setuptools.command.sdist import sdist
 
 # To use a consistent encoding
 from codecs import open
-from os import path, listdir, environ
+from os import path, environ
 
 # make sure we don't need any non-standard libraries like gevent in
 # CompileContracts (in case we have set THREADING_BACKEND=gevent)
@@ -68,11 +68,6 @@ class CompileContracts(Command):
         from populus.api.compile_contracts import compile_project
         project = Project()
         compile_project(project, False)
-
-
-def list_files(dir_path):
-    base_dir = path.join(here, dir_path)
-    return [path.join(here, dir_path, f) for f in listdir(base_dir) if path.isfile(path.join(here, dir_path, f))]
 
 
 setup(
@@ -159,10 +154,7 @@ setup(
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
     data_files=[('trustlines-contracts', ['project.json']),
                 ('trustlines-contracts/build', ['build/contracts.json']),
-                ('trustlines-contracts/contracts', list_files('contracts')),
-                ('trustlines-contracts/contracts/lib', list_files('contracts/lib')),
-                ('trustlines-contracts/contracts/tokens', list_files('contracts/tokens')),
-                ],
+               ],
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
