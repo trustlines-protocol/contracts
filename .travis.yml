@@ -65,6 +65,22 @@ jobs:
     - stage: deploying
       name: pypi
       install:
+        - /bin/true
+      script:
+        - /bin/true
+      deploy:
+        - provider: pypi
+          skip_cleanup: true
+          user: trustlines
+          password:
+            secure: "x95gza22ssIhsMghLvViVN7Y1DJDDC0qNDb4Xqgj3lPjZ7p91ZoGBy8IQDdhGgDA9GQBlfij0kKU5FnUnQI3IBBtTEstOpH+QctwBvlLSKX3lx0gqx36ciQRE6nBr5onVjaxr+39pZ5hmX37eq069Pv1GxWJzBuSh2pcHudyO7tzSnSYjDkqurR/NE0A3XiLym1cOIrsmlYdLY2RUbBWIOuuVethauHiI+aF/9VUsywp5ZL2eo2mFIjuMCOWU5DMQuYdlMyNBYuQruufIQq47JuyJ5h65/JLup7lYZQw7A5/s7kkAHyxRbjyJTCbNZ/nJjLD5h+XL7YGnMT/tzQgXjV9DENKx21AgnYEpNzgdgqJLdcE2eFUYKKtIkI1WONtk8J2+XJyZa/gwjcw+y00yNsKALgfpqStUW2Ze/liI9AbruPYtjgyhwmqqvfTZrk4q/v21AtZygOh32iYeoEtrWNuhV8jHXe1M17MhtJFdso7AIJYJyY8PQeC8t5QU2yvOm577rRKx42UAECT2RoZS1HI8ECL872mS2yvSoURjuOfPWwAaYrA4kL8Snt3iMb/gvSVaUdA1XV4J83PTiNwqX953R2PCgFFSdKj/DRNnVEQh9AmMT4XV6wUJobXOGGa7yo1udecJPtUuLKO02W438sifnp9gsL5wCUgZAOTh6Y="
+          on:
+            all_branches: true
+            condition: $TRAVIS_BRANCH =~ ^(feature/pypi-bin|[0-9]+.*)$
+
+    - stage: deploying
+      name: pypi bin
+      install:
       - pip install -c constraints.txt populus
       - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
       - python setup.py compile_contracts
