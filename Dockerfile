@@ -14,7 +14,7 @@ RUN apt-get install -y --no-install-recommends pkg-config libsecp256k1-dev pytho
 RUN python3 -m venv /opt/contracts
 WORKDIR /opt/contracts
 RUN bin/pip install pip==18.0.0 setuptools==40.0.0
-    
+
 COPY ./requirements.txt /contracts/requirements.txt
 COPY ./constraints.txt /contracts/constraints.txt
 
