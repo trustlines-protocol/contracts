@@ -63,7 +63,7 @@ tl-deploy
 The tool ``tl-deploy`` allows you to deploy the relevant contracts.
 
 Use ``tl-deploy --help`` to find out about the relevant commands or read
-further in the `deploy documentation <docs/deploy.md>`__
+further in the `deploy documentation <https://github.com/trustlines-network/contracts/blob/develop/docs/deploy.md>`__
 
 Development
 -----------
