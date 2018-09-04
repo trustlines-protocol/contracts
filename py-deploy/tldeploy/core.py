@@ -5,8 +5,6 @@
 import os
 import sys
 import json
-from contextlib import contextmanager
-
 from web3 import Web3
 from web3.utils.threads import (
     Timeout,
@@ -126,19 +124,6 @@ def deploy_proxied_network(web3, name, symbol, decimals, fee_divisor=100, exchan
                                                       currency_network_address)
     check_successful_tx(web3, txid)
     return proxied_trustlines
-
-
-@contextmanager
-def cd_into_projectpath():
-    cwd = os.getcwd()
-    install_filepath = os.path.join(sys.prefix, 'trustlines-contracts', 'project.json')
-
-    if os.path.isfile(install_filepath):
-        os.chdir(os.path.join(sys.prefix, 'trustlines-contracts'))
-        yield
-    else:
-        raise RuntimeError('Projectfolder not found')
-    os.chdir(cwd)
 
 
 def deploy_networks(web3, networks):
