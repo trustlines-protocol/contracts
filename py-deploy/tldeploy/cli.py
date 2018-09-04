@@ -13,7 +13,7 @@ from .core import (deploy_network,
 
 def report_version():
     for dist in ["trustlines-contracts-deploy", "trustlines-contracts-bin"]:
-        msg = "{} {}".format(dist, pkg_resources.get_distribution('trustlines-contracts-deploy').version)
+        msg = "{} {}".format(dist, pkg_resources.get_distribution(dist).version)
         click.echo(msg)
 
 
