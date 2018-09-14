@@ -32,7 +32,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     ItSet.AddressSet internal users;
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
-    uint16 internal capacityImbalanceFeeDivisor;
+    uint16 public capacityImbalanceFeeDivisor;
 
     // meta data for token part
     string public name;
