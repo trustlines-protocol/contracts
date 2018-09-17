@@ -1,5 +1,6 @@
 import pytest
-from ethereum import tester
+from tldeploy.core import deploy_network
+import eth_tester.exceptions
 
 
 trustlines = [(0, 1, 100, 150),
@@ -11,14 +12,8 @@ trustlines = [(0, 1, 100, 150),
 
 
 @pytest.fixture()
-def currency_network_contract(chain):
-    CurrencyNetworkFactory = chain.provider.get_contract_factory('CurrencyNetwork')
-    deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('TestCoin', 'T', 6, 100)
-
-    return contract
+def currency_network_contract(web3):
+    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=100)
 
 
 @pytest.fixture()
@@ -37,7 +32,7 @@ def test_transfer_0_mediators(currency_network_contract_with_trustlines, account
 
 def test_transfer_0_mediators_fail_not_enough_credit(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
-    with pytest.raises(tester.TransactionFailed):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.transact({'from': accounts[0]}).transfer(accounts[1], 151 - 2, 2, [accounts[1]])
 
 
@@ -50,7 +45,7 @@ def test_transfer_1_mediators(currency_network_contract_with_trustlines, account
 
 def test_transfer_1_mediators_not_enough_credit(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
-    with pytest.raises(tester.TransactionFailed):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.transact({'from': accounts[0]}).transfer(accounts[2], 151 - 2, 2, [accounts[1], accounts[2]])
 
 
@@ -78,7 +73,7 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
 
 def test_max_fee(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
-    with pytest.raises(tester.TransactionFailed):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.transact({'from': accounts[0]}).transfer(accounts[1], 100, 1, [accounts[1]])
 
 
