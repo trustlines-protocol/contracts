@@ -28,14 +28,12 @@ def tester():
 def ethereum_tester_session():
     """Returns an instance of an Ethereum tester"""
     tester = eth_tester.EthereumTester(eth_tester.PyEVMBackend())
-    k0 = b'\x04HR\xb2\xa6p\xad\xe5@~x\xfb(c\xc5\x1d\xe9\xfc\xb9eB\xa0q\x86\xfe:\xed\xa6\xbb\x8a\x11m'
+    k0 = b"\x04HR\xb2\xa6p\xad\xe5@~x\xfb(c\xc5\x1d\xe9\xfc\xb9eB\xa0q\x86\xfe:\xed\xa6\xbb\x8a\x11m"
     a0 = tester.add_account(encode_hex(k0))
     faucet = tester.get_accounts()[0]
     tester.send_transaction(
-        {"from": faucet,
-         "to": to_checksum_address(a0),
-         "gas": 21000,
-         "value": 10000000})
+        {"from": faucet, "to": to_checksum_address(a0), "gas": 21000, "value": 10000000}
+    )
     return tester
 
 
@@ -52,3 +50,10 @@ def web3(ethereum_tester):
     web3 = Web3(EthereumTesterProvider(ethereum_tester))
     web3.eth.defaultAccount = web3.eth.accounts[0]
     return web3
+
+
+@pytest.fixture()
+def accounts(web3):
+    accounts = web3.personal.listAccounts[0:5]
+    assert len(accounts) == 5
+    return [to_checksum_address(account) for account in accounts]
