@@ -1,15 +1,11 @@
 import pytest
-from ethereum import tester
+from tldeploy.core import deploy
+import eth_tester.exceptions
 
 
 @pytest.fixture()
-def unweth_contract(chain):
-    UnwEthFactory = chain.provider.get_contract_factory('UnwEth')
-    deploy_txn_hash = UnwEthFactory.deploy(args=[])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = UnwEthFactory(address=contract_address)
-
-    return contract
+def unweth_contract(web3):
+    return deploy("UnwEth", web3)
 
 
 def test_transfer(unweth_contract, web3, accounts):
@@ -57,7 +53,7 @@ def test_transfer_from(unweth_contract, web3, accounts):
     balance = web3.eth.getBalance(B)
     unweth_contract.transact({'from': A, 'value': wei}).deposit()
 
-    with pytest.raises(tester.TransactionFailed):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
         unweth_contract.transact({'from': C}).transferFrom(A, B, wei)
 
     unweth_contract.transact().addAuthorizedAddress(C)
