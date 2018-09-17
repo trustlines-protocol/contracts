@@ -1,14 +1,8 @@
-import os
-import sys
 import pytest
 from web3 import Web3
 from web3.providers.eth_tester import EthereumTesterProvider
 from eth_utils import to_checksum_address, encode_hex
 import eth_tester
-
-
-# import the tlcontracts module so no pip install is necessary
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 @pytest.fixture()

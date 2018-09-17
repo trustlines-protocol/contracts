@@ -1,10 +1,11 @@
 import time
 
 import pytest
-from ethereum import tester
 
-from tlcontracts.exchange import Order
-from tlcontracts.signing import priv_to_pubkey
+from tldeploy.core import deploy_network, deploy_exchange, deploy
+from tldeploy.exchange import Order
+from tldeploy.signing import priv_to_pubkey
+from eth_utils import to_checksum_address
 
 
 trustlines = [(0, 1, 100, 150),
@@ -19,33 +20,27 @@ NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 
 @pytest.fixture()
-def exchange_contract(chain):
-    ExchangeFactory = chain.provider.get_contract_factory('Exchange')
-    deploy_txn_hash = ExchangeFactory.deploy(args=[])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = ExchangeFactory(address=contract_address)
-
-    return contract
+def accounts(web3, tester):
+    """list of accounts, with account[0] being the maker,i.e. tester.a0 address"""
+    accounts = [tester.a0] + web3.personal.listAccounts[0:4]
+    assert len(accounts) == 5
+    return [to_checksum_address(account) for account in accounts]
 
 
 @pytest.fixture()
-def currency_network_contract(chain):
-    CurrencyNetworkFactory = chain.provider.get_contract_factory('CurrencyNetwork')
-    deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('TestCoin', 'T', 6, 0)
-
-    return contract
+def exchange_contract(web3):
+    return deploy_exchange(web3)
 
 
 @pytest.fixture()
-def token_contract(chain, accounts):
+def currency_network_contract(web3):
+    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0)
+
+
+@pytest.fixture()
+def token_contract(web3, accounts):
     A, B, C, *rest = accounts
-    TokenFactory = chain.provider.get_contract_factory('DummyToken')
-    deploy_txn_hash = TokenFactory.deploy(args=['DummyToken', 'DT', 18, 10000000])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = TokenFactory(address=contract_address)
+    contract = deploy("DummyToken", web3, 'DummyToken', 'DT', 18, 10000000)
     contract.transact().setBalance(A, 10000)
     contract.transact().setBalance(B, 10000)
     contract.transact().setBalance(C, 10000)
@@ -90,10 +85,15 @@ def test_order_hash(exchange_contract, token_contract, currency_network_contract
          order.taker_fee,
          order.expiration_timestamp_in_sec,
          order.salt]
-    ).encode('Latin-1')
+    )
 
 
-def test_order_signature(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts):
+def test_order_signature(
+        exchange_contract,
+        token_contract,
+        currency_network_contract_with_trustlines,
+        accounts,
+        tester):
     maker_address, taker_address, *rest = accounts
 
     order = Order(exchange_contract.address,
@@ -112,10 +112,10 @@ def test_order_signature(exchange_contract, token_contract, currency_network_con
 
     v, r, s = order.sign(tester.k0)
 
-    assert exchange_contract.call().isValidSignature(maker_address, order.hash(), v, r, s)
+    assert exchange_contract.call().isValidSignature(maker_address, order.hash().hex(), v, r, s)
 
 
-def test_exchange(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts):
+def test_exchange(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts, tester):
     maker_address, mediator_address, taker_address, *rest = accounts
 
     assert token_contract.call().balanceOf(maker_address) == 10000
