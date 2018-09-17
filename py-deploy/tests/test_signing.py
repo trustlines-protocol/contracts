@@ -1,3 +1,5 @@
+#! pytest
+
 from eth_utils import to_checksum_address
 from tldeploy.signing import eth_validate, eth_sign
 

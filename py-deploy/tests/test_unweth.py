@@ -1,3 +1,5 @@
+#! pytest
+
 import pytest
 from tldeploy.core import deploy
 import eth_tester.exceptions
@@ -22,7 +24,7 @@ def test_transfer(unweth_contract, web3, accounts):
             'value': wei
         })
 
-    unweth_contract.transact({'from': A}).transfer(B, wei)
+    unweth_contract.functions.transfer(B, wei).transact({'from': A})
 
     assert web3.eth.getBalance(B) == receiver_wei_before + wei
 
@@ -35,14 +37,14 @@ def test_deposit_withdraw(unweth_contract, web3, accounts):
 
     print(web3.eth.getBalance(A))
 
-    unweth_contract.transact({'from': A, 'value': wei}).deposit()
+    unweth_contract.functions.deposit().transact({'from': A, 'value': wei})
     print(web3.eth.getBalance(A))
     print(balance-web3.eth.getBalance(A)-wei)
 
     assert web3.eth.getBalance(A) == pytest.approx(balance - wei, abs=100000)  # approx, because ot gas costs
-    assert unweth_contract.call().balanceOf(A) == wei
+    assert unweth_contract.functions.balanceOf(A).call() == wei
 
-    unweth_contract.transact({'from': A}).withdraw(wei)
+    unweth_contract.functions.withdraw(wei).transact({'from': A})
     assert web3.eth.getBalance(A) == pytest.approx(balance, abs=100000)  # approx, because ot gas costs
 
 
@@ -51,12 +53,12 @@ def test_transfer_from(unweth_contract, web3, accounts):
     wei = 10 ** 18
 
     balance = web3.eth.getBalance(B)
-    unweth_contract.transact({'from': A, 'value': wei}).deposit()
+    unweth_contract.functions.deposit().transact({'from': A, 'value': wei})
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        unweth_contract.transact({'from': C}).transferFrom(A, B, wei)
+        unweth_contract.functions.transferFrom(A, B, wei).transact({'from': C})
 
-    unweth_contract.transact().addAuthorizedAddress(C)
-    unweth_contract.transact({'from': C}).transferFrom(A, B, wei)
+    unweth_contract.functions.addAuthorizedAddress(C).transact()
+    unweth_contract.functions.transferFrom(A, B, wei).transact({'from': C})
 
     assert web3.eth.getBalance(B) == balance + wei
