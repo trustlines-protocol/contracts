@@ -17,3 +17,7 @@ clean::
 install:: compile
 	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(VERSION) pip install ./py-bin
 	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(VERSION) pip install -e ./py-deploy
+
+install-non-editable:: compile
+	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(VERSION) pip install ./py-bin
+	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(VERSION) pip install ./py-deploy
