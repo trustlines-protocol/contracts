@@ -5,12 +5,34 @@
 import os
 import sys
 import json
+import collections
 from web3 import Web3
 from web3.utils.threads import (
     Timeout,
 )
 
-contracts = json.load(open(os.path.join(sys.prefix, 'trustlines-contracts', 'build', 'contracts.json')))
+
+def load_contracts_json():
+    path = (os.environ.get("TRUSTLINES_CONTRACTS_JSON")
+            or os.path.join(sys.prefix,
+                            'trustlines-contracts',
+                            'build',
+                            'contracts.json'))
+    with open(path, "rb") as f:
+        return json.load(f)
+
+
+# lazily load the contracts, so the compile_contracts fixture has a chance to
+# set TRUSTLINES_CONTRACTS_JSON
+
+class LazyContractsLoader(collections.UserDict):
+    def __getitem__(self, *args):
+        if not self.data:
+            self.data = load_contracts_json()
+        return super().__getitem__(*args)
+
+
+contracts = LazyContractsLoader()
 
 
 class TransactionFailed(Exception):
