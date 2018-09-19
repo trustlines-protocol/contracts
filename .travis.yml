@@ -9,7 +9,6 @@ branches:
   only:
   - master
   - develop
-  - fix/no-populus-test
   - /^[0-9]+/
 stages:
   - name: testing
