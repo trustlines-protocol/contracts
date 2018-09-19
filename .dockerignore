@@ -1,0 +1,25 @@
+build
+dist
+*.egg-info
+*.egg/
+*.eggs/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.swp
+*~
+
+.tox
+.coverage
+html/*
+__pycache__
+
+# Compiled Documentation
+docs/_build
+
+.mypy_cache/
+.idea
+venv/
+local/
+venv-populus/

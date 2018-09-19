@@ -5,12 +5,34 @@
 import os
 import sys
 import json
+import collections
 from web3 import Web3
 from web3.utils.threads import (
     Timeout,
 )
 
-contracts = json.load(open(os.path.join(sys.prefix, 'trustlines-contracts', 'build', 'contracts.json')))
+
+def load_contracts_json():
+    path = (os.environ.get("TRUSTLINES_CONTRACTS_JSON")
+            or os.path.join(sys.prefix,
+                            'trustlines-contracts',
+                            'build',
+                            'contracts.json'))
+    with open(path, "rb") as f:
+        return json.load(f)
+
+
+# lazily load the contracts, so the compile_contracts fixture has a chance to
+# set TRUSTLINES_CONTRACTS_JSON
+
+class LazyContractsLoader(collections.UserDict):
+    def __getitem__(self, *args):
+        if not self.data:
+            self.data = load_contracts_json()
+        return super().__getitem__(*args)
+
+
+contracts = LazyContractsLoader()
 
 
 class TransactionFailed(Exception):
@@ -52,7 +74,7 @@ def get_contract_factory(web3, contract_name):
 
 def deploy(contract_name, web3, *args):
     contract = get_contract_factory(web3, contract_name)
-    txhash = contract.deploy(args=args)
+    txhash = contract.constructor(*args).transact()
     receipt = check_successful_tx(web3, txhash)
     id_address = receipt["contractAddress"]
     return contract(id_address)
@@ -71,8 +93,8 @@ def deploy_unw_eth(web3, exchange_address=None):
     unw_eth = deploy("UnwEth", web3)
     if exchange_address is not None:
         if exchange_address is not None:
-            txid = unw_eth.transact(
-                {"from": web3.eth.accounts[0]}).addAuthorizedAddress(exchange_address)
+            txid = unw_eth.functions.addAuthorizedAddress(exchange_address).transact(
+                {"from": web3.eth.accounts[0]})
             check_successful_tx(web3, txid)
     return unw_eth
 
@@ -80,12 +102,12 @@ def deploy_unw_eth(web3, exchange_address=None):
 def deploy_network(web3, name, symbol, decimals, fee_divisor=100, exchange_address=None):
     currency_network = deploy("CurrencyNetwork", web3)
 
-    txid = currency_network.transact(
-        {"from": web3.eth.accounts[0]}).init(name, symbol, decimals, fee_divisor)
+    txid = currency_network.functions.init(name, symbol, decimals, fee_divisor).transact(
+        {"from": web3.eth.accounts[0]})
     check_successful_tx(web3, txid)
     if exchange_address is not None:
-        txid = currency_network.transact(
-            {"from": web3.eth.accounts[0]}).addAuthorizedAddress(exchange_address)
+        txid = currency_network.functions.addAuthorizedAddress(exchange_address).transact(
+            {"from": web3.eth.accounts[0]})
         check_successful_tx(web3, txid)
 
     return currency_network
@@ -97,29 +119,34 @@ def deploy_proxied_network(web3, name, symbol, decimals, fee_divisor=100, exchan
     resolver = deploy("Resolver", web3, currency_network_address)
     proxy = deploy("EtherRouter", web3, resolver.address)
     proxied_trustlines = get_contract_factory(web3, "CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.transact().init(name, symbol, decimals, fee_divisor)
+    txid = proxied_trustlines.functions.init(name, symbol, decimals, fee_divisor).transact()
     check_successful_tx(web3, txid)
     if exchange_address is not None:
-        txid = proxied_trustlines.transact().addAuthorizedAddress(exchange_address)
+        txid = proxied_trustlines.functions.addAuthorizedAddress(exchange_address).transact()
         check_successful_tx(web3, txid)
 
-    txid = resolver.transact().registerLengthFunction("getUsers()",
-                                                      "getUsersReturnSize()",
-                                                      currency_network_address)
+    txid = resolver.functions.registerLengthFunction(
+        "getUsers()",
+        "getUsersReturnSize()",
+        currency_network_address).transact()
     check_successful_tx(web3, txid)
-    txid = resolver.transact().registerLengthFunction("getFriends(address)",
-                                                      "getFriendsReturnSize(address)",
-                                                      currency_network_address)
+    txid = resolver.functions.registerLengthFunction(
+        "getFriends(address)",
+        "getFriendsReturnSize(address)",
+        currency_network_address).transact()
     check_successful_tx(web3, txid)
-    txid = resolver.transact().registerLengthFunction("getAccount(address,address)",
-                                                      "getAccountLen()",
-                                                      currency_network_address)
+    txid = resolver.functions.registerLengthFunction(
+        "getAccount(address,address)",
+        "getAccountLen()",
+        currency_network_address).transact()
     check_successful_tx(web3, txid)
-    txid = resolver.transact().registerLengthFunction("name()", "nameLen()",
-                                                      currency_network_address)
+    txid = resolver.functions.registerLengthFunction(
+        "name()", "nameLen()",
+        currency_network_address).transact()
     check_successful_tx(web3, txid)
-    txid = resolver.transact().registerLengthFunction("symbol()", "symbolLen()",
-                                                      currency_network_address)
+    txid = resolver.functions.registerLengthFunction(
+        "symbol()", "symbolLen()",
+        currency_network_address).transact()
     check_successful_tx(web3, txid)
     return proxied_trustlines
 

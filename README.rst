@@ -13,7 +13,7 @@ Prerequisites
 -  git
 
 Run
-``apt install build-essential python3-dev python3-virtualenv virtualenv pkg-config libssl-dev automake autoconf libtool git``
+``apt install build-essential python3-dev python3-virtualenv virtualenv pkg-config libssl-dev automake autoconf libtool git make``
 
 One of the dependencies used is the secp256k1 library. If you're using
 python 3.5 on linux you can skip the following step, since pypi contains
@@ -47,15 +47,8 @@ unlocked account with enough ether to pay for the contract deployment.
 Deployment setup
 ~~~~~~~~~~~~~~~~
 
--  Download and install the solidity compiler solc into bin for
-   compiling the contracts
-   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc``
-
--  Clone this repository with
-   ``git clone https://github.com/trustlines-network/contracts.git``
-   ``cd contracts``
-
--  Install the deploy tool with ``pip install . -c constraints.txt``
+Please run `pip install trustlines-contracts-deploy` to install the tl-deploy
+tool from PyPI. Solidity itself isn't needed anymore.
 
 tl-deploy
 ~~~~~~~~~
@@ -71,16 +64,31 @@ Development
 To start developing install the development dependencies into a venv
 with ``pip install -c constraints.txt -r requirements.txt``
 
+Download and install the solidity compiler solc into bin for compiling the
+contracts
+
+   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc``
+
 Compiling
 ~~~~~~~~~
 
-The contracts can be compiled with ``populus compile``
+The contracts can be compiled with ``make compile``. This will create a
+virtualenv `venv-populus` containing the populus program, which is used for
+compilation.
+
 
 Testing
 ~~~~~~~
 
 For testing we use pytest with an ethereum tester plugin. The tests can
-be run with ``python -m pytest tests``
+be run with ``pytest``. Please not that this will recompile all contracts
+automatically, there's no need to call ``make compile`` manually.
+
+Installation
+~~~~~~~~~~~~
+Please run `make install` to install the trustlines-contracts-bin and
+trustlines-contracts-deploy tool from the git checkout.
+
 
 Change log
 ----------

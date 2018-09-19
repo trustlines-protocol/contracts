@@ -9,6 +9,7 @@ branches:
   only:
   - master
   - develop
+  - fix/no-populus-test
   - /^[0-9]+/
 stages:
   - name: testing
@@ -28,10 +29,10 @@ jobs:
       install:
       - pip install -c constraints.txt -r requirements.txt
       - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
+      - /usr/bin/env VIRTUALENV='virtualenv -p python3' make compile
       script:
-      - flake8 tlcontracts tests setup.py
-      - populus compile
-      - python -m pytest tests
+      - flake8 py-bin py-deploy
+      - pytest py-deploy/tests
 
     - stage: testing
       name: contractslinter
@@ -48,11 +49,10 @@ jobs:
         - DOCKER_USER=trustlinesautomation
         - secure: "OUd7EDE965JGrz/q09FM+lNmKCIfFF+wHAjt87+T3CLHLspY0vnXuONPLYDG95fZKPFy0IP1irHHvfjji3PGh278lfrcBxcILXaK+1qTfHIewHzu3/kv+ltyjQY4KRctO3wcD/5XUmpQO6ENrBPqh+6sn8VmhwbxyFJUEwX9wWvxc2H2fghaFtcH3apYpWgfCXsMGHwX/NWn1ifJvNVVhZUAsdjNyun9gz+SIqa+YdT17xstoE35DctbdBKsn5z2PLvGqE8LVC1CguAUGZO0RJR1WIlpNcxc8lkoZvezvi0b2q5xMfiJ62cA2l/WQFXVkqtY5l/qNwDn8Vnm+6H5warsD6paMu/6rgSfKzujte4GK3lXAs2AHBy5q81UV40XWCsZojC7OcKBNKglBGq/YysPs0O6xUKoT+FcHbdem+NPMTz3bbeOomGSaure5L3Lh30WzOzDK648m3eNdyt7lo/E0AbnJ8gDzCiAP4t1/GvCuv78ZxktD5TpA4TI3oIDHLqTNk6YtfcrtyKPfBjBKWlYiOY2AeqwOY3fYSp3A/BgYtqKWwr+zZpWnVv0jWz0vsqYrQzvAb3PLrX3yTWrK9fwrZlOi1t44qq+OF4PDog1Snd8/7KtW3rwMpPqWywinWJP3sUkJkTBEdW+fksVKzS1to51aOtZgJJ+Ehg43lk="
       install:
-        - pip install eth-testrpc
+        - docker build -t parity-dev . -f .travis/Dockerfile-parity-dev
       script:
         - docker build -t contracts .
-        - ./tests/smoketest.sh
-
+        - ./run-docker-smoketest
       deploy:
         skip_cleanup: true
         provider: script
@@ -62,27 +62,11 @@ jobs:
           condition: $TRAVIS_BRANCH =~ ^(develop|[0-9]+.*)$
 
     - stage: deploying
-      name: pypi
-      install:
-        - /bin/true
-      script:
-        - /bin/true
-      deploy:
-        - provider: pypi
-          skip_cleanup: true
-          user: trustlines
-          password:
-            secure: "x95gza22ssIhsMghLvViVN7Y1DJDDC0qNDb4Xqgj3lPjZ7p91ZoGBy8IQDdhGgDA9GQBlfij0kKU5FnUnQI3IBBtTEstOpH+QctwBvlLSKX3lx0gqx36ciQRE6nBr5onVjaxr+39pZ5hmX37eq069Pv1GxWJzBuSh2pcHudyO7tzSnSYjDkqurR/NE0A3XiLym1cOIrsmlYdLY2RUbBWIOuuVethauHiI+aF/9VUsywp5ZL2eo2mFIjuMCOWU5DMQuYdlMyNBYuQruufIQq47JuyJ5h65/JLup7lYZQw7A5/s7kkAHyxRbjyJTCbNZ/nJjLD5h+XL7YGnMT/tzQgXjV9DENKx21AgnYEpNzgdgqJLdcE2eFUYKKtIkI1WONtk8J2+XJyZa/gwjcw+y00yNsKALgfpqStUW2Ze/liI9AbruPYtjgyhwmqqvfTZrk4q/v21AtZygOh32iYeoEtrWNuhV8jHXe1M17MhtJFdso7AIJYJyY8PQeC8t5QU2yvOm577rRKx42UAECT2RoZS1HI8ECL872mS2yvSoURjuOfPWwAaYrA4kL8Snt3iMb/gvSVaUdA1XV4J83PTiNwqX953R2PCgFFSdKj/DRNnVEQh9AmMT4XV6wUJobXOGGa7yo1udecJPtUuLKO02W438sifnp9gsL5wCUgZAOTh6Y="
-          on:
-            all_branches: true
-            condition: $TRAVIS_BRANCH =~ ^([0-9]+.*)$
-
-    - stage: deploying
       name: pypi bin
       install:
-      - pip install -c constraints.txt populus
+      - pip install -c constraints.txt -r requirements.txt
       - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
-      - python setup.py compile_contracts
+      - /usr/bin/env VIRTUALENV='virtualenv -p python3' make compile
       script:
         - /bin/true
       before_deploy:
