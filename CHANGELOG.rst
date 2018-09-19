@@ -2,7 +2,7 @@
 Change Log
 ==========
 
-`0.2.0`_ (not released)
+`0.2.0`_ (2018-09-19)
 -----------------------
 * the python package `trustlines-contracts` is now superseded by the
   trustlines-contracts-deploy package. The old namespace tlcontracts is gone.
@@ -16,6 +16,8 @@ The rest of the changes are only interesting for developers:
   dependency of trustlines-contracts-deploy anymore.
 * populus is still needed for smart contract compilation. It's being installed
   to a local virtualenv automatically by the newly introduced Makefile.
+* The field capacityImbalanceFeeDivisor was made public. As a result, there's
+  now a getter function for it in the ABI.
 
 `0.1.3`_ (2018-09-04)
 ---------------------
