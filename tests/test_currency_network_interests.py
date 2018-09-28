@@ -1,5 +1,6 @@
 import pytest
 from ethereum import tester
+from math import exp, fabs
 
 
 trustlines = [(0, 1, 2000000000, 2000000000),
@@ -53,7 +54,9 @@ def test_interests_default(currency_network_contract_with_trustlines, accounts, 
     chain.rpc_methods.testing_timeTravel(1442509455 + 60*60*24*365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == -100000000*1.01 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (100000000*exp(0.01) + 1) <= 2
 
 
 def test_interests_default_high_value(currency_network_contract_with_trustlines, accounts, chain):
@@ -63,12 +66,14 @@ def test_interests_default_high_value(currency_network_contract_with_trustlines,
     contract.transact().init('TestCoin', 'T', 6, 0, 20000, False, False)
 
     contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 20000, 20000, 0, 0, 1442509455,
-                                   100000000)
+                                   1000000000000000000)
 
     chain.rpc_methods.testing_timeTravel(1442509455 + 60*60*24*365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == 100000000*1.20 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (1000000000000000000*exp(0.20) - 1) <= 2
 
 
 def test_interests_positive_balance(currency_network_contract_with_trustlines, accounts, chain):
@@ -84,7 +89,9 @@ def test_interests_positive_balance(currency_network_contract_with_trustlines, a
     chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == 100000000 * 1.01 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (100000000 * exp(0.01) - 1) <= 2
 
 
 def test_no_interests(currency_network_contract_with_trustlines, accounts, chain):
@@ -115,7 +122,9 @@ def test_custom_interests(currency_network_contract_with_trustlines, accounts, c
     chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == -100000000 * 1.12345 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (100000000 * exp(0.12345) + 1) <= 2
 
 
 def test_custom_interests_postive_balance(currency_network_contract_with_trustlines, accounts, chain):
@@ -128,7 +137,9 @@ def test_custom_interests_postive_balance(currency_network_contract_with_trustli
     chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == 100000000 * 1.12345 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (100000000 * exp(0.12345) - 1) <= 2
 
 
 def test_setting_default_and_custom_interests_fails(currency_network_contract_with_trustlines, accounts, chain):
@@ -212,7 +223,9 @@ def test_negative_interests_default_positive_balance(currency_network_contract_w
     chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == 100000000 * 0.99 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (100000000 * exp(-0.01) - 1) <= 2
 
 
 def test_negative_interests_default_negative_balance(currency_network_contract_with_trustlines, accounts, chain):
@@ -228,4 +241,6 @@ def test_negative_interests_default_negative_balance(currency_network_contract_w
     chain.rpc_methods.testing_timeTravel(1442509455 + 60 * 60 * 24 * 365)
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
-    assert contract.call().balance(accounts[0], accounts[1]) == -100000000 * 0.99 - 1
+    balance = contract.call().balance(accounts[0], accounts[1])
+
+    assert fabs(balance) - (100000000 * exp(-0.01) + 1) <= 2

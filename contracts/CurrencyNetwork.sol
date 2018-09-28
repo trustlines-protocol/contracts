@@ -806,7 +806,19 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             }
         }
 
-        return int136(_balance * int136(now - _mtime)/(60*60*24*365) * int136(rate)/100000);
+        int256 dt = int256(now - _mtime);
+        int256 interemediaryOrder = _balance;
+        int256 interest = 0;
+
+        for (int i = 1; i <= 15; i++) {
+            interemediaryOrder = interemediaryOrder*rate*dt/(60*60*24*365*100000*i);
+            if (interemediaryOrder == 0) {
+                break;
+            }
+            interest += interemediaryOrder;
+        }
+
+        return int136(interest);
     }
 
     // Calculates a representation of how much interests intermediaries (_receiver) loses (in the sense that he is unhappy about it) participating in a transfer
