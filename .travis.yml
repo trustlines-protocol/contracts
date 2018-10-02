@@ -31,7 +31,7 @@ jobs:
       - /usr/bin/env VIRTUALENV='virtualenv -p python3' make compile
       script:
       - flake8 py-bin py-deploy
-      - pytest py-deploy/tests
+      - pytest tests
 
     - stage: testing
       name: contractslinter
