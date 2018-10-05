@@ -24,13 +24,13 @@ def currency_network_contract_no_interests(web3):
 
 @pytest.fixture()
 def currency_network_contract_default_interests(web3):
-    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=1000, custom_interests=False,
+    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=100, custom_interests=False,
                           safe_interest_rippling=False)
 
 
 @pytest.fixture()
 def currency_network_contract_negative_interests(web3):
-    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=-1000, custom_interests=False,
+    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=-100, custom_interests=False,
                           safe_interest_rippling=False)
 
 
@@ -38,7 +38,7 @@ def currency_network_contract_negative_interests(web3):
 def currency_network_contract_with_trustlines(currency_network_contract, accounts):
     contract = currency_network_contract
     for (A, B, clAB, clBA) in trustlines:
-        contract.functions.setAccount(accounts[A], accounts[B], clAB, clBA, 1000, 1000, 0, 0, 0, 0).transact()
+        contract.functions.setAccount(accounts[A], accounts[B], clAB, clBA, 100, 100, 0, 0, 0, 0).transact()
         # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
     return contract
 
@@ -54,7 +54,7 @@ def test_interests_positive_balance(ethereum_tester_session, currency_network_co
     contract = currency_network_contract_default_interests
     current_time = int(time.time())
 
-    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 1000, 1000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 100, 100, 0, 0, current_time,
                                   100000000).transact()
 
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
@@ -73,7 +73,7 @@ def test_interests_high_value(ethereum_tester_session, currency_network_contract
     contract = currency_network_contract_custom_interests_safe_ripple
 
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 20000, 20000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 2000, 2000, 0, 0, current_time,
                                   1000000000000000000).transact()
 
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
@@ -91,7 +91,7 @@ def test_interests_negative_balance(ethereum_tester_session, currency_network_co
     contract = currency_network_contract_default_interests
     current_time = int(time.time())
 
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 1000, 1000, 0, 0, current_time,
+    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 100, 100, 0, 0, current_time,
                                    -100000000)
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -126,7 +126,7 @@ def test_custom_interests(ethereum_tester_session, currency_network_contract_cus
     '''Tests custom interests setting, set with setAccount'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
-    contract.transact().setAccount(accounts[0], accounts[1], 0, 2000000000, 0, 12345, 0, 0, 0, 0)
+    contract.transact().setAccount(accounts[0], accounts[1], 0, 2000000000, 0, 1234, 0, 0, 0, 0)
     current_time = int(time.time())
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
     contract.functions.transfer(accounts[1], 100000000, 2000000, [accounts[1]]).transact({'from': accounts[0]})
@@ -136,7 +136,7 @@ def test_custom_interests(ethereum_tester_session, currency_network_contract_cus
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == pytest.approx(-100000000 * exp(0.12345), rel=0.01)  # 1%
+    assert balance + 1 == pytest.approx(-100000000 * exp(0.1234), rel=0.01)  # 1%
 
 
 def test_custom_interests_postive_balance(ethereum_tester_session,
@@ -145,7 +145,7 @@ def test_custom_interests_postive_balance(ethereum_tester_session,
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 0, 2000000000, 12345, 0, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 0, 2000000000, 1234, 0, 0, 0, current_time,
                                   100000000).transact()
 
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
@@ -153,7 +153,7 @@ def test_custom_interests_postive_balance(ethereum_tester_session,
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == pytest.approx(100000000 * exp(0.12345), rel=0.01)  # 1%
+    assert balance + 1 == pytest.approx(100000000 * exp(0.1234), rel=0.01)  # 1%
 
 
 def test_setting_default_and_custom_interests_fails(web3, accounts):
@@ -167,7 +167,7 @@ def test_safe_interest_allows_direct_transactions(currency_network_contract_cust
     '''Tests that the safeInterestRippling does not prevent legit transactions'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
-    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 1000, 2000, 0, 0, 0, 0).transact()
+    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 100, 200, 0, 0, 0, 0).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
@@ -178,9 +178,9 @@ def test_safe_interest_allows_transactions_mediated(currency_network_contract_cu
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 1000, 2000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 100, 200, 0, 0, current_time,
                                   0).transact()
-    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
                                   0).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -195,9 +195,9 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 200, 100, 0, 0, current_time,
                                   0).transact()
-    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
                                   0).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
@@ -210,9 +210,9 @@ def test_safe_interest_allows_transactions_mediated_solves_imbalance(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 200, 100, 0, 0, current_time,
                                   100).transact()
-    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
                                   100).transact()
 
     contract.functions.transfer(accounts[2], 1, 2, [accounts[1], accounts[2]]).transact({'from': accounts[0]})
@@ -224,9 +224,9 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 2000, 1000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 200, 100, 0, 0, current_time,
                                   100).transact()
-    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 1000, 2000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
                                   100).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
@@ -239,7 +239,7 @@ def test_negative_interests_default_positive_balance(ethereum_tester_session,
 
     contract = currency_network_contract_negative_interests
     current_time = int(time.time())
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -1000, -1000, 0, 0, current_time,
+    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -100, -100, 0, 0, current_time,
                                    100000000)
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -257,7 +257,7 @@ def test_negative_interests_default_negative_balance(ethereum_tester_session,
 
     contract = currency_network_contract_negative_interests
     current_time = int(time.time())
-    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -1000, -1000, 0, 0, current_time,
+    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -100, -100, 0, 0, current_time,
                                   -100000000).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
