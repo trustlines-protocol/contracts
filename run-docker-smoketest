@@ -1,0 +1,17 @@
+#! /bin/bash
+
+# run smoketest for the docker image. port 8545 must be available.
+# make sure the docker image has already been build with
+#
+#     docker build -t contracts .
+
+set -x
+
+docker build -t parity-dev . -f .travis/Dockerfile-parity-dev
+container=$(docker run -d -p 8545:8545 --rm parity-dev)
+sleep 3
+docker run --net="host" contracts test
+retval=$?
+docker logs -t $container
+docker stop $container
+exit $retval

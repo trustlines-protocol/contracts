@@ -1,3 +1,5 @@
+/venv-populus/
+.pytest_cache/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -66,4 +68,4 @@ target/
 
 #project
 networks
-
+/py-bin/contracts.json

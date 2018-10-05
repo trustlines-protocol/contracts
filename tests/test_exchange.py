@@ -1,10 +1,13 @@
+#! pytest
+
 import time
 
 import pytest
-from ethereum import tester
 
-from tlcontracts.exchange import Order
-from tlcontracts.signing import priv_to_pubkey
+from tldeploy.core import deploy_network, deploy_exchange, deploy
+from tldeploy.exchange import Order
+from tldeploy.signing import priv_to_pubkey
+from eth_utils import to_checksum_address
 
 
 trustlines = [(0, 1, 100, 150),
@@ -19,36 +22,30 @@ NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 
 @pytest.fixture()
-def exchange_contract(chain):
-    ExchangeFactory = chain.provider.get_contract_factory('Exchange')
-    deploy_txn_hash = ExchangeFactory.deploy(args=[])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = ExchangeFactory(address=contract_address)
-
-    return contract
+def accounts(web3, tester):
+    """list of accounts, with account[0] being the maker,i.e. tester.a0 address"""
+    accounts = [tester.a0] + web3.personal.listAccounts[0:4]
+    assert len(accounts) == 5
+    return [to_checksum_address(account) for account in accounts]
 
 
 @pytest.fixture()
-def currency_network_contract(chain):
-    CurrencyNetworkFactory = chain.provider.get_contract_factory('CurrencyNetwork')
-    deploy_txn_hash = CurrencyNetworkFactory.deploy(args=[])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = CurrencyNetworkFactory(address=contract_address)
-    contract.transact().init('TestCoin', 'T', 6, 0, 0, False, False)
-
-    return contract
+def exchange_contract(web3):
+    return deploy_exchange(web3)
 
 
 @pytest.fixture()
-def token_contract(chain, accounts):
+def currency_network_contract(web3):
+    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0)
+
+
+@pytest.fixture()
+def token_contract(web3, accounts):
     A, B, C, *rest = accounts
-    TokenFactory = chain.provider.get_contract_factory('DummyToken')
-    deploy_txn_hash = TokenFactory.deploy(args=['DummyToken', 'DT', 18, 10000000])
-    contract_address = chain.wait.for_contract_address(deploy_txn_hash)
-    contract = TokenFactory(address=contract_address)
-    contract.transact().setBalance(A, 10000)
-    contract.transact().setBalance(B, 10000)
-    contract.transact().setBalance(C, 10000)
+    contract = deploy("DummyToken", web3, 'DummyToken', 'DT', 18, 10000000)
+    contract.functions.setBalance(A, 10000).transact()
+    contract.functions.setBalance(B, 10000).transact()
+    contract.functions.setBalance(C, 10000).transact()
     return contract
 
 
@@ -56,8 +53,8 @@ def token_contract(chain, accounts):
 def currency_network_contract_with_trustlines(currency_network_contract, exchange_contract, accounts):
     contract = currency_network_contract
     for (A, B, clAB, clBA) in trustlines:
-        contract.transact().setAccount(accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0)
-    contract.transact().addAuthorizedAddress(exchange_contract.address)
+        contract.functions.setAccount(accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0).transact()
+    contract.functions.addAuthorizedAddress(exchange_contract.address).transact()
     return contract
 
 
@@ -78,7 +75,7 @@ def test_order_hash(exchange_contract, token_contract, currency_network_contract
                   1234
                   )
 
-    assert order.hash() == exchange_contract.call().getOrderHash(
+    assert order.hash() == exchange_contract.functions.getOrderHash(
         [order.maker_address,
          order.taker_address,
          order.maker_token,
@@ -90,10 +87,15 @@ def test_order_hash(exchange_contract, token_contract, currency_network_contract
          order.taker_fee,
          order.expiration_timestamp_in_sec,
          order.salt]
-    ).encode('Latin-1')
+    ).call()
 
 
-def test_order_signature(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts):
+def test_order_signature(
+        exchange_contract,
+        token_contract,
+        currency_network_contract_with_trustlines,
+        accounts,
+        tester):
     maker_address, taker_address, *rest = accounts
 
     order = Order(exchange_contract.address,
@@ -112,18 +114,18 @@ def test_order_signature(exchange_contract, token_contract, currency_network_con
 
     v, r, s = order.sign(tester.k0)
 
-    assert exchange_contract.call().isValidSignature(maker_address, order.hash(), v, r, s)
+    assert exchange_contract.functions.isValidSignature(maker_address, order.hash().hex(), v, r, s).call()
 
 
-def test_exchange(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts):
+def test_exchange(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts, tester):
     maker_address, mediator_address, taker_address, *rest = accounts
 
-    assert token_contract.call().balanceOf(maker_address) == 10000
-    assert token_contract.call().balanceOf(taker_address) == 10000
-    assert currency_network_contract_with_trustlines.call().balance(maker_address, mediator_address) == 0
-    assert currency_network_contract_with_trustlines.call().balance(mediator_address, taker_address) == 0
+    assert token_contract.functions.balanceOf(maker_address).call() == 10000
+    assert token_contract.functions.balanceOf(taker_address).call() == 10000
+    assert currency_network_contract_with_trustlines.functions.balance(maker_address, mediator_address).call() == 0
+    assert currency_network_contract_with_trustlines.functions.balance(mediator_address, taker_address).call() == 0
 
-    token_contract.transact({'from': maker_address}).approve(exchange_contract.address, 100)
+    token_contract.functions.approve(exchange_contract.address, 100).transact({'from': maker_address})
 
     order = Order(exchange_contract.address,
                   maker_address,
@@ -143,7 +145,7 @@ def test_exchange(exchange_contract, token_contract, currency_network_contract_w
 
     v, r, s = order.sign(tester.k0)
 
-    exchange_contract.transact({'from': taker_address}).fillOrderTrustlines(
+    exchange_contract.functions.fillOrderTrustlines(
           [order.maker_address, order.taker_address, order.maker_token, order.taker_token, order.fee_recipient],
           [order.maker_token_amount, order.taker_token_amount, order.maker_fee,
            order.taker_fee, order.expiration_timestamp_in_sec, order.salt],
@@ -152,9 +154,9 @@ def test_exchange(exchange_contract, token_contract, currency_network_contract_w
           [mediator_address, maker_address],
           v,
           r,
-          s)
+          s).transact({'from': taker_address})
 
-    assert token_contract.call().balanceOf(maker_address) == 9900
-    assert token_contract.call().balanceOf(taker_address) == 10100
-    assert currency_network_contract_with_trustlines.call().balance(maker_address, mediator_address) == 50
-    assert currency_network_contract_with_trustlines.call().balance(taker_address, mediator_address) == -50
+    assert token_contract.functions.balanceOf(maker_address).call() == 9900
+    assert token_contract.functions.balanceOf(taker_address).call() == 10100
+    assert currency_network_contract_with_trustlines.functions.balance(maker_address, mediator_address).call() == 50
+    assert currency_network_contract_with_trustlines.functions.balance(taker_address, mediator_address).call() == -50

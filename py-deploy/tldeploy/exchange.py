@@ -1,4 +1,4 @@
-from tlcontracts.signing import keccak256, eth_sign
+from tldeploy.signing import keccak256, eth_sign
 
 
 class Order(object):

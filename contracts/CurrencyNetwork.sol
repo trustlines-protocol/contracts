@@ -30,7 +30,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     ItSet.AddressSet internal users;
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
-    uint16 internal capacityImbalanceFeeDivisor;
+    uint16 public capacityImbalanceFeeDivisor;
 
     // meta data for token part
     string public name;
@@ -38,7 +38,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     uint8 public decimals;
 
     // interests settings, interests are expressed in 0.001% per year
-    int16 public defaultInterests;
+    int16 public defaultInterestRate;
     bool public customInterests;
     bool public safeInterestRippling;
 
@@ -99,7 +99,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _symbol The symbol of the currency
      * @param _decimals Number of decimals of the currency
      * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
-     * @param _defaultInterests The default interests for every trustlines in 0.001% per year
+     * @param _defaultInterestRate The default interests for every trustlines in 0.001% per year
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
      * @param _safeInterestRippling Flag to allow or disallow transactions resulting in loss of interests for intermediaries, unless the transaction exclusively reduces balances
      */
@@ -108,7 +108,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         string _symbol,
         uint8 _decimals,
         uint16 _capacityImbalanceFeeDivisor,
-        int16 _defaultInterests,
+        int16 _defaultInterestRate,
         bool _customInterests,
         bool _safeInterestRippling
     )
@@ -116,14 +116,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
     {
         // verifies that one parameter is selected.
-        require(! ((_defaultInterests != 0) && _customInterests));
+        require(! ((_defaultInterestRate != 0) && _customInterests));
         require(!_safeInterestRippling || (_safeInterestRippling && _customInterests));
 
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
-        defaultInterests = _defaultInterests;
+        defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
         safeInterestRippling = _safeInterestRippling;
     }
@@ -204,11 +204,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _interestRateReceived The interest given by _debtor
      * @return true, if the credit was successful
      */
-    function updateTrustline(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived, int16 _interestRateGiven, int16 _interestRateReceived) external returns (bool _success) {
-        require(customInterests || (_interestRateGiven == defaultInterests && _interestRateReceived == defaultInterests));
-        if (customInterests) {
-            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
-        }
+    function updateTrustline(
+        address _debtor,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived
+    )
+        external
+        returns (bool _success)
+    {
 
         address _creditor = msg.sender;
 
@@ -223,6 +228,32 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     /**
+     * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived` token
+     * Needs to be accepted by the other party, unless we reduce both values.
+     * @param _debtor The other party of the trustline agreement
+     * @param _creditlineGiven The creditline limit given by msg.sender
+     * @param _creditlineReceived The creditline limit given _debtor
+     * @return true, if the credit was successful
+     */
+    function updateTrustline(
+        address _debtor,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived
+    )
+        external
+        returns (bool _success)
+    {
+        address _creditor = msg.sender;
+
+        return _updateTrustline(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived
+        );
+    }
+
+    /**
      * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived` token with default interests
      * Needs to be accepted by the other party, unless we reduce both values.
      * @param _debtor The other party of the trustline agreement
@@ -230,7 +261,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _creditlineReceived The creditline limit given _debtor
      * @return true, if the credit was successful
      */
-    function updateTrustlineDefaultInterests(address _debtor, uint128 _creditlineGiven, uint128 _creditlineReceived) external returns (bool _success) {
+    function updateTrustlineDefaultInterests(
+        address _debtor,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived
+    )
+        external
+        returns (bool _success)
+    {
         address _creditor = msg.sender;
 
         return _updateTrustline(
@@ -238,8 +276,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _debtor,
             _creditlineGiven,
             _creditlineReceived,
-            defaultInterests,
-            defaultInterests
+            defaultInterestRate,
+            defaultInterestRate
         );
     }
 
@@ -305,7 +343,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         onlyOwner
         external
     {
-        require(customInterests || (_interestRateGiven == defaultInterests && _interestRateReceived == defaultInterests));
+        require(customInterests || (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate));
         if (customInterests) {
             require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
         }
@@ -346,8 +384,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _b,
             _creditlineGiven,
             _creditlineReceived,
-            defaultInterests,
-            defaultInterests,
+            defaultInterestRate,
+            defaultInterestRate,
             _feesOutstandingA,
             _feesOutstandingB,
             _mtime,
@@ -600,8 +638,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     // Provides the abstraction of whether a < b or b < a.
     function _storeAccount(address _a, address _b, Account account) internal {
         if (!customInterests) {
-            assert(account.interestRateGiven == defaultInterests);
-            assert(account.interestRateReceived == defaultInterests);
+            assert(account.interestRateGiven == defaultInterestRate);
+            assert(account.interestRateReceived == defaultInterestRate);
         } else {
             assert(account.interestRateGiven >= 0);
             assert(account.interestRateReceived >= 0);
@@ -636,8 +674,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     function _storeTrustlineRequest(address _a, address _b, TrustlineRequest _trustlineRequest) internal {
         if (!customInterests) {
-            assert(_trustlineRequest.interestRateGiven == defaultInterests);
-            assert(_trustlineRequest.interestRateReceived == defaultInterests);
+            assert(_trustlineRequest.interestRateGiven == defaultInterestRate);
+            assert(_trustlineRequest.interestRateReceived == defaultInterestRate);
         } else {
             assert(_trustlineRequest.interestRateGiven >= 0);
             assert(_trustlineRequest.interestRateReceived >= 0);
@@ -665,6 +703,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
         returns (bool success)
     {
+        require(customInterests || (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate));
+        if (customInterests) {
+            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
+        }
         Account memory account = _loadAccount(_creditor, _debtor);
 
         // reduce of creditlines and interests given is always possible
@@ -724,6 +766,31 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
             return true;
         }
+    }
+
+    function _updateTrustline(
+        address _creditor,
+        address _debtor,
+        uint128 _creditlineGiven,
+        uint128 _creditlineReceived
+    )
+        internal
+        returns (bool success)
+    {
+        int16 interestRateGiven = defaultInterestRate;
+        int16 interestRateReceived = defaultInterestRate;
+        if (customInterests) {
+            Account memory account = _loadAccount(_creditor, _debtor);
+            interestRateGiven = account.interestRateGiven;
+            interestRateReceived = account.interestRateReceived;
+        }
+        return _updateTrustline(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived,
+            interestRateGiven,
+            interestRateReceived);
     }
 
     function _setTrustline(
@@ -796,7 +863,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function _calculateInterests(int136 _balance, uint32 _mtime, int16 _interestRateGiven, int16 _interestRateReceived) internal view returns (int136) {
-        int16 rate = defaultInterests;
+        int16 rate = defaultInterestRate;
 
         if (customInterests) {
             if (_balance > 0) {
