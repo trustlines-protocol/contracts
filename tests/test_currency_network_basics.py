@@ -560,8 +560,8 @@ def test_transfer_event(currency_network_contract_with_trustlines, accounts):
 def test_update_trustline_add_users(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.transact({"from": A}).updateTrustline(B, 50, 100)
-    contract.transact({"from": B}).updateTrustline(A, 100, 50)
+    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 50).transact({"from": B})
     assert len(contract.call().getUsers()) == 2
 
 
@@ -581,3 +581,27 @@ def test_selfdestruct(currency_network_contract):
 def test_only_owner_selfdestruct(currency_network_contract, accounts):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.destruct().transact({"from": accounts[1]})
+
+
+CREDITLINE_WIDTH = 64
+MAX_CREDITLINE = 2**CREDITLINE_WIDTH - 1
+
+
+def test_max_transfer(currency_network_contract, accounts):
+    A, B, *rest = accounts
+    contract = currency_network_contract
+    contract.functions.updateTrustline(B, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": A})
+    contract.functions.updateTrustline(A, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": B})
+    contract.functions.transfer(B, MAX_CREDITLINE, 0, [B]).transact({"from": A})
+
+    assert contract.functions.balance(A, B).call() == -MAX_CREDITLINE
+
+
+def test_overflow_max_transfer(currency_network_contract, accounts):
+    A, B, *rest = accounts
+    contract = currency_network_contract
+    contract.functions.updateTrustline(B, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": A})
+    contract.functions.updateTrustline(A, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": B})
+    contract.functions.transfer(B, MAX_CREDITLINE, 0, [B]).transact({"from": A})
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        contract.functions.transfer(B, 1, 0, [B]).transact({"from": A})

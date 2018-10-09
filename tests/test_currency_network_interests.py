@@ -53,7 +53,7 @@ def test_interests_positive_balance(ethereum_tester_session, currency_network_co
 
     contract = currency_network_contract_default_interests
     current_time = int(time.time())
-
+    ethereum_tester_session.time_travel(current_time)
     contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 100, 100, 0, 0, current_time,
                                   100000000).transact()
 
@@ -73,6 +73,7 @@ def test_interests_high_value(ethereum_tester_session, currency_network_contract
     contract = currency_network_contract_custom_interests_safe_ripple
 
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time)
     contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 2000, 2000, 0, 0, current_time,
                                   1000000000000000000).transact()
 
@@ -90,7 +91,7 @@ def test_interests_negative_balance(ethereum_tester_session, currency_network_co
 
     contract = currency_network_contract_default_interests
     current_time = int(time.time())
-
+    ethereum_tester_session.time_travel(current_time)
     contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 100, 100, 0, 0, current_time,
                                    -100000000)
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
@@ -109,7 +110,7 @@ def test_no_interests(ethereum_tester_session, currency_network_contract_no_inte
 
     contract = currency_network_contract_no_interests
     current_time = int(time.time())
-
+    ethereum_tester_session.time_travel(current_time)
     contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 0, 0, 0, 0, current_time,
                                    100000000)
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
@@ -145,6 +146,7 @@ def test_custom_interests_postive_balance(ethereum_tester_session,
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time)
     contract.functions.setAccount(accounts[0], accounts[1], 0, 2000000000, 1234, 0, 0, 0, current_time,
                                   100000000).transact()
 
@@ -173,11 +175,13 @@ def test_safe_interest_allows_direct_transactions(currency_network_contract_cust
     contract.transact({'from': accounts[0]}).transfer(accounts[1], 1, 2, [accounts[1]])
 
 
-def test_safe_interest_allows_transactions_mediated(currency_network_contract_custom_interests_safe_ripple, accounts):
+def test_safe_interest_allows_transactions_mediated(ethereum_tester_session,
+                                                    currency_network_contract_custom_interests_safe_ripple, accounts):
     '''Tests that the safeInterestRippling does not prevent legit transactions'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
     contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 100, 200, 0, 0, current_time,
                                   0).transact()
     contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
@@ -188,6 +192,7 @@ def test_safe_interest_allows_transactions_mediated(currency_network_contract_cu
 
 
 def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
+        ethereum_tester_session,
         currency_network_contract_custom_interests_safe_ripple,
         accounts):
     '''Tests that the safeInterestRippling prevents transaction where the mediator would loose money,
@@ -195,6 +200,7 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
     contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 200, 100, 0, 0, current_time,
                                   0).transact()
     contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
@@ -205,11 +211,13 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
 
 
 def test_safe_interest_allows_transactions_mediated_solves_imbalance(
+        ethereum_tester_session,
         currency_network_contract_custom_interests_safe_ripple, accounts):
     '''Tests that the safeInterestRippling allows transactions that reduce imbalances'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
     contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 200, 100, 0, 0, current_time,
                                   100).transact()
     contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
@@ -219,11 +227,13 @@ def test_safe_interest_allows_transactions_mediated_solves_imbalance(
 
 
 def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_overflows(
+        ethereum_tester_session,
         currency_network_contract_custom_interests_safe_ripple, accounts):
     '''Tests that the safeInterestRippling disallows transactions that make mediators loose money'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
     contract.functions.setAccount(accounts[0], accounts[1], 1000000, 2000000, 200, 100, 0, 0, current_time,
                                   100).transact()
     contract.functions.setAccount(accounts[1], accounts[2], 1000000, 2000000, 100, 200, 0, 0, current_time,
@@ -239,6 +249,7 @@ def test_negative_interests_default_positive_balance(ethereum_tester_session,
 
     contract = currency_network_contract_negative_interests
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
     contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -100, -100, 0, 0, current_time,
                                    100000000)
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
@@ -257,6 +268,7 @@ def test_negative_interests_default_negative_balance(ethereum_tester_session,
 
     contract = currency_network_contract_negative_interests
     current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
     contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -100, -100, 0, 0, current_time,
                                   -100000000).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
@@ -267,3 +279,47 @@ def test_negative_interests_default_negative_balance(ethereum_tester_session,
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
     assert balance + 1 == pytest.approx(-100000000 * exp(-0.01), abs=1)
+
+
+CREDITLINE_WIDTH = 64
+BALANCE_WIDTH = 72
+INTEREST_WIDTH = 16
+
+
+def test_interests_overflow(ethereum_tester_session, currency_network_contract_custom_interests_safe_ripple, accounts):
+    contract = currency_network_contract_custom_interests_safe_ripple
+    current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time + 10)
+    contract.functions.setAccount(accounts[0], accounts[1], 2**CREDITLINE_WIDTH-1, 2**CREDITLINE_WIDTH-1,
+                                  2 ** (INTEREST_WIDTH-1) - 1, 2**(INTEREST_WIDTH-1)-1, 0, 0, current_time,
+                                  2**CREDITLINE_WIDTH-1).transact()
+    # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
+
+    ethereum_tester_session.time_travel(current_time + int(1.6923 * SECONDS_PER_YEAR))
+    contract.functions.transfer(accounts[1], 1, 2, [accounts[1]]).transact({'from': accounts[0]})
+
+    balance = contract.functions.balance(accounts[0], accounts[1]).call()
+
+    assert balance + 1 == 2**(BALANCE_WIDTH-1) - 1
+
+
+def test_interests_underflow(ethereum_tester_session,
+                             currency_network_contract_custom_interests_safe_ripple,
+                             accounts):
+    contract = currency_network_contract_custom_interests_safe_ripple
+    current_time = int(time.time())
+    ethereum_tester_session.time_travel(current_time+10)
+    contract.functions.setAccount(accounts[0], accounts[1], 2**CREDITLINE_WIDTH-1, 2**CREDITLINE_WIDTH-1,
+                                  2 ** (INTEREST_WIDTH-1) - 1, 2**(INTEREST_WIDTH-1)-1, 0, 0, current_time,
+                                  -(2**CREDITLINE_WIDTH-1)).transact()
+    # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
+
+    ethereum_tester_session.time_travel(current_time + int(2.23 * SECONDS_PER_YEAR))
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        contract.functions.transfer(accounts[1], 1, 0, [accounts[1]]).transact({'from': accounts[0]})
+
+    contract.functions.transfer(accounts[0], 1, 0, [accounts[0]]).transact({'from': accounts[1]})
+    balance = contract.functions.balance(accounts[0], accounts[1]).call()
+
+    assert balance - 1 == - (2**(BALANCE_WIDTH - 1) - 1)

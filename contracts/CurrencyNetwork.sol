@@ -19,6 +19,11 @@ import "./CurrencyNetworkInterface.sol";
  **/
 contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable {
 
+    // Constants
+    int72 constant MAX_BALANCE = 2**71 - 1;
+    int72 constant MIN_BALANCE = - (2**71 - 1);  // for symmetry this needs to be one smaller
+    int256 constant SECONDS_PER_YEAR = 60*60*24*365;
+
     using ItSet for ItSet.AddressSet;
     mapping (bytes32 => Account) internal accounts;
     // mapping uniqueId => trustline request
@@ -516,10 +521,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         int72 newBalance = _account.balance - _value;
+        require(newBalance <= _account.balance);
 
         // check if creditline is not exceeded
         uint64 creditlineReceived = _account.creditlineReceived;
         require(-newBalance <= int72(creditlineReceived));
+
         _account.balance = newBalance;
     }
 
@@ -528,7 +535,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     )
         internal
     {
-        _account.balance = _account.balance + _calculateInterests(
+        _account.balance = _calculateBalanceWithInterests(
             _account.balance,
             _account.mtime,
             now,
@@ -553,8 +560,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
-        int72 receiverUnhappiness = 0;
-        int72 receiverHappiness = 0;
+        int receiverUnhappiness = 0;
+        int receiverHappiness = 0;
         bool reducingDebtOfNextHopOnly = true;
 
         // check path in reverse to correctly accumulate the fee
@@ -573,6 +580,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             uint64 fee = _calculateFees(forwardedValue, account.balance, capacityImbalanceFeeDivisor);
             // forward the value + the fee
             forwardedValue += fee;
+            //Overflow check
+            require(forwardedValue >= fee);
             fees += fee;
             require(fees <= _maxFee);
 
@@ -894,11 +903,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             if (imbalanceGenerated <= 0) {
                 return 0;
             }
+            // Overflow
+            if (imbalanceGenerated > _value) {
+                return 0;
+            }
         }
-        return uint64(uint64(imbalanceGenerated / _capacityImbalanceFeeDivisor) + 1);  // minimum fee is 1
+        require(uint64(imbalanceGenerated) == imbalanceGenerated);
+        return uint64(uint64(imbalanceGenerated) / _capacityImbalanceFeeDivisor + 1);  // minimum fee is 1
     }
 
-    function _calculateInterests(
+    function _calculateBalanceWithInterests(
         int72 _balance,
         uint _startTime,
         uint _endTime,
@@ -919,17 +933,42 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         int256 dt = int256(_endTime - _startTime);
         int256 intermediateOrder = _balance;
-        int256 interest = 0;
+        int256 newBalance = _balance;
+
+        assert(dt>=0);
 
         for (int i = 1; i <= 15; i++) {
-            intermediateOrder = intermediateOrder*rate*dt/(60*60*24*365*10000*i);
+            int256 newIntermediateOrder = intermediateOrder*rate*dt;
+
+            //Overflow adjustment
+            if ((newIntermediateOrder != 0) && (newIntermediateOrder / (rate * dt) != intermediateOrder)) {
+                if (rate > 0) {
+                    newBalance = MAX_BALANCE;
+                } else {
+                    newBalance = MIN_BALANCE;
+                }
+                break;
+            }
+
+            intermediateOrder = newIntermediateOrder/(SECONDS_PER_YEAR*10000*i);
+
             if (intermediateOrder == 0) {
                 break;
             }
-            interest += intermediateOrder;
+
+            newBalance += intermediateOrder;
+            //Overflow adjustment
+            if (newBalance > MAX_BALANCE) {
+                newBalance = MAX_BALANCE;
+                break;
+            }
+            if (newBalance < MIN_BALANCE) {
+                newBalance = MIN_BALANCE;
+                break;
+            }
         }
 
-        return int72(interest);
+        return int72(newBalance);
     }
 
     // Calculates a representation of how happy or unhappy a participant is because of the interests after a transfer
@@ -939,22 +978,22 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         int72 _balanceBefore
     )
         internal view
-        returns (int72)
+        returns (int)
     {
         int72 balance = _account.balance;
         int72 transferredValue = _balanceBefore - balance;
 
         if (_balanceBefore <= 0) {
             // Sender already owes receiver, this will only effect the interest rate received
-            return - transferredValue * _account.interestRateReceived;
+            return - int(transferredValue) * _account.interestRateReceived;
         } else if (balance >= 0) {
             // Receiver owes sender before and after the transfer. This only effects the interest rate received
-            return - transferredValue * _account.interestRateGiven;
+            return - int(transferredValue) * _account.interestRateGiven;
         } else {
             // It effects both interest rates
             // Before the transfer: Receiver owes to sender balanceBefore;
             // After the transfer: Sender owes to receiver balance;
-            return - _balanceBefore * _account.interestRateGiven + balance * _account.interestRateReceived;
+            return - int(_balanceBefore) * _account.interestRateGiven + int(balance) * _account.interestRateReceived;
         }
     }
 
