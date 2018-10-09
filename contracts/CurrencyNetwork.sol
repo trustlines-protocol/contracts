@@ -826,6 +826,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             interestRateReceived);
     }
 
+    // Actually change the trustline
     function _setTrustline(
         address _creditor,
         address _debtor,
@@ -837,6 +838,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         Account memory _account = _loadAccount(_creditor, _debtor);
+
+        // Because the interest rate might change, we need to apply interests.
+        _applyInterests(_account);
+
         addToUsersAndFriends(_creditor, _debtor);
         _account.creditlineGiven = _creditlineGiven;
         _account.creditlineReceived = _creditlineReceived;
