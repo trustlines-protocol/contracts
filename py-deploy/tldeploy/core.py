@@ -168,11 +168,11 @@ def deploy_proxied_network(web3, name, symbol, decimals, fee_divisor=100, exchan
     return proxied_trustlines
 
 
-def deploy_networks(web3, networks):
+def deploy_networks(web3, network_settings):
     exchange = deploy_exchange(web3)
     unw_eth = deploy_unw_eth(web3, exchange.address)
 
-    networks = [deploy_network(web3, name, symbol, decimals=decimals, exchange_address=exchange.address) for
-                (name, symbol, decimals) in networks]
+    networks = [deploy_network(web3, exchange_address=exchange.address, **network_setting) for
+                network_setting in network_settings]
 
     return networks, exchange, unw_eth

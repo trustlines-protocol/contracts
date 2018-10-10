@@ -131,7 +131,31 @@ def exchange(jsonrpc: str):
 def test(jsonrpc: str, file: str):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     This can be used for testing"""
-    network_settings = [('Fugger', 'FUG', 2), ('Hours', 'HOU', 2), ('Testcoin', 'T', 6)]
+
+    network_settings = [
+        {
+            'name': 'Cash',
+            'symbol': 'CASH',
+            'decimals': 4,
+            'fee_divisor': 1000,
+            'default_interest_rate': 0,
+            'custom_interests': True
+        },
+        {
+            'name': 'Work Hours',
+            'symbol': 'HOU',
+            'decimals': 4,
+            'fee_divisor': 0,
+            'default_interest_rate': 1000,
+            'custom_interests': False
+        },
+        {
+            'name': 'Beers',
+            'symbol': 'BEER',
+            'decimals': 0,
+            'fee_divisor': 0
+        }]
+
     web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
     networks, exchange, unw_eth = deploy_networks(web3, network_settings)
     addresses = dict()
@@ -149,10 +173,8 @@ def test(jsonrpc: str, file: str):
     click.echo('Exchange: {}'.format(to_checksum_address(exchange_address)))
     click.echo('Unwrapping ether: {}'.format(to_checksum_address(unw_eth_address)))
 
-    for (name, symbol, decimals), address in zip(network_settings, network_addresses):
-        click.echo("CurrencyNetwork(name={name}, symbol={symbol}, "
-                   "decimals={decimals}): {address}".format(name=name,
-                                                            symbol=symbol,
-                                                            decimals=decimals,
-                                                            address=to_checksum_address(address)
-                                                            ))
+    for settings, address in zip(network_settings, network_addresses):
+        click.echo("CurrencyNetwork({settings}) at {address}".format(
+            settings=settings,
+            address=to_checksum_address(address)
+        ))
