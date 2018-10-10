@@ -105,9 +105,9 @@ def deploy_network(
     symbol,
     decimals,
     fee_divisor=0,
-    default_interests_rate=0,
+    default_interest_rate=0,
     custom_interests=True,
-    safe_interest_rippling=False,
+    prevent_mediator_interests=False,
     exchange_address=None
 ):
     currency_network = deploy("CurrencyNetwork", web3)
@@ -116,9 +116,9 @@ def deploy_network(
                                            symbol,
                                            decimals,
                                            fee_divisor,
-                                           default_interests_rate,
+                                           default_interest_rate,
                                            custom_interests,
-                                           safe_interest_rippling).transact(
+                                           prevent_mediator_interests).transact(
         {"from": web3.eth.accounts[0]})
     check_successful_tx(web3, txid)
     if exchange_address is not None:
