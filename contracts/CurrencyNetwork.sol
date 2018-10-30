@@ -463,35 +463,45 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _from,
         address _otherParty) {
         Account memory account = _loadAccount(_from, _otherParty);
-        require(account.balance == 0);
+        assert(account.balance == 0);
         _setTrustline(_from, _otherParty, 0, 0);
     }
 
+    /* close message sender's trustline with _otherParty by doing a triangular
+       transfer along the given _path */
     function closeTrustlineByTriangularTransfer(
         address _otherParty,
         uint32 _maxFee,
         address[] _path
     )
         external
-        returns (bool _success)
-
     {
         _closeTrustlineByTriangularTransfer(msg.sender, _otherParty, _maxFee, _path);
     }
 
-    /* close a trustline by doing a triangular transfer */
+    /* close a trustline by doing a triangular transfer
+
+       this function receives the path along which to do the transfer. This path
+       is computed by the relay server based on the then current state of the
+       balance. In case the balance changed it's sign, the path will not have
+       the right 'shape' and the require statements below will revert the
+       transaction.
+
+       XXX This function is currently broken for balances which do not fit into
+       a uint32. We may repair that later when merging the interest changes.
+     */
     function _closeTrustlineByTriangularTransfer(
         address _from,
         address _otherParty,
         uint32 _maxFee,
         address[] _path)
         internal
-        returns (bool success)
     {
-        require((_path.length > 0) && (_from == _path[_path.length - 1]));
         Account memory account = _loadAccount(_from, _otherParty);
         if (account.balance > 0) {
-            require(_path[0] == _otherParty);
+            require(_path.length >= 2
+                    && _from == _path[_path.length - 1]
+                    && _path[0] == _otherParty);
             _mediatedTransferReceiverPays(
                 _from,
                 _from,
@@ -499,14 +509,19 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _maxFee,
                 _path);
         } else if (account.balance < 0) {
-            require(_path[_path.length - 2] == _otherParty);
+            require(_path.length >= 2
+                    && _from == _path[_path.length - 1]
+                    && _path[_path.length - 2] == _otherParty);
             _mediatedTransfer(
                 _from,
                 _from,
                 uint32(-account.balance),
                 _maxFee,
                 _path);
+        } else {
+            /* balance is zero, there's nothing to do here */
         }
+
         _closeTrustline(_from, _otherParty);
     }
 
@@ -548,6 +563,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             require(fees <= _maxFee);
         }
 
+        /* _mediatedTransfer emits an event here.
+           we don't need this when doing triangulating AFAICT, and we may even
+         */
         success = true;
     }
 
