@@ -461,10 +461,20 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     /* close a trustline, which must have a balance of zero */
     function _closeTrustline(
         address _from,
-        address _otherParty) {
+        address _otherParty)
+        internal
+    {
         Account memory account = _loadAccount(_from, _otherParty);
         assert(account.balance == 0);
-        _setTrustline(_from, _otherParty, 0, 0);
+
+        delete accounts[uniqueIdentifier(_from, _otherParty)];
+        friends[_from].remove(_otherParty);
+        friends[_otherParty].remove(_from);
+        emit TrustlineUpdate(
+            _from,
+            _otherParty,
+            0,
+            0);
     }
 
     /* close message sender's trustline with _otherParty by doing a triangular
