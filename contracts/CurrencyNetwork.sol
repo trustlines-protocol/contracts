@@ -304,6 +304,18 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         addToUsersAndFriends(_a, _b);
     }
 
+    /* close message sender's trustline with _otherParty by doing a triangular
+       transfer along the given _path */
+    function closeTrustlineByTriangularTransfer(
+        address _otherParty,
+        uint32 _maxFee,
+        address[] _path
+                                                )
+        external
+    {
+        _closeTrustlineByTriangularTransfer(msg.sender, _otherParty, _maxFee, _path);
+    }
+
     /**
      * @notice Checks for the spendable amount by spender
      * @param _spender The address from which the balance will be retrieved
@@ -477,18 +489,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             0);
     }
 
-    /* close message sender's trustline with _otherParty by doing a triangular
-       transfer along the given _path */
-    function closeTrustlineByTriangularTransfer(
-        address _otherParty,
-        uint32 _maxFee,
-        address[] _path
-    )
-        external
-    {
-        _closeTrustlineByTriangularTransfer(msg.sender, _otherParty, _maxFee, _path);
-    }
-
     /* close a trustline by doing a triangular transfer
 
        this function receives the path along which to do the transfer. This path
@@ -509,9 +509,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         Account memory account = _loadAccount(_from, _otherParty);
         if (account.balance > 0) {
-            require(_path.length >= 2
-                    && _from == _path[_path.length - 1]
-                    && _path[0] == _otherParty);
+            require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[0] == _otherParty);
             _mediatedTransferReceiverPays(
                 _from,
                 _from,
@@ -519,9 +517,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _maxFee,
                 _path);
         } else if (account.balance < 0) {
-            require(_path.length >= 2
-                    && _from == _path[_path.length - 1]
-                    && _path[_path.length - 2] == _otherParty);
+            require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[_path.length - 2] == _otherParty);
             _mediatedTransfer(
                 _from,
                 _from,
