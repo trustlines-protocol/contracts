@@ -458,6 +458,99 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         success = true;
     }
 
+    /* close a trustline, which must have a balance of zero */
+    function _closeTrustline(
+        address _from,
+        address _otherParty) {
+        Account memory account = _loadAccount(_from, _otherParty);
+        require(account.balance == 0);
+        _setTrustline(_from, _otherParty, 0, 0);
+    }
+
+    function closeTrustlineByTriangularTransfer(
+        address _otherParty,
+        uint32 _maxFee,
+        address[] _path
+    )
+        external
+        returns (bool _success)
+
+    {
+        _closeTrustlineByTriangularTransfer(msg.sender, _otherParty, _maxFee, _path);
+    }
+
+    /* close a trustline by doing a triangular transfer */
+    function _closeTrustlineByTriangularTransfer(
+        address _from,
+        address _otherParty,
+        uint32 _maxFee,
+        address[] _path)
+        internal
+        returns (bool success)
+    {
+        require((_path.length > 0) && (_from == _path[_path.length - 1]));
+        Account memory account = _loadAccount(_from, _otherParty);
+        if (account.balance > 0) {
+            require(_path[0] == _otherParty);
+            _mediatedTransferReceiverPays(
+                _from,
+                _from,
+                uint32(account.balance),
+                _maxFee,
+                _path);
+        } else if (account.balance < 0) {
+            require(_path[_path.length - 2] == _otherParty);
+            _mediatedTransfer(
+                _from,
+                _from,
+                uint32(-account.balance),
+                _maxFee,
+                _path);
+        }
+        _closeTrustline(_from, _otherParty);
+    }
+
+    function _mediatedTransferReceiverPays(
+        address _from,
+        address _to,
+        uint32 _value,
+        uint32 _maxFee,
+        address[] _path
+    )
+        internal
+        returns (bool success)
+    {
+        // check Path: is there a Path and is _to the last address? Otherwise throw
+        require((_path.length > 0) && (_to == _path[_path.length - 1]));
+
+        uint32 forwardedValue = _value;
+        uint32 fees = 0;
+        uint32 fee = 0;
+
+        // check path and accumulate the fees. we do not walk the path in
+        // reverse order, since we want the receiver to pay fees.
+        for (uint i = 0; i < _path.length; i++) {
+            address receiver = _path[i];
+            address sender;
+            if (i == 0) {
+                sender = _from;
+            } else {
+                sender = _path[i-1];
+            }
+            fee = _directTransfer(
+                sender,
+                receiver,
+                forwardedValue);
+            // forward the value minus the fee
+            require(forwardedValue>=fee);
+            forwardedValue -= fee;
+            fees += fee;
+            require(fees <= _maxFee);
+        }
+
+        success = true;
+    }
+
     function addToUsersAndFriends(address _a, address _b) internal {
         users.insert(_a);
         users.insert(_b);
