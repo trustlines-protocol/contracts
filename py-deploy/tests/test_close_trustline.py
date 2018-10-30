@@ -27,7 +27,25 @@ def currency_network_contract_with_trustlines(currency_network_contract, account
     return currency_network_contract
 
 
-def test_close_trustline_0_1(currency_network_contract_with_trustlines, accounts):
+def ensure_trustline_closed(contract, address1, address2):
+    assert contract.functions.getAccount(address1, address2).call() == [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
+
+    assert address2 not in contract.functions.getFriends(address1).call()
+    assert address1 not in contract.functions.getFriends(address2).call()
+
+
+def test_close_trustline_negative_balance(
+    currency_network_contract_with_trustlines, accounts
+):
     contract = currency_network_contract_with_trustlines
 
     def get_balance():
@@ -40,9 +58,12 @@ def test_close_trustline_0_1(currency_network_contract_with_trustlines, accounts
     ).transact({"from": accounts[0]})
 
     assert get_balance() == 0
+    ensure_trustline_closed(contract, accounts[0], accounts[1])
 
 
-def test_close_trustline_1_0(currency_network_contract_with_trustlines, accounts):
+def test_close_trustline_positive_balance(
+    currency_network_contract_with_trustlines, accounts
+):
     contract = currency_network_contract_with_trustlines
 
     def get_balance():
@@ -55,3 +76,4 @@ def test_close_trustline_1_0(currency_network_contract_with_trustlines, accounts
     ).transact({"from": accounts[1]})
 
     assert get_balance() == 0
+    ensure_trustline_closed(contract, accounts[0], accounts[1])
