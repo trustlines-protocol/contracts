@@ -16,7 +16,7 @@ trustlines = [
 
 @pytest.fixture()
 def currency_network_contract(web3):
-    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0, default_interests_rate=0,
+    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0, default_interest_rate=0,
                           custom_interests=False)
 
 
@@ -33,7 +33,7 @@ def currency_network_contract_with_trustlines(currency_network_contract, account
 @pytest.fixture()
 def currency_network_contract_custom_interest(web3):
     return deploy_network(web3, name='TestCoin', symbol='T', decimals=6, fee_divisor=0,
-                          default_interests_rate=0, custom_interests=True, safe_interest_rippling=False)
+                          default_interest_rate=0, custom_interests=True, prevent_mediator_interests=False)
 
 
 def test_meta_name(currency_network_contract):
