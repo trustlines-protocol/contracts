@@ -153,7 +153,8 @@ def test(jsonrpc: str, file: str):
             'name': 'Beers',
             'symbol': 'BEER',
             'decimals': 0,
-            'fee_divisor': 0
+            'fee_divisor': 0,
+            'custom_interests': False
         }]
 
     web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
