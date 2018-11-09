@@ -978,6 +978,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     // Calculates a representation of how happy or unhappy a participant is because of the interests after a transfer
     // The higher the value returned, the higher the happiness of the sender and the higher the unhappiness of the receiver
+    // This is called after the transfer has been done, so _account is the account from the senders view after the transfer
+    // has been done. _balanceBefore is the sender's balance before the transfer has been done.
     function _interestHappiness(
         Account memory _account,
         int72 _balanceBefore
