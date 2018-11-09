@@ -419,6 +419,18 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
+    /* close message sender's trustline with _otherParty by doing a triangular
+       transfer along the given _path */
+    function closeTrustlineByTriangularTransfer(
+        address _otherParty,
+        uint32 _maxFee,
+        address[] _path
+    )
+        external
+    {
+        _closeTrustlineByTriangularTransfer(msg.sender, _otherParty, _maxFee, _path);
+    }
+
     /**
      * @notice Checks for the spendable amount by spender
      * @param _spender The address from which the balance will be retrieved
@@ -609,6 +621,139 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         }
 
         return true;
+    }
+
+    /* like _mediatedTransfer only the receiver pays
+       which means we start walking the _path at the sender and substract fees from the forwarded value
+    */
+    function _mediatedTransferReceiverPays(
+        address _from,
+        address _to,
+        uint64 _value,
+        uint64 _maxFee,
+        address[] _path
+    )
+        internal
+        returns (bool)
+    {
+        // check Path: is there a Path and is _to the last address? Otherwise throw
+        require((_path.length > 0) && (_to == _path[_path.length - 1]));
+
+        uint64 forwardedValue = _value;
+        uint64 fees = 0;
+        int receiverUnhappiness = 0;
+        int receiverHappiness = 0;
+        bool reducingDebtOfNextHopOnly = true;
+
+        // check path starting from sender correctly accumulate the fee
+        for (uint i = 0; i < _path.length; i++) {
+            // the address of the receiver is _path[i]
+            address sender;
+            if (i == 0) {
+                sender = _from;
+            } else {
+                sender = _path[i-1];
+            }
+            // Load account only once at the beginning
+            Account memory account = _loadAccount(sender, _path[i]);
+            _applyInterests(account);
+
+            uint64 fee = _calculateFees(forwardedValue, account.balance, capacityImbalanceFeeDivisor);
+            // forward the value minus the fee
+            require(forwardedValue>=fee);
+            forwardedValue -= fee;
+            //Overflow check
+            require(forwardedValue >= fee);
+            fees += fee;
+            require(fees <= _maxFee);
+
+
+            int72 balanceBefore = account.balance;
+
+            _applyDirectTransfer(
+                account,
+                forwardedValue);
+
+
+            if (preventMediatorInterests) {
+                // prevent intermediaries from paying more interests than they receive
+                // unless the transaction helps in reducing the debt of the next hop in the path
+                receiverHappiness = receiverUnhappiness;  // receiver was the sender in last iteration
+                receiverUnhappiness = _interestHappiness(account, balanceBefore);
+                require(receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly);
+                reducingDebtOfNextHopOnly = account.balance >= 0;
+            }
+
+            // store account only once at the end
+            _storeAccount(sender, _path[i], account);
+            // Should be removed later
+            emit BalanceUpdate(sender, _path[i], account.balance);
+        }
+
+        return true;
+    }
+
+    /* close a trustline, which must have a balance of zero */
+    function _closeTrustline(
+        address _from,
+        address _otherParty)
+        internal
+    {
+        Account memory account = _loadAccount(_from, _otherParty);
+        assert(account.balance == 0);
+
+        delete accounts[uniqueIdentifier(_from, _otherParty)];
+        friends[_from].remove(_otherParty);
+        friends[_otherParty].remove(_from);
+        emit TrustlineUpdate(
+            _from,
+            _otherParty,
+            0,
+            0,
+            0,
+            0);
+    }
+
+    /* close a trustline by doing a triangular transfer
+
+       this function receives the path along which to do the transfer. This path
+       is computed by the relay server based on the then current state of the
+       balance. In case the balance changed it's sign, the path will not have
+       the right 'shape' and the require statements below will revert the
+       transaction.
+
+       XXX This function is currently broken for balances which do not fit into
+       a uint32. We may repair that later when merging the interest changes.
+     */
+    function _closeTrustlineByTriangularTransfer(
+        address _from,
+        address _otherParty,
+        uint32 _maxFee,
+        address[] _path)
+        internal
+    {
+        Account memory account = _loadAccount(_from, _otherParty);
+        if (account.balance > 0) {
+            require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[0] == _otherParty);
+            _mediatedTransferReceiverPays(
+                _from,
+                _from,
+                uint32(account.balance),
+                _maxFee,
+                _path);
+        } else if (account.balance < 0) {
+            require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[_path.length - 2] == _otherParty);
+            _mediatedTransfer(
+                _from,
+                _from,
+                uint32(-account.balance),
+                _maxFee,
+                _path);
+        } else {
+            /* balance is zero, there's nothing to do here */
+        }
+
+        _closeTrustline(_from, _otherParty);
     }
 
     function addToUsersAndFriends(address _a, address _b) internal {
