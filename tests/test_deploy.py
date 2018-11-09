@@ -45,4 +45,3 @@ def test_deploy_network(web3):
     assert network.functions.decimals().call() == 2
     assert network.functions.customInterests().call() is False
     assert network.functions.defaultInterestRate().call() == 100
-
