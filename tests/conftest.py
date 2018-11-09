@@ -3,6 +3,16 @@ from web3 import Web3
 from web3.providers.eth_tester import EthereumTesterProvider
 from eth_utils import to_checksum_address, encode_hex
 import eth_tester
+import eth_tester.backends.pyevm.main
+
+
+@pytest.fixture(scope="session", autouse=True)
+def increase_gas_limit():
+    """increate eth_tester's GAS_LIMIT
+
+    Otherwise we can't deploy our contract"""
+    assert eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT < 6 * 10 ** 6
+    eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 6 * 10 ** 6
 
 
 @pytest.fixture()
