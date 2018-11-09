@@ -18,20 +18,20 @@ SECONDS_PER_YEAR = 60 * 60 * 24 * 365
 
 @pytest.fixture()
 def currency_network_contract_no_interests(web3):
-    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=0, custom_interests=False,
-                          safe_interest_rippling=False)
+    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interest_rate=0, custom_interests=False,
+                          prevent_mediator_interests=False)
 
 
 @pytest.fixture()
 def currency_network_contract_default_interests(web3):
-    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=100, custom_interests=False,
-                          safe_interest_rippling=False)
+    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interest_rate=100, custom_interests=False,
+                          prevent_mediator_interests=False)
 
 
 @pytest.fixture()
 def currency_network_contract_negative_interests(web3):
-    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=-100, custom_interests=False,
-                          safe_interest_rippling=False)
+    return deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interest_rate=-100, custom_interests=False,
+                          prevent_mediator_interests=False)
 
 
 @pytest.fixture()
@@ -45,7 +45,7 @@ def currency_network_contract_with_trustlines(currency_network_contract, account
 
 @pytest.fixture()
 def currency_network_contract_custom_interests_safe_ripple(web3):
-    return deploy_network(web3, 'TestCoin', 'T', 6, 0, 0, custom_interests=True, safe_interest_rippling=True)
+    return deploy_network(web3, 'TestCoin', 'T', 6, 0, 0, custom_interests=True, prevent_mediator_interests=True)
 
 
 def test_interests_positive_balance(ethereum_tester_session, currency_network_contract_default_interests, accounts):
@@ -161,8 +161,8 @@ def test_custom_interests_postive_balance(ethereum_tester_session,
 def test_setting_default_and_custom_interests_fails(web3, accounts):
     '''Tests that we cannot set default and custom interests at the same time'''
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interests_rate=1, custom_interests=True,
-                       safe_interest_rippling=False)
+        deploy_network(web3, 'TestCoin', 'T', 6, 0, default_interest_rate=1, custom_interests=True,
+                       prevent_mediator_interests=False)
 
 
 def test_safe_interest_allows_direct_transactions(currency_network_contract_custom_interests_safe_ripple, accounts):
