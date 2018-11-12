@@ -39,32 +39,74 @@ jsonrpc_option = click.option('--jsonrpc',
 @cli.command(short_help='Deploy a currency network contract.')
 @click.argument('name', type=str)
 @click.argument('symbol', type=str)
-@click.option('--decimals', help='Number of decimals of the network', default=2, show_default=True)
-@click.option('--fee-divisor', help='Imbalance fee divisor of the currency network', default=100, show_default=True)
-@click.option('--exchange-contract', help='Address of the exchange contract to use [Optional]', default=None, type=str,
-              metavar='ADDRESS')
+@click.option('--decimals', help='Number of decimals of the network', default=4, show_default=True)
+@click.option('--fee-rate', help='Imbalance fee rate of the currency network in percent', default=0.1,
+              show_default=True)
+@click.option('--default-interest-rate', help='Set the default interest rate in percent', default=0.,
+              show_default=True)
+@click.option('--custom-interests/--no-custom-interests',
+              help='Allow users to set custom interest rates. Default interest rate must be zero', default=False,
+              show_default=True)
+@click.option('--prevent-mediator-interests', help='Disallow payments that would result in mediators paying interests',
+              is_flag=True, default=False)
+@click.option('--exchange-contract', help='Address of the exchange contract to use. [Optional] [default: None]',
+              default=None, type=str, metavar='ADDRESS', show_default=True)
 @jsonrpc_option
-def currencynetwork(name: str, symbol: str, decimals: int, jsonrpc: str, fee_divisor: int, exchange_contract: str):
+def currencynetwork(name: str, symbol: str, decimals: int, jsonrpc: str, fee_rate: float, default_interest_rate: float,
+                    custom_interests: bool, prevent_mediator_interests: bool, exchange_contract: str):
     """Deploy a currency network contract with custom settings and optionally connect it to an exchange contract"""
     if exchange_contract is not None and not is_checksum_address(exchange_contract):
-        raise click.BadParameter('{} is not a valid address'.format(exchange_contract))
+        raise click.BadParameter('{} is not a valid address.'.format(exchange_contract))
+
+    if custom_interests and default_interest_rate != 0.0:
+        raise click.BadParameter('Custom interests can only be set without a'
+                                 ' default interest rate, but was {}%.'.format(default_interest_rate))
+
+    if prevent_mediator_interests and not custom_interests:
+        raise click.BadParameter('Prevent mediator interests is not necessary if custom interests are disabled.')
+
+    fee_divisor = 1 / fee_rate * 100
+    if int(fee_divisor) != fee_divisor:
+        raise click.BadParameter('This fee rate is not usable')
+    fee_divisor = int(fee_divisor)
+
+    default_interest_rate = default_interest_rate * 100
+    if int(default_interest_rate) != default_interest_rate:
+        raise click.BadParameter('This default interest rate is not usable')
+    default_interest_rate = int(default_interest_rate)
 
     web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
-    contract = deploy_network(web3, name,
-                              symbol,
-                              decimals,
-                              fee_divisor=fee_divisor,
-                              exchange_address=exchange_contract)
-    address = contract.address
-    click.echo("CurrencyNetwork(name={name}, symbol={symbol}, "
-               "decimals={decimals}, fee_divisor={fee_divisor}, "
-               "exchange_address={exchange_address}): {address}".format(name=name,
-                                                                        symbol=symbol,
-                                                                        decimals=decimals,
-                                                                        fee_divisor=fee_divisor,
-                                                                        exchange_address=exchange_contract,
-                                                                        address=to_checksum_address(address)
-                                                                        ))
+
+    contract = deploy_network(
+        web3,
+        name,
+        symbol,
+        decimals,
+        fee_divisor=fee_divisor,
+        default_interest_rate=default_interest_rate,
+        custom_interests=custom_interests,
+        prevent_mediator_interests=prevent_mediator_interests,
+        exchange_address=exchange_contract
+    )
+
+    click.echo(
+        "CurrencyNetwork(name={name}, symbol={symbol}, "
+        "decimals={decimals}, fee_divisor={fee_divisor}, "
+        "default_interest_rate={default_interest_rate}, "
+        "custom_interests={custom_interests}, "
+        "prevent_mediator_interests={prevent_mediator_interests}, "
+        "exchange_address={exchange_address}): {address}".format(
+            name=name,
+            symbol=symbol,
+            decimals=decimals,
+            fee_divisor=fee_divisor,
+            default_interest_rate=default_interest_rate,
+            custom_interests=custom_interests,
+            prevent_mediator_interests=prevent_mediator_interests,
+            exchange_address=exchange_contract,
+            address=to_checksum_address(contract.address)
+        )
+    )
 
 
 @cli.command(short_help='Deploy an exchange contract.')
@@ -89,7 +131,32 @@ def exchange(jsonrpc: str):
 def test(jsonrpc: str, file: str):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     This can be used for testing"""
-    network_settings = [('Fugger', 'FUG', 2), ('Hours', 'HOU', 2), ('Testcoin', 'T', 6)]
+
+    network_settings = [
+        {
+            'name': 'Cash',
+            'symbol': 'CASH',
+            'decimals': 4,
+            'fee_divisor': 1000,
+            'default_interest_rate': 0,
+            'custom_interests': True
+        },
+        {
+            'name': 'Work Hours',
+            'symbol': 'HOU',
+            'decimals': 4,
+            'fee_divisor': 0,
+            'default_interest_rate': 1000,
+            'custom_interests': False
+        },
+        {
+            'name': 'Beers',
+            'symbol': 'BEER',
+            'decimals': 0,
+            'fee_divisor': 0,
+            'custom_interests': False
+        }]
+
     web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
     networks, exchange, unw_eth = deploy_networks(web3, network_settings)
     addresses = dict()
@@ -107,10 +174,8 @@ def test(jsonrpc: str, file: str):
     click.echo('Exchange: {}'.format(to_checksum_address(exchange_address)))
     click.echo('Unwrapping ether: {}'.format(to_checksum_address(unw_eth_address)))
 
-    for (name, symbol, decimals), address in zip(network_settings, network_addresses):
-        click.echo("CurrencyNetwork(name={name}, symbol={symbol}, "
-                   "decimals={decimals}): {address}".format(name=name,
-                                                            symbol=symbol,
-                                                            decimals=decimals,
-                                                            address=to_checksum_address(address)
-                                                            ))
+    for settings, address in zip(network_settings, network_addresses):
+        click.echo("CurrencyNetwork({settings}) at {address}".format(
+            settings=settings,
+            address=to_checksum_address(address)
+        ))

@@ -5,8 +5,8 @@ contract CurrencyNetworkInterface {
 
     function transfer(
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint64 _value,
+        uint64 _maxFee,
         address[] _path
     )
         external
@@ -15,8 +15,8 @@ contract CurrencyNetworkInterface {
     function transferFrom(
         address _from,
         address _to,
-        uint32 _value,
-        uint32 _maxFee,
+        uint64 _value,
+        uint64 _maxFee,
         address[] _path
     )
         external
@@ -27,5 +27,5 @@ contract CurrencyNetworkInterface {
     function creditline(address _creditor, address _debtor) public constant returns (uint);
 
     event Transfer(address indexed _from, address indexed _to, uint _value);
-    event CreditlineUpdate(address indexed _creditor, address indexed _debtor, uint _value);
+
 }
