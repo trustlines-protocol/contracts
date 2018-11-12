@@ -22,7 +22,7 @@ Change Log
 
 * Close a trustline
 
-  Added a new functions to do a triangular payment to close a trustline. This will set the balance
+  Added a new function to do a triangular payment to close a trustline. This will set the balance
   between two user to zero and also removes all information about this trustline. This is still work
   in progress and might change. 
 
