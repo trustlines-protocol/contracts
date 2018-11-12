@@ -733,6 +733,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         Account memory account = _loadAccount(_from, _otherParty);
+        _applyInterests(account);
+        /* we could as well call _storeAccount here. It doesn't matter for the
+           _mediatedTransfer/_mediatedTransferReceiverPays calls below since the
+           interest will be recomputed if we don't call storeAccount here. We
+           may investigate what's cheaper gas-wise later.
+
+         _storeAccount(_from, _otherParty, account);
+        */
         if (account.balance > 0) {
             require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[0] == _otherParty);
             _mediatedTransferReceiverPays(
