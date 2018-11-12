@@ -1,7 +1,7 @@
 ==========
 Change Log
 ==========
-`0.3.0`_ (unreleased)
+`0.3.0`_ (2018-11-12)
 -----------------------
 * Added interests to currency networks
 
