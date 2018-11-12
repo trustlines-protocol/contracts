@@ -419,8 +419,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
-    /* close message sender's trustline with _otherParty by doing a triangular
-       transfer along the given _path */
+    /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
+        @param _otherParty Address of the other party to close the trustline with
+        @param _maxFee maximum fees the sender is willing to pay
+        @param _path The path along, which to do the triangulation
+     */
     function closeTrustlineByTriangularTransfer(
         address _otherParty,
         uint32 _maxFee,
