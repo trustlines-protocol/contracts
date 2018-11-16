@@ -27,7 +27,7 @@ jobs:
       name: tests
       install:
       - pip install -c constraints.txt -r requirements.txt
-      - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
+      - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux && chmod +x $HOME/bin/solc
       - /usr/bin/env VIRTUALENV='virtualenv -p python3' make install-non-editable
       script:
       - flake8 py-bin py-deploy tests
@@ -64,7 +64,7 @@ jobs:
       name: pypi bin
       install:
       - pip install -c constraints.txt -r requirements.txt
-      - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc
+      - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux && chmod +x $HOME/bin/solc
       - /usr/bin/env VIRTUALENV='virtualenv -p python3' make compile
       script:
         - /bin/true

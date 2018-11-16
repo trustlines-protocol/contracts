@@ -67,7 +67,7 @@ with ``pip install -c constraints.txt -r requirements.txt``
 Download and install the solidity compiler solc into bin for compiling the
 contracts
 
-   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux && chmod +x $HOME/bin/solc``
+   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux && chmod +x $HOME/bin/solc``
 
 Compiling
 ~~~~~~~~~

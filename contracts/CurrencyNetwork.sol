@@ -25,11 +25,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     int256 constant SECONDS_PER_YEAR = 60*60*24*365;
 
     using ItSet for ItSet.AddressSet;
-    mapping (bytes32 => Account) internal accounts;
+    mapping (bytes32 => Trustline) internal trustlines;
     // mapping uniqueId => trustline request
     mapping (bytes32 => TrustlineRequest) internal requestedTrustlineUpdates;
 
-    // friends, users address has an account with
+    // friends, users address has a trustline with
     mapping (address => ItSet.AddressSet) internal friends;
     //list of all users of the system
     ItSet.AddressSet internal users;
@@ -70,16 +70,26 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
-    // for accounting balance and trustline between two users introducing fees and interests
+    // for accounting balance and trustline agreement between two users introducing fees and interests
     // currently uses 160 + 136 bits, 216 remaining to make two structs
-    struct Account {
+    struct Trustline {
         // A < B (A is the lower address)
+        TrustlineAgreement agreement;
+        TrustlineBalances balances;
+    }
+
+    struct TrustlineAgreement {
 
         uint64 creditlineGiven;        //  creditline given by A to B, always positive
         uint64 creditlineReceived;     //  creditline given by B to A, always positive
 
         int16 interestRateGiven;      //  interest rate set by A for creditline given by A to B in 0.01% per year
         int16 interestRateReceived;   //  interest rate set by B for creditline given from B to A in 0.01% per year
+
+        int96 padding;                //  fill up to 256bit
+    }
+
+    struct TrustlineBalances {
 
         uint16 feesOutstandingA;       //  fees outstanding by A
         uint16 feesOutstandingB;       //  fees outstanding by B
@@ -88,6 +98,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         int72 balance;                 //  balance between A and B, balance is >0 if B owes A, negative otherwise.
                                        //  balance(B,A) = - balance(A,B)
+        int120 padding;                //  fill up to 256 bit
     }
 
     struct TrustlineRequest {
@@ -329,21 +340,21 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     /**
-    * Query the trustline account between two users.
+    * Query the trustline between two users.
     * Can be removed once structs are supported in the ABI
     */
     function getAccount(address _a, address _b) external view returns (int, int, int, int, int, int, int, int) {
-        Account memory account = _loadAccount(_a, _b);
+        Trustline memory trustline = _loadTrustline(_a, _b);
 
         return (
-            account.creditlineGiven,
-            account.creditlineReceived,
-            account.interestRateGiven,
-            account.interestRateReceived,
-            account.feesOutstandingA,
-            account.feesOutstandingB,
-            account.mtime,
-            account.balance);
+            trustline.agreement.creditlineGiven,
+            trustline.agreement.creditlineReceived,
+            trustline.agreement.interestRateGiven,
+            trustline.agreement.interestRateReceived,
+            trustline.balances.feesOutstandingA,
+            trustline.balances.feesOutstandingB,
+            trustline.balances.mtime,
+            trustline.balances.balance);
     }
 
     function getAccountLen() external pure returns (uint) {
@@ -454,9 +465,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @return Amount of remaining tokens allowed to spend
      */
     function spendableTo(address _spender, address _receiver) public constant returns (uint remaining) {
-        Account memory account = _loadAccount(_spender, _receiver);
-        int72 balance = account.balance;
-        uint64 creditline = account.creditlineReceived;
+        Trustline memory trustline = _loadTrustline(_spender, _receiver);
+        int72 balance = trustline.balances.balance;
+        uint64 creditline = trustline.agreement.creditlineReceived;
         remaining = uint(creditline + balance);
     }
 
@@ -466,8 +477,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      */
     function creditline(address _creditor, address _debtor) public constant returns (uint _creditline) {
         // returns the current creditline given by A to B
-        Account memory account = _loadAccount(_creditor, _debtor);
-        _creditline = account.creditlineGiven;
+        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        _creditline = trustlineAgreement.creditlineGiven;
     }
 
     /**
@@ -476,16 +487,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      */
     function interestRate(address _creditor, address _debtor) public constant returns (int16 _interestRate) {
         // returns the current interests given by A to B
-        Account memory account = _loadAccount(_creditor, _debtor);
-        _interestRate = account.interestRateGiven;
+        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        _interestRate = trustlineAgreement.interestRateGiven;
     }
 
     /*
      * @notice returns what B owes to A
      */
     function balance(address _a, address _b) public constant returns (int _balance) {
-        Account memory account = _loadAccount(_a, _b);
-        _balance = account.balance;
+        TrustlineBalances memory trustlineBalances = _loadTrustlineBalances(_a, _b);
+        _balance = trustlineBalances.balance;
     }
 
     function getFriends(address _user) public constant returns (address[]) {
@@ -526,38 +537,37 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return decimals;
     }
 
-    // This function modifies the value of the balance stored in the account for sender and receiver.
-    // It calculates the fees, applies them to the balance and returns them.
-    // We ask this function to apply the interests too for optimisation (only one call to _storeAccount)
+    // This function transfers value over this trustline
+    // For that it modifies the value of the balance stored in the trustline for sender and receiver
     function _applyDirectTransfer(
-        Account memory _account,
+        Trustline memory _trustline,
         uint64 _value
     )
         internal
     {
-        int72 newBalance = _account.balance - _value;
-        require(newBalance <= _account.balance);
+        int72 newBalance = _trustline.balances.balance - _value;
+        require(newBalance <= _trustline.balances.balance);
 
         // check if creditline is not exceeded
-        uint64 creditlineReceived = _account.creditlineReceived;
+        uint64 creditlineReceived = _trustline.agreement.creditlineReceived;
         require(-newBalance <= int72(creditlineReceived));
 
-        _account.balance = newBalance;
+        _trustline.balances.balance = newBalance;
     }
 
     function _applyInterests(
-        Account memory _account
+        Trustline memory _trustline
     )
         internal
     {
-        _account.balance = _calculateBalanceWithInterests(
-            _account.balance,
-            _account.mtime,
+        _trustline.balances.balance = _calculateBalanceWithInterests(
+            _trustline.balances.balance,
+            _trustline.balances.mtime,
             now,
-            _account.interestRateGiven,
-            _account.interestRateReceived
+            _trustline.agreement.interestRateGiven,
+            _trustline.agreement.interestRateReceived
         );
-        _account.mtime = uint32(now);
+        _trustline.balances.mtime = uint32(now);
     }
 
     function _mediatedTransfer(
@@ -588,11 +598,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             } else {
                 sender = _path[i-2];
             }
-            // Load account only once at the beginning
-            Account memory account = _loadAccount(sender, _path[i-1]);
-            _applyInterests(account);
+            // Load trustline only once at the beginning
+            Trustline memory trustline = _loadTrustline(sender, _path[i-1]);
+            _applyInterests(trustline);
 
-            uint64 fee = _calculateFees(forwardedValue, account.balance, capacityImbalanceFeeDivisor);
+            uint64 fee = _calculateFees(forwardedValue, trustline.balances.balance, capacityImbalanceFeeDivisor);
             // forward the value + the fee
             forwardedValue += fee;
             //Overflow check
@@ -601,10 +611,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             require(fees <= _maxFee);
 
 
-            int72 balanceBefore = account.balance;
+            int72 balanceBefore = trustline.balances.balance;
 
             _applyDirectTransfer(
-                account,
+                trustline,
                 forwardedValue);
 
 
@@ -612,15 +622,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 // prevent intermediaries from paying more interests than they receive
                 // unless the transaction helps in reducing the debt of the next hop in the path
                 receiverHappiness = receiverUnhappiness;  // receiver was the sender in last iteration
-                receiverUnhappiness = _interestHappiness(account, balanceBefore);
+                receiverUnhappiness = _interestHappiness(trustline, balanceBefore);
                 require(receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly);
-                reducingDebtOfNextHopOnly = account.balance >= 0;
+                reducingDebtOfNextHopOnly = trustline.balances.balance >= 0;
             }
 
-            // store account only once at the end
-            _storeAccount(sender, _path[i-1], account);
+            // store only balance because trustline agreement did not change
+            _storeTrustlineBalances(sender, _path[i-1], trustline.balances);
             // Should be removed later
-            emit BalanceUpdate(sender, _path[i-1], account.balance);
+            emit BalanceUpdate(sender, _path[i-1], trustline.balances.balance);
         }
 
         return true;
@@ -657,11 +667,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             } else {
                 sender = _path[i-1];
             }
-            // Load account only once at the beginning
-            Account memory account = _loadAccount(sender, _path[i]);
-            _applyInterests(account);
+            // Load trustline only once at the beginning
+            Trustline memory trustline = _loadTrustline(sender, _path[i]);
+            _applyInterests(trustline);
 
-            uint64 fee = _calculateFees(forwardedValue, account.balance, capacityImbalanceFeeDivisor);
+            uint64 fee = _calculateFees(forwardedValue, trustline.balances.balance, capacityImbalanceFeeDivisor);
             // forward the value minus the fee
             require(forwardedValue>=fee);
             forwardedValue -= fee;
@@ -671,10 +681,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             require(fees <= _maxFee);
 
 
-            int72 balanceBefore = account.balance;
+            int72 balanceBefore = trustline.balances.balance;
 
             _applyDirectTransfer(
-                account,
+                trustline,
                 forwardedValue);
 
 
@@ -682,15 +692,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 // prevent intermediaries from paying more interests than they receive
                 // unless the transaction helps in reducing the debt of the next hop in the path
                 receiverHappiness = receiverUnhappiness;  // receiver was the sender in last iteration
-                receiverUnhappiness = _interestHappiness(account, balanceBefore);
+                receiverUnhappiness = _interestHappiness(trustline, balanceBefore);
                 require(receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly);
-                reducingDebtOfNextHopOnly = account.balance >= 0;
+                reducingDebtOfNextHopOnly = trustline.balances.balance >= 0;
             }
 
-            // store account only once at the end
-            _storeAccount(sender, _path[i], account);
+            // store only balance because trustline agreement did not change
+            _storeTrustlineBalances(sender, _path[i], trustline.balances);
             // Should be removed later
-            emit BalanceUpdate(sender, _path[i], account.balance);
+            emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
         }
 
         return true;
@@ -702,10 +712,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _otherParty)
         internal
     {
-        Account memory account = _loadAccount(_from, _otherParty);
-        assert(account.balance == 0);
+        TrustlineBalances memory balances = _loadTrustlineBalances(_from, _otherParty);
+        assert(balances.balance == 0);
 
-        delete accounts[uniqueIdentifier(_from, _otherParty)];
+        delete trustlines[uniqueIdentifier(_from, _otherParty)];
         friends[_from].remove(_otherParty);
         friends[_otherParty].remove(_from);
         emit TrustlineUpdate(
@@ -735,29 +745,28 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address[] _path)
         internal
     {
-        Account memory account = _loadAccount(_from, _otherParty);
-        _applyInterests(account);
-        /* we could as well call _storeAccount here. It doesn't matter for the
+        Trustline memory trustline = _loadTrustline(_from, _otherParty);
+        _applyInterests(trustline);
+        /* we could as well call _storeTrustlineBalances here. It doesn't matter for the
            _mediatedTransfer/_mediatedTransferReceiverPays calls below since the
-           interest will be recomputed if we don't call storeAccount here. We
+           interest will be recomputed if we don't call storeTrustlineBalances here. We
            may investigate what's cheaper gas-wise later.
-
-         _storeAccount(_from, _otherParty, account);
         */
-        if (account.balance > 0) {
+        TrustlineBalances memory balances = trustline.balances;
+        if (balances.balance > 0) {
             require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[0] == _otherParty);
             _mediatedTransferReceiverPays(
                 _from,
                 _from,
-                uint32(account.balance),
+                uint32(balances.balance),
                 _maxFee,
                 _path);
-        } else if (account.balance < 0) {
+        } else if (balances.balance < 0) {
             require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[_path.length - 2] == _otherParty);
             _mediatedTransfer(
                 _from,
                 _from,
-                uint32(-account.balance),
+                uint32(-balances.balance),
                 _maxFee,
                 _path);
         } else {
@@ -788,69 +797,100 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     )
         internal
     {
-        Account memory account;
+        TrustlineAgreement memory trustlineAgreement;
+        trustlineAgreement.creditlineGiven = _creditlineGiven;
+        trustlineAgreement.creditlineReceived = _creditlineReceived;
+        trustlineAgreement.interestRateGiven = _interestRateGiven;
+        trustlineAgreement.interestRateReceived = _interestRateReceived;
 
-        account.creditlineGiven = _creditlineGiven;
-        account.creditlineReceived = _creditlineReceived;
-        account.interestRateGiven = _interestRateGiven;
-        account.interestRateReceived = _interestRateReceived;
-        account.feesOutstandingA = _feesOutstandingA;
-        account.feesOutstandingB = _feesOutstandingB;
-        account.mtime = _mtime;
-        account.balance = _balance;
+        TrustlineBalances memory trustlineBalances;
+        trustlineBalances.feesOutstandingA = _feesOutstandingA;
+        trustlineBalances.feesOutstandingB = _feesOutstandingB;
+        trustlineBalances.mtime = _mtime;
+        trustlineBalances.balance = _balance;
 
-        _storeAccount(_a, _b, account);
+        _storeTrustlineAgreement(_a, _b, trustlineAgreement);
+        _storeTrustlineBalances(_a, _b, trustlineBalances);
 
         addToUsersAndFriends(_a, _b);
     }
 
-    function _loadAccount(address _a, address _b) internal constant returns (Account) {
-        Account memory account = accounts[uniqueIdentifier(_a, _b)];
-        Account memory result;
+    function _loadTrustline(address _a, address _b) internal constant returns (Trustline) {
+        Trustline memory trustline;
+        trustline.agreement = _loadTrustlineAgreement(_a, _b);
+        trustline.balances = _loadTrustlineBalances(_a, _b);
+        return trustline;
+    }
+
+    function _loadTrustlineAgreement(address _a, address _b) internal constant returns (TrustlineAgreement) {
+        TrustlineAgreement memory trustlineAgreement = trustlines[uniqueIdentifier(_a, _b)].agreement;
+        TrustlineAgreement memory result;
         if (_a < _b) {
-            result = account;
+            result = trustlineAgreement;
         } else {
-            result.creditlineReceived = account.creditlineGiven;
-            result.creditlineGiven = account.creditlineReceived;
-            result.interestRateReceived = account.interestRateGiven;
-            result.interestRateGiven = account.interestRateReceived;
-            result.feesOutstandingB = account.feesOutstandingA;
-            result.feesOutstandingA = account.feesOutstandingB;
-            result.mtime = account.mtime;
-            result.balance = -account.balance; // balance is value receiver owes sender
+            result.creditlineReceived = trustlineAgreement.creditlineGiven;
+            result.creditlineGiven = trustlineAgreement.creditlineReceived;
+            result.interestRateReceived = trustlineAgreement.interestRateGiven;
+            result.interestRateGiven = trustlineAgreement.interestRateReceived;
+        }
+        return result;
+    }
+
+    function _loadTrustlineBalances(address _a, address _b) internal constant returns (TrustlineBalances) {
+        TrustlineBalances memory balances = trustlines[uniqueIdentifier(_a, _b)].balances;
+        TrustlineBalances memory result;
+        if (_a < _b) {
+            result = balances;
+        } else {
+            result.feesOutstandingB = balances.feesOutstandingA;
+            result.feesOutstandingA = balances.feesOutstandingB;
+            result.mtime = balances.mtime;
+            result.balance = - balances.balance;
         }
         return result;
     }
 
     // Provides the abstraction of whether a < b or b < a.
-    function _storeAccount(address _a, address _b, Account account) internal {
+    function _storeTrustlineAgreement(address _a, address _b, TrustlineAgreement memory trustlineAgreement) internal {
         if (!customInterests) {
-            assert(account.interestRateGiven == defaultInterestRate);
-            assert(account.interestRateReceived == defaultInterestRate);
+            assert(trustlineAgreement.interestRateGiven == defaultInterestRate);
+            assert(trustlineAgreement.interestRateReceived == defaultInterestRate);
         } else {
-            assert(account.interestRateGiven >= 0);
-            assert(account.interestRateReceived >= 0);
+            assert(trustlineAgreement.interestRateGiven >= 0);
+            assert(trustlineAgreement.interestRateReceived >= 0);
         }
 
-        Account storage acc = accounts[uniqueIdentifier(_a, _b)];
+        TrustlineAgreement storage storedTrustlineAgreement = trustlines[uniqueIdentifier(_a, _b)].agreement;
         if (_a < _b) {
-            acc.creditlineGiven = account.creditlineGiven;
-            acc.creditlineReceived = account.creditlineReceived;
-            acc.interestRateGiven = account.interestRateGiven;
-            acc.interestRateReceived = account.interestRateReceived;
-            acc.feesOutstandingA = account.feesOutstandingA;
-            acc.feesOutstandingB = account.feesOutstandingB;
-            acc.mtime = account.mtime;
-            acc.balance = account.balance;
+            storedTrustlineAgreement.creditlineGiven = trustlineAgreement.creditlineGiven;
+            storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineReceived;
+            storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateGiven;
+            storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateReceived;
+            storedTrustlineAgreement.padding = trustlineAgreement.padding;
         } else {
-            acc.creditlineReceived = account.creditlineGiven;
-            acc.creditlineGiven = account.creditlineReceived;
-            acc.interestRateReceived = account.interestRateGiven;
-            acc.interestRateGiven = account.interestRateReceived;
-            acc.feesOutstandingB = account.feesOutstandingA;
-            acc.feesOutstandingA = account.feesOutstandingB;
-            acc.mtime = account.mtime;
-            acc.balance = - account.balance;
+            storedTrustlineAgreement.creditlineGiven = trustlineAgreement.creditlineReceived;
+            storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineGiven;
+            storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateReceived;
+            storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateGiven;
+            storedTrustlineAgreement.padding = trustlineAgreement.padding;
+        }
+    }
+
+    // Provides the abstraction of whether a < b or b < a.
+    function _storeTrustlineBalances(address _a, address _b, TrustlineBalances memory trustlineBalances) internal {
+        TrustlineBalances storage storedTrustlineBalance = trustlines[uniqueIdentifier(_a, _b)].balances;
+        if (_a < _b) {
+            storedTrustlineBalance.feesOutstandingA = trustlineBalances.feesOutstandingA;
+            storedTrustlineBalance.feesOutstandingB = trustlineBalances.feesOutstandingB;
+            storedTrustlineBalance.mtime = trustlineBalances.mtime;
+            storedTrustlineBalance.balance = trustlineBalances.balance;
+            storedTrustlineBalance.padding = trustlineBalances.padding;
+        } else {
+            storedTrustlineBalance.feesOutstandingA = trustlineBalances.feesOutstandingB;
+            storedTrustlineBalance.feesOutstandingB = trustlineBalances.feesOutstandingA;
+            storedTrustlineBalance.mtime = trustlineBalances.mtime;
+            storedTrustlineBalance.balance = - trustlineBalances.balance;
+            storedTrustlineBalance.padding = trustlineBalances.padding;
         }
     }
 
@@ -897,10 +937,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         if (customInterests) {
             require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
         }
-        Account memory account = _loadAccount(_creditor, _debtor);
+        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
 
         // reduce of creditlines and interests given is always possible
-        if (_creditlineGiven <= account.creditlineGiven && _creditlineReceived <= account.creditlineReceived && _interestRateGiven <= account.interestRateGiven && _interestRateReceived == account.interestRateReceived) {
+        if (_creditlineGiven <= trustlineAgreement.creditlineGiven && _creditlineReceived <= trustlineAgreement.creditlineReceived && _interestRateGiven <= trustlineAgreement.interestRateGiven && _interestRateReceived == trustlineAgreement.interestRateReceived) {
             _setTrustline(
                 _creditor,
                 _debtor,
@@ -969,9 +1009,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         int16 interestRateGiven = defaultInterestRate;
         int16 interestRateReceived = defaultInterestRate;
         if (customInterests) {
-            Account memory account = _loadAccount(_creditor, _debtor);
-            interestRateGiven = account.interestRateGiven;
-            interestRateReceived = account.interestRateReceived;
+            TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+            interestRateGiven = trustlineAgreement.interestRateGiven;
+            interestRateReceived = trustlineAgreement.interestRateReceived;
         }
         return _updateTrustline(
             _creditor,
@@ -993,17 +1033,18 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     )
         internal
     {
-        Account memory _account = _loadAccount(_creditor, _debtor);
+        Trustline memory _trustline = _loadTrustline(_creditor, _debtor);
 
         // Because the interest rate might change, we need to apply interests.
-        _applyInterests(_account);
+        _applyInterests(_trustline);
 
         addToUsersAndFriends(_creditor, _debtor);
-        _account.creditlineGiven = _creditlineGiven;
-        _account.creditlineReceived = _creditlineReceived;
-        _account.interestRateGiven = _interestRateGiven;
-        _account.interestRateReceived = _interestRateReceived;
-        _storeAccount(_creditor, _debtor, _account);
+        _trustline.agreement.creditlineGiven = _creditlineGiven;
+        _trustline.agreement.creditlineReceived = _creditlineReceived;
+        _trustline.agreement.interestRateGiven = _interestRateGiven;
+        _trustline.agreement.interestRateReceived = _interestRateReceived;
+        _storeTrustlineBalances(_creditor, _debtor, _trustline.balances);
+        _storeTrustlineAgreement(_creditor, _debtor, _trustline.agreement);
 
         emit TrustlineUpdate(
             _creditor,
@@ -1134,29 +1175,29 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     // Calculates a representation of how happy or unhappy a participant is because of the interests after a transfer
     // The higher the value returned, the higher the happiness of the sender and the higher the unhappiness of the receiver
-    // This is called after the transfer has been done, so _account is the account from the senders view after the transfer
+    // This is called after the transfer has been done, so _trustline is the trustline from the senders view after the transfer
     // has been done. _balanceBefore is the sender's balance before the transfer has been done.
     function _interestHappiness(
-        Account memory _account,
+        Trustline memory _trustline,
         int72 _balanceBefore
     )
         internal view
         returns (int)
     {
-        int72 balance = _account.balance;
+        int72 balance = _trustline.balances.balance;
         int72 transferredValue = _balanceBefore - balance;
 
         if (_balanceBefore <= 0) {
             // Sender already owes receiver, this will only effect the interest rate received
-            return - int(transferredValue) * _account.interestRateReceived;
+            return - int(transferredValue) * _trustline.agreement.interestRateReceived;
         } else if (balance >= 0) {
             // Receiver owes sender before and after the transfer. This only effects the interest rate received
-            return - int(transferredValue) * _account.interestRateGiven;
+            return - int(transferredValue) * _trustline.agreement.interestRateGiven;
         } else {
             // It effects both interest rates
             // Before the transfer: Receiver owes to sender balanceBefore;
             // After the transfer: Sender owes to receiver balance;
-            return - int(_balanceBefore) * _account.interestRateGiven + int(balance) * _account.interestRateReceived;
+            return - int(_balanceBefore) * _trustline.agreement.interestRateGiven + int(balance) * _trustline.agreement.interestRateReceived;
         }
     }
 
