@@ -1,0 +1,25 @@
+{
+  "name": "trustlines-contracts-abi",
+  "version": "0.0.0",
+  "description": "ABI of the trustlines smart contracts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trustlines-network/contracts.git"
+  },
+  "keywords": [
+    "trustlines",
+    "abi",
+    "smart",
+    "contracts"
+  ],
+  "author": "trustlines-network",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/trustlines-network/contracts/issues"
+  },
+  "homepage": "https://github.com/trustlines-network/contracts#readme"
+}
