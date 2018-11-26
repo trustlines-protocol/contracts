@@ -97,3 +97,28 @@ jobs:
           on:
             all_branches: true
             condition: $TRAVIS_BRANCH =~ ^([0-9]+.*)$
+
+    - stage: deploying
+      name: npm bin
+      before_install:
+        - sudo apt-get install -y nodejs npm
+      install:
+      - pip install -c constraints.txt -r requirements.txt
+      - curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux && chmod +x $HOME/bin/solc
+      - /usr/bin/env VIRTUALENV='virtualenv -p python3' make compile
+      script:
+        - /bin/true
+      before_deploy:
+        - cd py-bin
+        - npm version $(git describe --tags)
+      deploy:
+        - provider: npm
+          skip_cleanup: true
+          email:
+            secure: "WEgsJKf3ZVcFOaXje0xT//J8VVXZGKYLMZcfSJjIEWdpKuXtEC+tgOihGMXgzpnlpOBTUCgPWd1y1qGuDeGBMW71TdTKC8We5xUc+rfyk7aeuyNWb7WhYRaisNAxxtlS9AstWRGPlSlFeMD0UxFAZxqQU3Dd/6/Zpk7Rz2PP0K09UXldIGEXDMr20p0yqY5cO78i0sCGHq7Nv+uKtahb2cLJ9RNu12JUZbPPJaLT4mHRRbupx7VV0/xuiAO5lvvmWQDSOrjzGF1qjeLRQMc76ttPxdrU3LrWfRaxcF59uMBsZ7NDXFiNLM6xJ1GjJyFvgiuYUqZuqwGBNIwtMXE0PWsvaeikO1IAP7hw1KMtJg00hglFcdea4JBr3hXyRzh/V7OrtOeArO5o7GYyaQ9pOxjwhTOOkJF/3EFEH6U9uEXJhQVSq7EBNXRI3J1itcm4AOmMNzp27SW7yAyg6uKacjYn1ce5BNZ/imIZlC5b2ftib4yyok0AP4bfuNHoEQNwbhvZox51rM/vVraPg/eZwRvzY/5X2wrP8aHZ/mkl8zbzTiaqMN2D+zVPMyWHxhr1VvxUqpgVnBWmh1j+QQqP6hjV+rmi8/62nH/A4+XWf/GU4ThwnnbGeTqCPvHUsHW4L1WK2ka6xb602sxh8o0dzFJdsgkH0F/JSmjC0QF+Wj8="
+          api_key:
+            secure: "l9BHCuZQMY0MEA8Sg6xVwGzk+6LBoG1ep009/LYfrDedbqHRqURUCW8+a+mEnlhKtfgV1IBOHhvZRqCZszuq1jRSrMipEDzpfDLpbcOFkTfto+UUiQq8GF6oUG1uMoy+Ow4eZef1zAo0g9hfwVrrvUv8riOjeYZjYZ+pwva7PxIWCGX72kD40/WgHpYkPJLp1KO4ITqyy3VqaL1u5hDnAECOiKiXwSa06I5oVab6lCfceXFeNtNmivFCUag1wMsUJm5GQ4+E16X5hm40DzJGqupaL4sHo8sQwNHRIeBu1PbLO76UjmpbIFfV4mlt75NvUi6zGqFL+PRyEIvE71JDPiwXl9+9YL9ZBpfwJdjTJHa2TmyPdtE+VdoNYFnY34wrkNoMGB/cjcMuN7NlNJBhXmvMCJB48iIE+aaEM/t+oVxd7KNYpCKFE9izOnPMINAEMWvOq2o5JnTx3xGBqArENLpx1IevsoKXYYIchigPeI2tLmC5Hy8n9D/i8uFvQprjntVVLldEfA+GYIG0h0kg48qolUqTEknM174ce51l4HuyQV6c9HJoWQu5Z+Tbds6hYU3dSR5Cu7HM4BclrBQiL52sCkKTva6Dyr/WWQsLgbEpDQ1zCUGKV1nvzUWoAftbnkNw78ZMjHQzkW51PxlhxljK/QRTe6Cw9pSPHQo72EU="
+          tag: latest
+          on:
+            all_branches: true
+            condition: $TRAVIS_BRANCH =~ ^([0-9]+.*)$
