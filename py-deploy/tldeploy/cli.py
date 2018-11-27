@@ -65,7 +65,7 @@ def currencynetwork(name: str, symbol: str, decimals: int, jsonrpc: str, fee_rat
     if prevent_mediator_interests and not custom_interests:
         raise click.BadParameter('Prevent mediator interests is not necessary if custom interests are disabled.')
 
-    fee_divisor = 1 / fee_rate * 100
+    fee_divisor = 1 / fee_rate * 100 if fee_rate != 0 else 0
     if int(fee_divisor) != fee_divisor:
         raise click.BadParameter('This fee rate is not usable')
     fee_divisor = int(fee_divisor)
