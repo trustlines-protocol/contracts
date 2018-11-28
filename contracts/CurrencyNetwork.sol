@@ -593,6 +593,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         for (uint i = _path.length; i > 0; i--) {
             // the address of the receiver is _path[i-1]
             address sender;
+            uint64 fee;
             if (i == 1) {
                 sender = _from;
             } else {
@@ -602,7 +603,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             Trustline memory trustline = _loadTrustline(sender, _path[i-1]);
             _applyInterests(trustline);
 
-            uint64 fee = _calculateFees(forwardedValue, trustline.balances.balance, capacityImbalanceFeeDivisor);
+            if (i == _path.length) {
+                fee = 0; // receiver should not get a fee
+            } else {
+                fee = _calculateFees(forwardedValue, trustline.balances.balance, capacityImbalanceFeeDivisor);
+            }
+
             // forward the value + the fee
             forwardedValue += fee;
             //Overflow check
