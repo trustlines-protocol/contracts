@@ -121,7 +121,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function CurrencyNetwork() public {
-        // don't do anything here due to upgradeability issues (no contructor-call on replacement).
+        // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
 
     function() external {}
@@ -164,6 +164,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     /**
      * @notice send `_value` token to `_to` from `msg.sender`
+     * The fees will be payed by the sender, so `_value` is the amount received by `_to`
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
@@ -178,7 +179,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         returns (bool _success)
     {
-        _success = _mediatedTransfer(
+        _success = _mediatedTransferSenderPays(
             msg.sender,
             _to,
             _value,
@@ -213,7 +214,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         require(authorized[msg.sender]);
 
-        success = _mediatedTransfer(
+        success = _mediatedTransferSenderPays(
             _from,
             _to,
             _value,
@@ -223,6 +224,38 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         if (success) {
             emit Transfer(
                 _from,
+                _to,
+                _value);
+        }
+    }
+
+    /**
+     * @notice send `_value` token to `_to` from `msg.sender`
+     * The fees will be payed by the receiver, so `_value` is the amount that is sent out by `msg.sender`
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _maxFee Maximum fee the sender wants to pay
+     * @param _path Path between msg.sender and _to
+     **/
+    function transferReceiverPays(
+        address _to,
+        uint64 _value,
+        uint64 _maxFee,
+        address[] _path
+    )
+    external
+    returns (bool _success)
+    {
+        _success = _mediatedTransferReceiverPays(
+            msg.sender,
+            _to,
+            _value,
+            _maxFee,
+            _path);
+
+        if (_success) {
+            emit Transfer(
+                msg.sender,
                 _to,
                 _value);
         }
@@ -570,7 +603,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         _trustline.balances.mtime = uint32(now);
     }
 
-    function _mediatedTransfer(
+    function _mediatedTransferSenderPays(
         address _from,
         address _to,
         uint64 _value,
@@ -668,6 +701,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         for (uint i = 0; i < _path.length; i++) {
             // the address of the receiver is _path[i]
             address sender;
+            uint64 fee;
             if (i == 0) {
                 sender = _from;
             } else {
@@ -677,22 +711,25 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             Trustline memory trustline = _loadTrustline(sender, _path[i]);
             _applyInterests(trustline);
 
-            uint64 fee = _calculateFees(forwardedValue, trustline.balances.balance, capacityImbalanceFeeDivisor);
-            // forward the value minus the fee
-            require(forwardedValue>=fee);
-            forwardedValue -= fee;
-            //Overflow check
-            require(forwardedValue >= fee);
-            fees += fee;
-            require(fees <= _maxFee);
-
-
             int72 balanceBefore = trustline.balances.balance;
 
             _applyDirectTransfer(
                 trustline,
                 forwardedValue);
 
+            if (i == _path.length - 1) {
+                fee = 0; // receiver should not get a fee
+            } else {
+                fee = _calculateFees(forwardedValue, balanceBefore, capacityImbalanceFeeDivisor);
+            }
+            require(forwardedValue>=fee);
+
+            // Underflow check
+            require(forwardedValue > fee);
+            forwardedValue -= fee;
+
+            fees += fee;
+            require(fees <= _maxFee);
 
             if (preventMediatorInterests) {
                 // prevent intermediaries from paying more interests than they receive
@@ -769,7 +806,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _path);
         } else if (balances.balance < 0) {
             require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[_path.length - 2] == _otherParty);
-            _mediatedTransfer(
+            _mediatedTransferSenderPays(
                 _from,
                 _from,
                 uint32(-balances.balance),
