@@ -77,10 +77,17 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
     assert contract.functions.spendableTo(B, A).call() == 140
 
 
+def test_rounding_fee(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    # test that fee is really 1%
+    contract.functions.transfer(accounts[2], 99, 1, [accounts[1], accounts[2]]).transact({'from': accounts[0]})
+    assert contract.functions.balance(accounts[0], accounts[1]).call() == -99 - 1
+
+
 def test_max_fee(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(accounts[1], 100, 1, [accounts[1], accounts[2]]).transact({'from': accounts[0]})
+        contract.functions.transfer(accounts[1], 110, 1, [accounts[1], accounts[2]]).transact({'from': accounts[0]})
 
 
 def test_send_back_with_fees(currency_network_contract_with_trustlines, accounts):

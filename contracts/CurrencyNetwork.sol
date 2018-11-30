@@ -639,7 +639,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             if (i == _path.length) {
                 fee = 0; // receiver should not get a fee
             } else {
-                fee = _calculateFees(forwardedValue, trustline.balances.balance, capacityImbalanceFeeDivisor);
+                fee = _calculateFeesReverse(_imbalanceGenerated(forwardedValue, trustline.balances.balance), capacityImbalanceFeeDivisor);
             }
 
             // forward the value + the fee
@@ -736,7 +736,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             }
 
             // calculate fees for next mediator
-            fee = _calculateFees(forwardedValue, balanceBefore, capacityImbalanceFeeDivisor);
+            fee = _calculateFees(_imbalanceGenerated(forwardedValue, balanceBefore), capacityImbalanceFeeDivisor);
             // Underflow check
             require(forwardedValue > fee);
             forwardedValue -= fee;
@@ -1137,30 +1137,56 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function _calculateFees(
-        uint64 _value,
-        int72 _balance,
+        uint64 _imbalanceGenerated,
         uint16 _capacityImbalanceFeeDivisor
     )
         internal pure
         returns (uint64)
     {
-        if (_capacityImbalanceFeeDivisor == 0) {
+        if (_capacityImbalanceFeeDivisor == 0 || _imbalanceGenerated == 0) {
             return 0;
         }
+        // Calculate the fees with c * imbalance = imbalance / divisor
+        // We round up by using (imbalance - 1) / divisor + 1
+        return (_imbalanceGenerated - 1) / _capacityImbalanceFeeDivisor + 1;
+    }
 
+    function _calculateFeesReverse(
+        uint64 _imbalanceGenerated,
+        uint16 _capacityImbalanceFeeDivisor
+    )
+        internal pure
+        returns (uint64)
+    {
+        if (_capacityImbalanceFeeDivisor == 0 || _imbalanceGenerated == 0) {
+            return 0;
+        }
+        // Calculate the fees in reverse with c * imbalance / (1 - c) = imbalance / (divisor - 1)
+        // We round up using (imbalance - 1) / (divisor - 1) + 1
+        return (_imbalanceGenerated - 1) / (_capacityImbalanceFeeDivisor - 1) + 1;
+    }
+
+    function _imbalanceGenerated(
+        uint64 _value,
+        int72 _balance
+    )
+        internal pure
+        returns (uint64)
+    {
         int72 imbalanceGenerated = int72(_value);
         if (_balance > 0) {
             imbalanceGenerated = _value - _balance;
-            if (imbalanceGenerated <= 0) {
-                return 0;
-            }
             // Overflow
             if (imbalanceGenerated > _value) {
                 return 0;
             }
         }
-        require(uint64(imbalanceGenerated) == imbalanceGenerated);
-        return uint64(uint64(imbalanceGenerated) / _capacityImbalanceFeeDivisor + 1);  // minimum fee is 1
+        if (imbalanceGenerated <= 0) {
+            return 0;
+        }
+        uint64 result = uint64(imbalanceGenerated);
+        require(result == imbalanceGenerated);
+        return result;
     }
 
     function _calculateBalanceWithInterests(
