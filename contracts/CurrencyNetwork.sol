@@ -899,6 +899,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return trustlineRequest;
     }
 
+    function _deleteTrustlineRequest(address _a, address _b) internal constant {
+        delete requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
+    }
+
     function _storeTrustlineRequest(address _a, address _b, TrustlineRequest _trustlineRequest) internal {
         if (!customInterests) {
             assert(_trustlineRequest.interestRateGiven == defaultInterestRate);
@@ -941,6 +945,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         // reduce of creditlines and interests given is always possible
         if (_creditlineGiven <= trustlineAgreement.creditlineGiven && _creditlineReceived <= trustlineAgreement.creditlineReceived && _interestRateGiven <= trustlineAgreement.interestRateGiven && _interestRateReceived == trustlineAgreement.interestRateReceived) {
+            _deleteTrustlineRequest(_creditor, _debtor);
             _setTrustline(
                 _creditor,
                 _debtor,
@@ -957,6 +962,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         // if original initiator is debtor, try to accept request
         if (trustlineRequest.initiator == _debtor) {
             if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateGiven <= trustlineRequest.interestRateReceived && _interestRateReceived == trustlineRequest.interestRateGiven) {
+                _deleteTrustlineRequest(_creditor, _debtor);
                 // _debtor and _creditor is switched because we want the initiator of the trustline to be _debtor.
                 // So every Given / Received has to be switched.
                 _setTrustline(

@@ -433,6 +433,19 @@ def test_cannot_accept_old_trustline_interests(currency_network_contract_custom_
     assert contract.events.TrustlineUpdate.createFilter(fromBlock=0).get_all_entries() == []
 
 
+def test_cannot_accept_trustline_request_after_reduce(currency_network_contract_custom_interest,
+                                                      accounts):
+    contract = currency_network_contract_custom_interest
+
+    A, B, *rest = accounts
+    contract.transact({"from": A}).updateTrustline(B, 50, 100, 0, 0)  # Propose trustline
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 0)  # Accept trustline
+    contract.transact({"from": A}).updateTrustline(B, 10, 20, 0, 0)  # Lower trustline
+    contract.transact({"from": B}).updateTrustline(A, 100, 50, 0, 0)  # Try to accept old trustline
+    assert contract.call().creditline(A, B) == 10
+    assert contract.call().creditline(B, A) == 20
+
+
 def test_update_trustline_with_custom_while_forbidden(currency_network_contract, accounts):
     '''Verifies that if the network uses default interests of 0, no custom interests can be put'''
     contract = currency_network_contract

@@ -123,4 +123,4 @@ def test_cost_update_reduce_need_no_accept_trustline(web3, currency_network_cont
     tx_hash = contract.functions.updateTrustline(B, 99, 150).transact({"from": A})
     assert contract.functions.creditline(A, B).call() == 99
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, 'Reduce Trustline', gas_cost, limit=54000)
+    report_gas_costs(table, 'Reduce Trustline', gas_cost, limit=66000)
