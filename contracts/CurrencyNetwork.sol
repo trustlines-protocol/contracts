@@ -693,9 +693,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
-        int receiverUnhappiness = 0;
-        int receiverHappiness = 0;
-        bool reducingDebtOfNextHopOnly = true;
+        int senderHappiness = - 2**255;
+        int senderUnhappiness = - 2**255;
+        bool reducingDebtOnly = true;
 
         // check path starting from sender correctly accumulate the fee
         for (uint i = 0; i < _path.length; i++) {
@@ -717,13 +717,26 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 trustline,
                 forwardedValue);
 
-            if (i == _path.length - 1) {
-                fee = 0; // receiver should not get a fee
-            } else {
-                fee = _calculateFees(forwardedValue, balanceBefore, capacityImbalanceFeeDivisor);
+            if (preventMediatorInterests) {
+                // prevent intermediaries from paying more interests than they receive
+                // unless the transaction helps in reducing the debt of the next hop in the path
+                senderUnhappiness = senderHappiness;  // sender was the receiver in last iteration
+                senderHappiness = _interestHappiness(trustline, balanceBefore);
+                reducingDebtOnly = trustline.balances.balance >= 0;
+                require(senderHappiness >= senderUnhappiness || reducingDebtOnly);
             }
-            require(forwardedValue>=fee);
 
+            // store only balance because trustline agreement did not change
+            _storeTrustlineBalances(sender, _path[i], trustline.balances);
+            // Should be removed later
+            emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
+
+            if (i == _path.length - 1) {
+                break; // receiver is not a mediator, so no fees
+            }
+
+            // calculate fees for next mediator
+            fee = _calculateFees(forwardedValue, balanceBefore, capacityImbalanceFeeDivisor);
             // Underflow check
             require(forwardedValue > fee);
             forwardedValue -= fee;
@@ -731,19 +744,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             fees += fee;
             require(fees <= _maxFee);
 
-            if (preventMediatorInterests) {
-                // prevent intermediaries from paying more interests than they receive
-                // unless the transaction helps in reducing the debt of the next hop in the path
-                receiverHappiness = receiverUnhappiness;  // receiver was the sender in last iteration
-                receiverUnhappiness = _interestHappiness(trustline, balanceBefore);
-                require(receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly);
-                reducingDebtOfNextHopOnly = trustline.balances.balance >= 0;
-            }
-
-            // store only balance because trustline agreement did not change
-            _storeTrustlineBalances(sender, _path[i], trustline.balances);
-            // Should be removed later
-            emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
         }
 
         return true;
