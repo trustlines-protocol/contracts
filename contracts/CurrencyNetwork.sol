@@ -304,7 +304,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _creditlineReceived The creditline limit given _debtor
      * @return true, if the credit was successful
      */
-    function updateTrustline(
+    function updateCreditlimits(
         address _debtor,
         uint64 _creditlineGiven,
         uint64 _creditlineReceived
@@ -314,7 +314,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         address _creditor = msg.sender;
 
-        return _updateTrustline(
+        return _updateCreditlimits(
             _creditor,
             _debtor,
             _creditlineGiven,
@@ -1046,7 +1046,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         }
     }
 
-    function _updateTrustline(
+    function _updateCreditlimits(
         address _creditor,
         address _debtor,
         uint64 _creditlineGiven,

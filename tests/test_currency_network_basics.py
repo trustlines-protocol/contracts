@@ -257,7 +257,7 @@ def test_send_more(currency_network_contract_with_trustlines, accounts):
 def test_update_without_accept_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
+    contract.functions.updateCreditlimits(B, 50, 100).transact({"from": A})
     assert contract.functions.creditline(A, B).call() == 0
     assert contract.functions.creditline(B, A).call() == 0
     assert (
@@ -275,8 +275,8 @@ def test_update_without_accept_trustline(currency_network_contract, accounts):
 def test_update_with_accept_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50).transact({"from": B})
+    contract.functions.updateCreditlimits(B, 50, 100).transact({"from": A})
+    contract.functions.updateCreditlimits(A, 100, 50).transact({"from": B})
     assert contract.functions.creditline(A, B).call() == 50
     assert contract.functions.creditline(B, A).call() == 100
     assert (
@@ -296,8 +296,8 @@ def test_update_with_accept_trustline(currency_network_contract, accounts):
 def test_update_with_accept_different_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 49).transact({"from": B})
+    contract.functions.updateCreditlimits(B, 50, 100).transact({"from": A})
+    contract.functions.updateCreditlimits(A, 100, 49).transact({"from": B})
     # this was changed so it will accept the lower common ground
     assert contract.functions.creditline(A, B).call() == 49
     assert contract.functions.creditline(B, A).call() == 100
@@ -318,9 +318,9 @@ def test_update_with_accept_different_trustline(currency_network_contract, accou
 def test_update_with_accept_2nd_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
-    contract.functions.updateTrustline(B, 50, 99).transact({"from": A})
-    contract.functions.updateTrustline(A, 99, 50).transact({"from": B})
+    contract.functions.updateCreditlimits(B, 50, 100).transact({"from": A})
+    contract.functions.updateCreditlimits(B, 50, 99).transact({"from": A})
+    contract.functions.updateCreditlimits(A, 99, 50).transact({"from": B})
     assert contract.functions.creditline(A, B).call() == 50
     assert contract.functions.creditline(B, A).call() == 99
     assert (
@@ -340,9 +340,9 @@ def test_update_with_accept_2nd_trustline(currency_network_contract, accounts):
 def test_cannot_accept_old_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
-    contract.functions.updateTrustline(B, 50, 99).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50).transact({"from": B})
+    contract.functions.updateCreditlimits(B, 50, 100).transact({"from": A})
+    contract.functions.updateCreditlimits(B, 50, 99).transact({"from": A})
+    contract.functions.updateCreditlimits(A, 100, 50).transact({"from": B})
     assert contract.functions.creditline(A, B).call() == 0
     assert contract.functions.creditline(B, A).call() == 0
     assert (
@@ -358,7 +358,7 @@ def test_update_reduce_need_no_accept_trustline(
     A, B, *rest = accounts
     assert contract.functions.creditline(A, B).call() == 100
     assert contract.functions.creditline(B, A).call() == 150
-    contract.functions.updateTrustline(B, 99, 150).transact({"from": A})
+    contract.functions.updateCreditlimits(B, 99, 150).transact({"from": A})
     assert contract.functions.creditline(A, B).call() == 99
     assert contract.functions.creditline(B, A).call() == 150
     assert (
@@ -573,8 +573,8 @@ def test_transfer_event(currency_network_contract_with_trustlines, accounts):
 def test_update_trustline_add_users(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50).transact({"from": B})
+    contract.functions.updateCreditlimits(B, 50, 100).transact({"from": A})
+    contract.functions.updateCreditlimits(A, 100, 50).transact({"from": B})
     assert len(contract.call().getUsers()) == 2
 
 
@@ -603,8 +603,8 @@ MAX_CREDITLINE = 2**CREDITLINE_WIDTH - 1
 def test_max_transfer(currency_network_contract, accounts):
     A, B, *rest = accounts
     contract = currency_network_contract
-    contract.functions.updateTrustline(B, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": A})
-    contract.functions.updateTrustline(A, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": B})
+    contract.functions.updateCreditlimits(B, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": A})
+    contract.functions.updateCreditlimits(A, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": B})
     contract.functions.transfer(B, MAX_CREDITLINE, 0, [B]).transact({"from": A})
 
     assert contract.functions.balance(A, B).call() == -MAX_CREDITLINE
@@ -613,8 +613,8 @@ def test_max_transfer(currency_network_contract, accounts):
 def test_overflow_max_transfer(currency_network_contract, accounts):
     A, B, *rest = accounts
     contract = currency_network_contract
-    contract.functions.updateTrustline(B, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": A})
-    contract.functions.updateTrustline(A, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": B})
+    contract.functions.updateCreditlimits(B, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": A})
+    contract.functions.updateCreditlimits(A, MAX_CREDITLINE, MAX_CREDITLINE).transact({"from": B})
     contract.functions.transfer(B, MAX_CREDITLINE, 0, [B]).transact({"from": A})
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(B, 1, 0, [B]).transact({"from": A})
