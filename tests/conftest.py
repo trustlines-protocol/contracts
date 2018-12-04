@@ -8,7 +8,7 @@ import eth_tester.backends.pyevm.main
 
 @pytest.fixture(scope="session", autouse=True)
 def increase_gas_limit():
-    """increate eth_tester's GAS_LIMIT
+    """increase eth_tester's GAS_LIMIT
 
     Otherwise we can't deploy our contract"""
     assert eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT < 6 * 10 ** 6

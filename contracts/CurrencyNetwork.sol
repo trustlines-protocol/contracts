@@ -352,6 +352,29 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     /**
+     * @notice `msg.sender` closes a trustline with `_otherParty`
+     * For this to succeed the balance of this trustline needs to be zero
+     * @param _otherParty The other party of the trustline agreement
+     * @return true, if the trustline was closed
+     */
+    function closeTrustline(
+        address _otherParty
+    )
+        external
+        returns (bool _success)
+    {
+
+        address from = msg.sender;
+
+        _closeTrustline(
+            from,
+            _otherParty
+        );
+
+        return true;
+    }
+
+    /**
      * @dev The ERC20 Token balance for the spender. This is different from the balance within a trustline.
      *      In Trustlines this is the spendable amount
      * @param _owner The address from which the balance will be retrieved
@@ -756,9 +779,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         TrustlineBalances memory balances = _loadTrustlineBalances(_from, _otherParty);
-        assert(balances.balance == 0);
+        require(balances.balance == 0);
 
-        delete trustlines[uniqueIdentifier(_from, _otherParty)];
+        bytes32 uniqueId = uniqueIdentifier(_from, _otherParty);
+        delete requestedTrustlineUpdates[uniqueId];
+        delete trustlines[uniqueId];
         friends[_from].remove(_otherParty);
         friends[_otherParty].remove(_from);
         emit TrustlineUpdate(
