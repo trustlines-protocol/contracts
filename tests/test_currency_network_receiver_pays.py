@@ -163,12 +163,17 @@ def test_transfer_0_received(currency_network_contract_with_trustlines, accounts
 
 @pytest.mark.parametrize('value', [4, 100, 101, 102, 1000, 9999, 10000, 10001, 50000, 50506, 123456])
 def test_fees_are_the_same(currency_network_contract_with_high_trustlines, accounts, value):
+    """Test that the fees are the same, no matter if the sender or the receiver pays the fees
+    For that we check that if someone sends a transfer where the receiver pays, so `value` is sent but a smaller
+    amount `received` is received, it will result in the same value sent if sender pays is chosen and `received`
+    is used as value for this transfer.
+    Because the fee function is not injective we allow for a difference of 1
+    """
     contract = currency_network_contract_with_high_trustlines
     contract.functions.transferReceiverPays(accounts[3], value, 10000,
                                             [accounts[1], accounts[2], accounts[3]]).transact(
         {'from': accounts[0]})
     return_value = contract.functions.balance(accounts[3], accounts[2]).call()
-    print(return_value)
     contract.functions.transfer(accounts[3], return_value, 10000, [accounts[2], accounts[4], accounts[3]]).transact(
         {'from': accounts[0]})
     balance_sender = contract.functions.balance(accounts[0], accounts[2]).call()
