@@ -35,6 +35,11 @@ jsonrpc_option = click.option('--jsonrpc',
                               show_default=True,
                               metavar='URL')
 
+currency_network_contract_name_option = click.option(
+    '--currency-network-contract-name',
+    help='name of the currency network contract to deploy (only use this for testing)',
+    default="CurrencyNetwork")
+
 
 @cli.command(short_help='Deploy a currency network contract.')
 @click.argument('name', type=str)
@@ -51,9 +56,11 @@ jsonrpc_option = click.option('--jsonrpc',
               is_flag=True, default=False)
 @click.option('--exchange-contract', help='Address of the exchange contract to use. [Optional] [default: None]',
               default=None, type=str, metavar='ADDRESS', show_default=True)
+@currency_network_contract_name_option
 @jsonrpc_option
 def currencynetwork(name: str, symbol: str, decimals: int, jsonrpc: str, fee_rate: float, default_interest_rate: float,
-                    custom_interests: bool, prevent_mediator_interests: bool, exchange_contract: str):
+                    custom_interests: bool, prevent_mediator_interests: bool, exchange_contract: str,
+                    currency_network_contract_name: str):
     """Deploy a currency network contract with custom settings and optionally connect it to an exchange contract"""
     if exchange_contract is not None and not is_checksum_address(exchange_contract):
         raise click.BadParameter('{} is not a valid address.'.format(exchange_contract))
@@ -86,7 +93,8 @@ def currencynetwork(name: str, symbol: str, decimals: int, jsonrpc: str, fee_rat
         default_interest_rate=default_interest_rate,
         custom_interests=custom_interests,
         prevent_mediator_interests=prevent_mediator_interests,
-        exchange_address=exchange_contract
+        exchange_address=exchange_contract,
+        currency_network_contract_name=currency_network_contract_name
     )
 
     click.echo(
@@ -128,7 +136,8 @@ def exchange(jsonrpc: str):
 @click.option('--file', help='Output file for the addresses in json', default='',
               type=click.Path(dir_okay=False, writable=True))
 @jsonrpc_option
-def test(jsonrpc: str, file: str):
+@currency_network_contract_name_option
+def test(jsonrpc: str, file: str, currency_network_contract_name: str):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     This can be used for testing"""
 
@@ -158,7 +167,10 @@ def test(jsonrpc: str, file: str):
         }]
 
     web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
-    networks, exchange, unw_eth = deploy_networks(web3, network_settings)
+    networks, exchange, unw_eth = deploy_networks(
+        web3,
+        network_settings,
+        currency_network_contract_name=currency_network_contract_name)
     addresses = dict()
     network_addresses = [network.address for network in networks]
     exchange_address = exchange.address

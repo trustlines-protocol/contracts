@@ -108,9 +108,16 @@ def deploy_network(
     default_interest_rate=0,
     custom_interests=True,
     prevent_mediator_interests=False,
-    exchange_address=None
+    exchange_address=None,
+    currency_network_contract_name=None
 ):
-    currency_network = deploy("CurrencyNetwork", web3)
+    # CurrencyNetwork is the standard contract to deploy, If we're running
+    # tests or trying to export data for testing the python implementation of
+    # private functions, we may want deploy the TestCurrencyNetwork contract
+    # instead.
+    if currency_network_contract_name is None:
+        currency_network_contract_name = "CurrencyNetwork"
+    currency_network = deploy(currency_network_contract_name, web3)
 
     txid = currency_network.functions.init(name,
                                            symbol,
@@ -168,11 +175,18 @@ def deploy_proxied_network(web3, name, symbol, decimals, fee_divisor=100, exchan
     return proxied_trustlines
 
 
-def deploy_networks(web3, network_settings):
+def deploy_networks(web3, network_settings, currency_network_contract_name=None):
     exchange = deploy_exchange(web3)
     unw_eth = deploy_unw_eth(web3, exchange.address)
 
-    networks = [deploy_network(web3, exchange_address=exchange.address, **network_setting) for
-                network_setting in network_settings]
+    networks = [
+        deploy_network(
+            web3,
+            exchange_address=exchange.address,
+            currency_network_contract_name=currency_network_contract_name,
+            **network_setting,
+        )
+        for network_setting in network_settings
+    ]
 
     return networks, exchange, unw_eth
