@@ -1,3 +1,5 @@
+pragma solidity ^0.4.21;
+
 /*
   The sole purpose of this file is to be able to test the internal functions of
   the CurrencyNetwork or export test data to be used for testing the python

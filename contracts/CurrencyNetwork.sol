@@ -146,8 +146,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bool _customInterests,
         bool _preventMediatorInterests
     )
-        onlyOwner
         external
+        onlyOwner
     {
         // verifies that only one parameter is selected.
         require(! ((_defaultInterestRate != 0) && _customInterests));
@@ -433,8 +433,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint32 _mtime,
         int72 _balance
     )
-        onlyOwner
         external
+        onlyOwner
     {
         require(customInterests || (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate));
         if (customInterests) {
@@ -469,8 +469,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint32 _mtime,
         int72 _balance
     )
-        onlyOwner
         external
+        onlyOwner
     {
         _setAccount(
             _a,
@@ -498,7 +498,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     )
         external
     {
-        _closeTrustlineByTriangularTransfer(msg.sender, _otherParty, _maxFee, _path);
+        _closeTrustlineByTriangularTransfer(
+            msg.sender,
+            _otherParty,
+            _maxFee,
+            _path);
     }
 
     /**
@@ -837,9 +841,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 uint32(-balances.balance),
                 _maxFee,
                 _path);
-        } else {
-            /* balance is zero, there's nothing to do here */
-        }
+        } // else {} /* balance is zero, there's nothing to do here */
 
         _closeTrustline(_from, _otherParty);
     }
@@ -1012,7 +1014,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
 
         // reduce of creditlines and interests given is always possible
-        if (_creditlineGiven <= trustlineAgreement.creditlineGiven && _creditlineReceived <= trustlineAgreement.creditlineReceived && _interestRateGiven <= trustlineAgreement.interestRateGiven && _interestRateReceived == trustlineAgreement.interestRateReceived) {
+        if (_creditlineGiven <= trustlineAgreement.creditlineGiven &&
+            _creditlineReceived <= trustlineAgreement.creditlineReceived &&
+            _interestRateGiven <= trustlineAgreement.interestRateGiven &&
+            _interestRateReceived == trustlineAgreement.interestRateReceived) {
             _deleteTrustlineRequest(_creditor, _debtor);
             _setTrustline(
                 _creditor,

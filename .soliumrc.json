@@ -7,6 +7,7 @@
     "mixedcase": "error",
     "quotes": ["error", "double"],
     "security/no-inline-assembly": "off",
-    "security/no-block-members": "off"
+    "security/no-block-members": "off",
+    "operator-whitespace": "off"
   }
 }
