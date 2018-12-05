@@ -110,7 +110,7 @@ jobs:
         - /bin/true
       before_deploy:
         - cd py-bin
-        - npm version $(git describe --tags)
+        - ./set_npm_version.sh
       deploy:
         - provider: npm
           skip_cleanup: true
