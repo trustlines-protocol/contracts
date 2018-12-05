@@ -506,7 +506,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _spender The address from which the balance will be retrieved
      * @return spendable The spendable amount
      */
-    function spendable(address _spender) public constant returns (uint _spendable) {
+    function spendable(address _spender) public view returns (uint _spendable) {
         _spendable = 0;
         address[] storage myfriends = friends[_spender].list;
         for (uint i = 0; i < myfriends.length; i++) {
@@ -520,7 +520,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _receiver the receiver that receives the tokens
      * @return Amount of remaining tokens allowed to spend
      */
-    function spendableTo(address _spender, address _receiver) public constant returns (uint remaining) {
+    function spendableTo(address _spender, address _receiver) public view returns (uint remaining) {
         Trustline memory trustline = _loadTrustline(_spender, _receiver);
         int72 balance = trustline.balances.balance;
         uint64 creditline = trustline.agreement.creditlineReceived;
@@ -531,7 +531,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @notice The creditline limit given by `_creditor` to `_debtor`
      * @return Amount tokens allowed to spent
      */
-    function creditline(address _creditor, address _debtor) public constant returns (uint _creditline) {
+    function creditline(address _creditor, address _debtor) public view returns (uint _creditline) {
         // returns the current creditline given by A to B
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
         _creditline = trustlineAgreement.creditlineGiven;
@@ -541,7 +541,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @notice The interest rate given by `_creditor` to `_debtor`
      * @return Interest rate on the balance of the line
      */
-    function interestRate(address _creditor, address _debtor) public constant returns (int16 _interestRate) {
+    function interestRate(address _creditor, address _debtor) public view returns (int16 _interestRate) {
         // returns the current interests given by A to B
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
         _interestRate = trustlineAgreement.interestRateGiven;
@@ -550,46 +550,46 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     /*
      * @notice returns what B owes to A
      */
-    function balance(address _a, address _b) public constant returns (int _balance) {
+    function balance(address _a, address _b) public view returns (int _balance) {
         TrustlineBalances memory trustlineBalances = _loadTrustlineBalances(_a, _b);
         _balance = trustlineBalances.balance;
     }
 
-    function getFriends(address _user) public constant returns (address[]) {
+    function getFriends(address _user) public view returns (address[]) {
         return friends[_user].list;
     }
 
-    function getFriendsReturnSize(address _user) public constant returns (uint) {
+    function getFriendsReturnSize(address _user) public view returns (uint) {
         return getFriends(_user).length + 2;
     }
 
-    function getUsers() public constant returns (address[]) {
+    function getUsers() public view returns (address[]) {
         return users.list;
     }
 
-    function getUsersReturnSize() public constant returns (uint) {
+    function getUsersReturnSize() public view returns (uint) {
         // Returning a dynamically-sized array requires two extra slots.
         // One for the data location pointer, and one for the length.
         return getUsers().length + 2;
     }
 
-    function name() public constant returns (string) {
+    function name() public view returns (string) {
         return name;
     }
 
-    function nameLen() public constant returns (uint) {
+    function nameLen() public view returns (uint) {
         return bytes(name).length;
     }
 
-    function symbol() public constant returns (string) {
+    function symbol() public view returns (string) {
         return symbol;
     }
 
-    function symbolLen() public constant returns (uint) {
+    function symbolLen() public view returns (uint) {
         return bytes(symbol).length;
     }
 
-    function decimals() public constant returns (uint8) {
+    function decimals() public view returns (uint8) {
         return decimals;
     }
 
@@ -883,14 +883,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         addToUsersAndFriends(_a, _b);
     }
 
-    function _loadTrustline(address _a, address _b) internal constant returns (Trustline) {
+    function _loadTrustline(address _a, address _b) internal view returns (Trustline) {
         Trustline memory trustline;
         trustline.agreement = _loadTrustlineAgreement(_a, _b);
         trustline.balances = _loadTrustlineBalances(_a, _b);
         return trustline;
     }
 
-    function _loadTrustlineAgreement(address _a, address _b) internal constant returns (TrustlineAgreement) {
+    function _loadTrustlineAgreement(address _a, address _b) internal view returns (TrustlineAgreement) {
         TrustlineAgreement memory trustlineAgreement = trustlines[uniqueIdentifier(_a, _b)].agreement;
         TrustlineAgreement memory result;
         if (_a < _b) {
@@ -904,7 +904,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return result;
     }
 
-    function _loadTrustlineBalances(address _a, address _b) internal constant returns (TrustlineBalances) {
+    function _loadTrustlineBalances(address _a, address _b) internal view returns (TrustlineBalances) {
         TrustlineBalances memory balances = trustlines[uniqueIdentifier(_a, _b)].balances;
         TrustlineBalances memory result;
         if (_a < _b) {
@@ -962,12 +962,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         }
     }
 
-    function _loadTrustlineRequest(address _a, address _b) internal constant returns (TrustlineRequest) {
+    function _loadTrustlineRequest(address _a, address _b) internal view returns (TrustlineRequest) {
         TrustlineRequest memory trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
         return trustlineRequest;
     }
 
-    function _deleteTrustlineRequest(address _a, address _b) internal constant {
+    function _deleteTrustlineRequest(address _a, address _b) internal view {
         delete requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
     }
 

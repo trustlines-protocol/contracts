@@ -29,7 +29,7 @@ contract StandardToken is Token {
         }
     }
 
-    function balanceOf(address _owner) public constant returns (uint) {
+    function balanceOf(address _owner) public view returns (uint) {
         return balances[_owner];
     }
 
@@ -39,7 +39,7 @@ contract StandardToken is Token {
         return true;
     }
 
-    function allowance(address _owner, address _spender) public constant returns (uint) {
+    function allowance(address _owner, address _spender) public view returns (uint) {
         return allowed[_owner][_spender];
     }
 

@@ -528,7 +528,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Keccak-256 hash of order.
     function getOrderHash(address[5] orderAddresses, uint[6] orderValues)
         public
-        constant
+        view
         returns (bytes32)
     {
         return keccak256(
@@ -561,7 +561,7 @@ contract Exchange is SafeMath, Destructable {
         bytes32 r,
         bytes32 s)
         public
-        constant
+        view
         returns (bool)
     {
         return signer == ecrecover(
@@ -579,7 +579,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Rounding error is present.
     function isRoundingError(uint numerator, uint denominator, uint target)
         public
-        constant
+        view
         returns (bool)
     {
         uint remainder = mulmod(target, numerator, denominator);
@@ -601,7 +601,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Partial value of target.
     function getPartialAmount(uint numerator, uint denominator, uint target)
         public
-        constant
+        view
         returns (uint)
     {
         return safeDiv(safeMul(numerator, target), denominator);
@@ -612,7 +612,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Sum of values already filled and cancelled.
     function getUnavailableTakerTokenAmount(bytes32 orderHash)
         public
-        constant
+        view
         returns (uint)
     {
         return safeAdd(filled[orderHash], cancelled[orderHash]);
@@ -624,7 +624,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Token balance of owner.
     function getBalance(address token, address owner)
         internal
-        constant  // The called token contract may attempt to change state, but will not be able to due to an added gas limit.
+        view  // The called token contract may attempt to change state, but will not be able to due to an added gas limit.
         returns (uint)
     {
         return Token(token).balanceOf.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner); // Limit gas to prevent reentrancy
@@ -636,7 +636,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Allowance of token given to TokenTransferProxy by owner.
     function getAllowance(address token, address owner)
         internal
-        constant  // The called token contract may attempt to change state, but will not be able to due to an added gas limit.
+        view  // The called token contract may attempt to change state, but will not be able to due to an added gas limit.
         returns (uint)
     {
         return Token(token).allowance.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner, this); // Limit gas to prevent reentrancy

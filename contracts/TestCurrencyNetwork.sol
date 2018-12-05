@@ -7,6 +7,7 @@
 
 import "./CurrencyNetwork.sol";
 
+
 contract TestCurrencyNetwork is CurrencyNetwork {
     function TestCurrencyNetwork() public {
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).

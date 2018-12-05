@@ -22,7 +22,7 @@ library ItSet {
         }
     }
 
-    function contains(AddressSet storage self, address address_) internal constant returns (bool) {
+    function contains(AddressSet storage self, address address_) internal view returns (bool) {
         return self.addressToEntry[address_].index > 0;
     }
 
@@ -39,7 +39,7 @@ library ItSet {
         }
     }
 
-    function size(AddressSet storage self) internal constant returns (uint) {
+    function size(AddressSet storage self) internal view returns (uint) {
         return self.list.length;
     }
 }

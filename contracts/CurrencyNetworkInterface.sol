@@ -22,9 +22,9 @@ contract CurrencyNetworkInterface {
         external
         returns (bool success);
 
-    function balance(address _from, address _to) public constant returns (int);
+    function balance(address _from, address _to) public view returns (int);
 
-    function creditline(address _creditor, address _debtor) public constant returns (uint);
+    function creditline(address _creditor, address _debtor) public view returns (uint);
 
     event Transfer(address indexed _from, address indexed _to, uint _value);
 
