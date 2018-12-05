@@ -38,4 +38,3 @@ contract DummyToken is Ownable, StandardToken, SafeMath {
         balances[_target] = _value;
     }
 }
-

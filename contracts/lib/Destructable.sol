@@ -15,4 +15,3 @@ contract Destructable is Ownable {
         selfdestruct(owner);
     }
 }
-

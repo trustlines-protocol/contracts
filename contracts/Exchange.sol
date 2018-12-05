@@ -642,4 +642,3 @@ contract Exchange is SafeMath, Destructable {
         return Token(token).allowance.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner, this); // Limit gas to prevent reentrancy
     }
 }
-

@@ -5,26 +5,26 @@ Change Log
 -----------------------
 * Added interests to currency networks
 
-  A trustline now also consists of two interest rates given by the two parties to each other. 
+  A trustline now also consists of two interest rates given by the two parties to each other.
   These interest rates are used to calculate occured interests between the two parties. The balance
-  including the interests is updated whenever the balance (because of a transfer) or one of 
-  the interest rates (because of a trustline update) changes. To calculate the interests we 
-  approximate Continuous Compounding with a taylor series and use the current timestamp and 
-  the timestamp of the last update. 
+  including the interests is updated whenever the balance (because of a transfer) or one of
+  the interest rates (because of a trustline update) changes. To calculate the interests we
+  approximate Continuous Compounding with a taylor series and use the current timestamp and
+  the timestamp of the last update.
 
-* Added interest settings to deploy tool 
+* Added interest settings to deploy tool
 
   The deploy tool now allows deploying networks with different interests settings. The current options
   are: Default interests: If this is set, every trustline has the same interest rate.
   Custom interest: If this is set, every user can decide which interest rate he want to give.
-  Prevent mediator interests: Safe setting to prevent mediators from paying interests for 
-  mediated transfer by disallowing certain transfers. 
+  Prevent mediator interests: Safe setting to prevent mediators from paying interests for
+  mediated transfer by disallowing certain transfers.
 
 * Close a trustline
 
   Added a new function to do a triangular payment to close a trustline. This will set the balance
   between two user to zero and also removes all information about this trustline. This is still work
-  in progress and might change. 
+  in progress and might change.
 
 `0.2.0`_ (2018-09-19)
 -----------------------

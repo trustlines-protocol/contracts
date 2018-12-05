@@ -70,4 +70,3 @@ contract Authorizable is Ownable {
         emit LogAuthorizedAddressRemoved(target, msg.sender);
     }
 }
-
