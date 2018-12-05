@@ -38,7 +38,8 @@ jsonrpc_option = click.option('--jsonrpc',
 currency_network_contract_name_option = click.option(
     '--currency-network-contract-name',
     help='name of the currency network contract to deploy (only use this for testing)',
-    default="CurrencyNetwork")
+    default="CurrencyNetwork",
+    hidden=True)
 
 
 @cli.command(short_help='Deploy a currency network contract.')
