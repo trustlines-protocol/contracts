@@ -1,5 +1,4 @@
 VIRTUALENV ?= python3 -m venv
-export SETUPTOOLS_SCM_PRETEND_VERSION
 
 all:: venv-populus compile
 
@@ -28,8 +27,8 @@ install0:: SETUPTOOLS_SCM_PRETEND_VERSION = $(shell python3 -c 'from setuptools_
 install0:: PIP_DEPLOY_OPTIONS ?= -q -e
 install0:: compile
 	@echo "==> Installing py-bin/py-deploy into your local virtualenv"
-	/usr/bin/env pip install ./py-bin
-	/usr/bin/env pip install $(PIP_DEPLOY_OPTIONS) ./py-deploy
+	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install ./py-bin
+	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install $(PIP_DEPLOY_OPTIONS) ./py-deploy
 
 install:: install-requirements install0
 
