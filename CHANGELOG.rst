@@ -1,6 +1,37 @@
 ==========
 Change Log
 ==========
+`0.4.0`_ (2018-12-7)
+-----------------------
+* Remove the fees on the last hop
+
+  A user now only has to pay fees to the true mediators and not anymore to the receiver.
+  
+* Add transfer function where receiver pays the fees
+
+  It is now possible to make payments, where the receiver will pay the fees.
+
+* Round up fees
+
+  We are now properly rounding up the fees, where before we used an own formular that was 
+  already close to rounding up.
+
+* Bug Fix #159
+  that an old trustline request could be accepted
+
+`0.3.3`_ (2018-11-28)
+-----------------------
+* Bug fix deploy tool so that it is possible to deploy a network with zero fees
+* First version of trustlines-contracts-abi on npm. 
+  
+`0.3.2`_ (2018-11-26)
+-----------------------
+* Optimize gas cost of contracts
+  
+`0.3.1`_ (2018-11-13)
+-----------------------
+* Fix a dependency issue  
+  
 `0.3.0`_ (2018-11-12)
 -----------------------
 * Added interests to currency networks
@@ -61,3 +92,7 @@ The rest of the changes are only interesting for developers:
 .. _0.1.3: https://github.com/trustlines-network/contracts/compare/0.1.2...0.1.3
 .. _0.2.0: https://github.com/trustlines-network/contracts/compare/0.1.3...0.2.0
 .. _0.3.0: https://github.com/trustlines-network/contracts/compare/0.2.0...0.3.0
+.. _0.3.1: https://github.com/trustlines-network/contracts/compare/0.3.0...0.3.1
+.. _0.3.2: https://github.com/trustlines-network/contracts/compare/0.3.1...0.3.2
+.. _0.3.3: https://github.com/trustlines-network/contracts/compare/0.3.2...0.3.3
+.. _0.4.0: https://github.com/trustlines-network/contracts/compare/0.3.3...0.4.0
