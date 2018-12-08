@@ -18,8 +18,8 @@ repos:
       language_version: python3.6
       additional_dependencies: ["flake8-invalid-escape-sequences", "flake8-string-format", "flake8-per-file-ignores"]
     - id: trailing-whitespace
--   repo: https://github.com/schmir/solium-pre-commit
-    rev: 0.1.0
+-   repo: https://github.com/schmir/Ethlint.git
+    rev: bbbac907e7352d59fcd133f73295a042a2cdcb17
     hooks:
     - id: solium
       args: [--dir=contracts]
