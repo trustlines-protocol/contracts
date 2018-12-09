@@ -43,7 +43,7 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=["contrib", "docs", "tests"]),
-    install_requires=["web3>=4.7.1,<4.8.0", "click>=7.0", "trustlines-contracts-bin>=0.3.0,<0.4.0"],
+    install_requires=["web3>=4.7.1,<4.8.0", "click>=7.0", "trustlines-contracts-bin>=0.4.0a,<0.5.0"],
     python_requires=">=3.5",
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow

@@ -71,3 +71,4 @@ target/
 #project
 networks
 /py-bin/contracts.json
+/.requirements-installed
