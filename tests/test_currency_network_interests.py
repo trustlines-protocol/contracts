@@ -107,8 +107,8 @@ def test_interests_negative_balance(ethereum_tester_session,
     contract = currency_network_contract_default_interests
     current_time = int(time.time())
     ethereum_tester_session.time_travel(current_time + 10)
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 100, 100, 0, 0, current_time,
-                                   -100000000)
+    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 100, 100, 0, 0, current_time,
+                                  -100000000).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
@@ -130,8 +130,8 @@ def test_no_interests(ethereum_tester_session,
     contract = currency_network_contract_no_interests
     current_time = int(time.time())
     ethereum_tester_session.time_travel(current_time + 10)
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 0, 0, 0, 0, current_time,
-                                   100000000)
+    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, 0, 0, 0, 0, current_time,
+                                  100000000).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
@@ -150,7 +150,7 @@ def test_custom_interests(ethereum_tester_session,
     '''Tests custom interests setting, set with setAccount'''
 
     contract = currency_network_contract_custom_interests_safe_ripple
-    contract.transact().setAccount(accounts[0], accounts[1], 0, 2000000000, 0, 1234, 0, 0, 0, 0)
+    contract.functions.setAccount(accounts[0], accounts[1], 0, 2000000000, 0, 1234, 0, 0, 0, 0).transact()
     current_time = int(time.time())
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(accounts[1], 100000000, 2000000, [accounts[1]]).transact(
@@ -297,15 +297,15 @@ def test_negative_interests_default_positive_balance(ethereum_tester_session,
     contract = currency_network_contract_negative_interests
     current_time = int(time.time())
     ethereum_tester_session.time_travel(current_time + 10)
-    contract.transact().setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -100, -100, 0, 0, current_time,
-                                   100000000)
+    contract.functions.setAccount(accounts[0], accounts[1], 2000000000, 2000000000, -100, -100, 0, 0, current_time,
+                                  100000000).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(accounts[1], 1, 2, [accounts[1]]).transact(
         {'from': accounts[0]})
 
-    balance = contract.call().balance(accounts[0], accounts[1])
+    balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
     assert balance + 1 == pytest.approx(100000000 * exp(-0.01), abs=1)
 
