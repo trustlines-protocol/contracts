@@ -16,7 +16,7 @@
 
 */
 
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.25;
 
 import "./tokens/Token.sol";
 import "./lib/SafeMath.sol";
@@ -87,7 +87,7 @@ contract Exchange is SafeMath, Destructable {
         bytes32 orderHash;
     }
 
-    function Exchange() public {
+    constructor() public {
     }
 
     /*

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.25;
 
 
 import "./lib/it_set_lib.sol";
@@ -120,7 +120,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         _;
     }
 
-    function CurrencyNetwork() public {
+    constructor() public {
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
 

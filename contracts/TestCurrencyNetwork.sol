@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.25;
 
 /*
   The sole purpose of this file is to be able to test the internal functions of
@@ -11,7 +11,7 @@ import "./CurrencyNetwork.sol";
 
 
 contract TestCurrencyNetwork is CurrencyNetwork {
-    function TestCurrencyNetwork() public {
+    constructor() public {
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
 
