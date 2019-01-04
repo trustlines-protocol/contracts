@@ -1,0 +1,279 @@
+version: 2.1
+
+templates:
+  tagged-filter: &tagged-filter
+    tags:
+      only: /[0-9]+(\.[0-9]+)*/
+
+executors:
+  ubuntu-builder:
+    docker:
+      - image: trustlines/builder:master9
+        environment:
+          - SOLC_VERSION=v0.4.25
+    working_directory: ~/repo
+
+# define some common commands
+# see https://circleci.com/docs/2.0/configuration-reference/#commands-requires-version-21
+commands:
+  create-venv:
+    description: "Create venv"
+    steps:
+      - run:
+          name: Create python venv
+          command: |
+            python3 -m venv venv
+            pip install -U pip wheel setuptools
+
+  config-path:
+    description: "set environment variables and change PATH"
+    steps:
+    - run:
+        name: Configuring PATH
+        command: |
+          echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:${PATH}'
+          echo >> ${BASH_ENV} '. ~/.nvm/nvm.sh'
+jobs:
+  run-flake8:
+    executor: ubuntu-builder
+
+    steps:
+      - checkout
+      - config-path
+      - restore_cache:
+          key: v1-flake8-venv-{{ checksum "constraints.txt" }}
+      - create-venv
+      - run:
+          name: Install flake8
+          command: |
+            pip install flake8 flake8-string-format flake8-per-file-ignores -c constraints.txt
+      - save_cache:
+          key: v1-flake8-venv-{{ checksum "constraints.txt" }}
+          paths:
+            - venv
+      - run:
+          name: Run flake8
+          command: |
+            flake8 py-bin py-deploy tests
+  run-solium:
+    executor: ubuntu-builder
+
+    steps:
+      - checkout
+      - config-path
+      - run:
+          name: Install solium
+          command: |
+            npm install -g 'solium@>=1.0.9'
+      - run:
+          name: Run solium
+          command: |
+            solium --dir contracts
+  install:
+    executor: ubuntu-builder
+    steps:
+      - checkout
+      - config-path
+      - create-venv
+
+      # install populus and compile the contracts
+      - restore_cache:
+          key: populus-venv-{{ checksum "constraints-populus.txt" }}
+      - run:
+          name: Install populus
+          command: |
+            make venv-populus
+      - save_cache:
+          key: populus-venv-{{ checksum "constraints-populus.txt" }}
+          paths:
+            - venv-populus
+      - run:
+          name: Compile contracts
+          command: |
+            make compile
+
+      # install py-bin/py-deploy
+
+      - restore_cache:
+          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
+      - run:
+          name: Install requirements
+          command: |
+            make install-requirements
+      - save_cache:
+          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
+          paths:
+            - venv
+            - .requirements-installed
+      - run:
+          name: Install py-bin/py-deploy
+          command: |
+            make install
+      - run:
+          name: Build python distributions
+          command: |
+            make dist
+      - persist_to_workspace:
+          root: "~"
+          paths:
+            - repo
+
+  upload-pypi:
+    executor: ubuntu-builder
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - run:
+          name: Init .pypirc
+          command: |
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = $PYPI_USER" >> ~/.pypirc
+            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
+      - run:
+          name: Upload to pypi
+          command: |
+            twine upload py-bin/dist/* py-deploy/dist/*
+
+  upload-npm:
+    executor: ubuntu-builder
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - run:
+          name: Set authentication token
+          command: |
+            echo >> ~/.npmrc "//registry.npmjs.org/:_authToken=$npm_TOKEN"
+      - run:
+          name: Set npm version
+          command: |
+            cd py-bin
+            ./set_npm_version.sh
+            cd ..
+      - run:
+          name: Publish npm package
+          command: |
+            cd py-bin
+            npm publish --dry-run
+
+  run-pytest:
+    executor: ubuntu-builder
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - run:
+          name: Run pytest
+          command: pytest
+
+  build-docker-image:
+    executor: ubuntu-builder
+    environment:
+      DOCKER_REPO: trustlines/contracts
+      LOCAL_IMAGE: contracts
+
+    steps:
+      - setup_remote_docker
+      - checkout
+      - run:
+          name: Build docker image
+          command: |
+            docker build . -t $LOCAL_IMAGE
+      - run:
+          name: Save docker image
+          command: |
+            mkdir -p ~/images
+            docker save --output ~/images/$LOCAL_IMAGE.tar $LOCAL_IMAGE
+      - persist_to_workspace:
+          root: "~"
+          paths:
+            - images
+
+  deploy-docker-image:
+    executor: ubuntu-builder
+    environment:
+      DOCKER_REPO: trustlines/contracts
+      LOCAL_IMAGE: contracts
+    working_directory: ~/repo
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: '~'
+      - run:
+          name: Load docker image
+          command: |
+            docker load --input ~/images/$LOCAL_IMAGE.tar
+      - run:
+          name: Login to dockerhub
+          command: |
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+      - run:
+          name: Upload tagged release
+          command: |
+            version=$(docker run --rm $LOCAL_IMAGE cat VERSION | tr '+' '_')
+            echo "Tagging with $version"
+            docker tag $LOCAL_IMAGE $DOCKER_REPO:$version
+            docker push $DOCKER_REPO:$version
+      - run:
+          name: Upload latest
+          command: |
+            docker tag $LOCAL_IMAGE $DOCKER_REPO:latest
+            docker push $DOCKER_REPO:latest
+
+workflows:
+  version: 2
+  default:
+    jobs:
+      - run-solium:
+          filters:
+            <<: *tagged-filter
+
+      - run-flake8:
+          filters:
+            <<: *tagged-filter
+
+      - install:
+          filters:
+            <<: *tagged-filter
+
+      - run-pytest:
+          filters:
+            <<: *tagged-filter
+          requires:
+            - install
+
+      - upload-npm:
+          filters:
+            <<: *tagged-filter
+          requires:
+            - run-solium
+            - run-flake8
+            - install
+            - run-pytest
+
+      - upload-pypi:
+          filters:
+            <<: *tagged-filter
+            branches:
+              ignore: /.*/
+          requires:
+            - run-solium
+            - run-flake8
+            - install
+            - run-pytest
+
+      - build-docker-image:
+          filters:
+            <<: *tagged-filter
+      - deploy-docker-image:
+          filters:
+            <<: *tagged-filter
+            branches:
+              only: develop
+          requires:
+            - run-solium
+            - run-flake8
+            - install
+            - run-pytest
+            - build-docker-image
