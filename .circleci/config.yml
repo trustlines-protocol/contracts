@@ -33,6 +33,28 @@ commands:
         command: |
           echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:${PATH}'
           echo >> ${BASH_ENV} '. ~/.nvm/nvm.sh'
+
+  publish-npm:
+    description: Publish npm package
+    parameters:
+      tag:
+        type: string
+    steps:
+      - run:
+          name: Set authentication token
+          command: |
+            echo >> ~/.npmrc "//registry.npmjs.org/:_authToken=$npm_TOKEN"
+      - run:
+          name: Set npm version
+          command: |
+            cd py-bin
+            ./set_npm_version.sh
+            cd ..
+      - run:
+          command: |
+            cd py-bin
+            npm publish --tag << parameters.tag >>
+
 jobs:
   run-flake8:
     executor: ubuntu-builder
@@ -125,27 +147,24 @@ jobs:
           command: |
             twine upload py-bin/dist/* py-deploy/dist/*
 
-  upload-npm:
+  upload-npm-dev:
     executor: ubuntu-builder
     steps:
       - attach_workspace:
           at: '~'
       - config-path
-      - run:
-          name: Set authentication token
-          command: |
-            echo >> ~/.npmrc "//registry.npmjs.org/:_authToken=$npm_TOKEN"
-      - run:
-          name: Set npm version
-          command: |
-            cd py-bin
-            ./set_npm_version.sh
-            cd ..
-      - run:
-          name: Publish npm package
-          command: |
-            cd py-bin
-            npm publish --dry-run
+      - publish-npm:
+          tag: "dev"
+
+  upload-npm-latest:
+    executor: ubuntu-builder
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - publish-npm:
+          tag: "latest"
+
 
   run-pytest:
     executor: ubuntu-builder
@@ -235,14 +254,24 @@ workflows:
           requires:
             - install
 
-      - upload-npm:
+      - upload-npm-dev: &upload-npm
           filters:
-            <<: *tagged-filter
+            branches:
+              only:
+                - develop
+
           requires:
             - run-solium
             - run-flake8
             - install
             - run-pytest
+
+      - upload-npm-latest:
+          <<: *upload-npm
+          filters:
+            <<: *tagged-filter
+            branches:
+              ignore: /.*/
 
       - upload-pypi:
           filters:
