@@ -38,19 +38,9 @@ jobs:
     executor: ubuntu-builder
 
     steps:
-      - checkout
+      - attach_workspace:
+          at: '~'
       - config-path
-      - restore_cache:
-          key: v1-flake8-venv-{{ checksum "constraints.txt" }}
-      - create-venv
-      - run:
-          name: Install flake8
-          command: |
-            pip install flake8 flake8-string-format flake8-per-file-ignores -c constraints.txt
-      - save_cache:
-          key: v1-flake8-venv-{{ checksum "constraints.txt" }}
-          paths:
-            - venv
       - run:
           name: Run flake8
           command: |
@@ -230,6 +220,8 @@ workflows:
             <<: *tagged-filter
 
       - run-flake8:
+          requires:
+            - install
           filters:
             <<: *tagged-filter
 
