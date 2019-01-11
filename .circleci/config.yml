@@ -199,6 +199,25 @@ jobs:
           paths:
             - images
 
+  run-smoketests:
+    executor: ubuntu-builder
+    environment:
+      LOCAL_IMAGE: contracts
+    working_directory: ~/repo
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: '~'
+      - checkout
+      - run:
+          name: Load docker image
+          command: |
+            docker load --input ~/images/$LOCAL_IMAGE.tar
+      - run:
+          name: Run smoketests
+          command: |
+            ./run-docker-smoketest
+
   deploy-docker-image:
     executor: ubuntu-builder
     environment:
@@ -287,6 +306,11 @@ workflows:
       - build-docker-image:
           filters:
             <<: *tagged-filter
+      - run-smoketests:
+          filters:
+            <<: *tagged-filter
+          requires:
+            - build-docker-image
       - deploy-docker-image:
           filters:
             <<: *tagged-filter
@@ -298,3 +322,4 @@ workflows:
             - install
             - run-pytest
             - build-docker-image
+            - run-smoketests
