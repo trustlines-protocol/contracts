@@ -1,0 +1,5 @@
+dist/
+*.egg-info/
+*.tgz
+set_npm_version.sh
+setup.py

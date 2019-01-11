@@ -29,6 +29,9 @@ install0:: compile
 	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install ./py-bin
 	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install $(PIP_DEPLOY_OPTIONS) ./py-deploy
 
+dist:: compile
+	cd py-bin; python setup.py sdist
+	cd py-deploy; python setup.py sdist
 
 install:: PIP_DEPLOY_OPTIONS = -q -e
 install:: install-requirements install0
