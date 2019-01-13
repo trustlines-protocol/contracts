@@ -43,7 +43,7 @@ commands:
       - run:
           name: Set authentication token
           command: |
-            echo >> ~/.npmrc "//registry.npmjs.org/:_authToken=$npm_TOKEN"
+            echo >> ~/.npmrc "//registry.npmjs.org/:_authToken=$NPM_TOKEN"
       - run:
           name: Set npm version
           command: |
@@ -274,6 +274,7 @@ workflows:
             - install
 
       - upload-npm-dev: &upload-npm
+          context: npm-credentials
           filters:
             branches:
               only:
@@ -293,6 +294,7 @@ workflows:
               ignore: /.*/
 
       - upload-pypi:
+          context: pypi-credentials
           filters:
             <<: *tagged-filter
             branches:
@@ -312,6 +314,7 @@ workflows:
           requires:
             - build-docker-image
       - deploy-docker-image:
+          context: docker-credentials
           filters:
             <<: *tagged-filter
             branches:
