@@ -2,7 +2,6 @@ pragma solidity ^0.4.25;
 
 
 import "./lib/it_set_lib.sol";
-import "./lib/ECVerify.sol";
 import "./tokens/Receiver_Interface.sol";
 import "./lib/Ownable.sol";
 import "./lib/Destructable.sol";

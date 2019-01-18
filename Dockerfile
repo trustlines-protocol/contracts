@@ -24,13 +24,6 @@ RUN apt-get -y update && \
     curl -L -o /usr/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux && \
     chmod +x /usr/bin/solc
 
-
-# cache populus-venv
-WORKDIR /contracts/
-COPY ./Makefile        /contracts/Makefile
-COPY ./constraints-populus.txt /contracts/constraints-populus.txt
-RUN make venv-populus
-
 # cache /opt/contracts with requirements installed
 RUN python3 -m venv /opt/contracts
 WORKDIR /opt/contracts

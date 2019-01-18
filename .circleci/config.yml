@@ -88,24 +88,6 @@ jobs:
       - config-path
       - create-venv
 
-      # install populus and compile the contracts
-      - restore_cache:
-          key: populus-venv-{{ checksum "constraints-populus.txt" }}
-      - run:
-          name: Install populus
-          command: |
-            make venv-populus
-      - save_cache:
-          key: populus-venv-{{ checksum "constraints-populus.txt" }}
-          paths:
-            - venv-populus
-      - run:
-          name: Compile contracts
-          command: |
-            make compile
-
-      # install py-bin/py-deploy
-
       - restore_cache:
           key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
       - run:
