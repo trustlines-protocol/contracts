@@ -1,20 +1,9 @@
 VIRTUALENV ?= python3 -m venv
 
-all:: venv-populus compile
-
-venv-populus:
-	@echo "==> Creating virtualenv for populus"
-	$(VIRTUALENV) venv-populus
-	venv-populus/bin/pip install -q -U pip wheel
-	venv-populus/bin/pip install -q -c constraints-populus.txt populus
-
-compile:: venv-populus
-	@echo "==> Compiling contracts"
-	venv-populus/bin/populus compile
-	cp -p build/contracts.json py-bin/
+all:: compile
 
 clean::
-	rm -rf venv-populus build/contracts.json .requirements-installed
+	rm -rf build/contracts.json .requirements-installed
 
 .requirements-installed:
 	@echo "===> Installing requirements in your local virtualenv"
@@ -22,6 +11,11 @@ clean::
 	@touch .requirements-installed
 
 install-requirements:: .requirements-installed
+
+compile:: install-requirements
+	@echo "==> Compiling contracts"
+	deploy-tools compile -o
+	cp -p build/contracts.json py-bin/
 
 install0:: SETUPTOOLS_SCM_PRETEND_VERSION = $(shell python3 -c 'from setuptools_scm import get_version; print(get_version())')
 install0:: compile

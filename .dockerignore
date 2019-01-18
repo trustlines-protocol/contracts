@@ -22,4 +22,3 @@ docs/_build
 .idea
 venv/
 local/
-venv-populus/
