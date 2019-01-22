@@ -412,10 +412,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             trustline.balances.balance);
     }
 
-    function getAccountLen() external pure returns (uint) {
-        return 8 * 32 + 2;
-    }
-
     /**
     * Set the trustline account between two users.
     * Can be removed once structs are supported in the ABI
@@ -562,34 +558,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return friends[_user].list;
     }
 
-    function getFriendsReturnSize(address _user) public view returns (uint) {
-        return getFriends(_user).length + 2;
-    }
-
     function getUsers() public view returns (address[]) {
         return users.list;
-    }
-
-    function getUsersReturnSize() public view returns (uint) {
-        // Returning a dynamically-sized array requires two extra slots.
-        // One for the data location pointer, and one for the length.
-        return getUsers().length + 2;
     }
 
     function name() public view returns (string) {
         return name;
     }
 
-    function nameLen() public view returns (uint) {
-        return bytes(name).length;
-    }
-
     function symbol() public view returns (string) {
         return symbol;
-    }
-
-    function symbolLen() public view returns (uint) {
-        return bytes(symbol).length;
     }
 
     function decimals() public view returns (uint8) {

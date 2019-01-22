@@ -96,45 +96,6 @@ def deploy_network(
     return currency_network
 
 
-def deploy_proxied_network(web3, name, symbol, decimals, fee_divisor=100, exchange_address=None):
-    raise NotImplementedError
-    currency_network = deploy("CurrencyNetwork", web3)
-    currency_network_address = currency_network.address
-    resolver = deploy("Resolver", web3, currency_network_address)
-    proxy = deploy("EtherRouter", web3, resolver.address)
-    proxied_trustlines = get_contract_factory(web3, "CurrencyNetwork")(proxy.address)
-    txid = proxied_trustlines.functions.init(name, symbol, decimals, fee_divisor).transact()
-    check_successful_tx(web3, txid)
-    if exchange_address is not None:
-        txid = proxied_trustlines.functions.addAuthorizedAddress(exchange_address).transact()
-        check_successful_tx(web3, txid)
-
-    txid = resolver.functions.registerLengthFunction(
-        "getUsers()",
-        "getUsersReturnSize()",
-        currency_network_address).transact()
-    check_successful_tx(web3, txid)
-    txid = resolver.functions.registerLengthFunction(
-        "getFriends(address)",
-        "getFriendsReturnSize(address)",
-        currency_network_address).transact()
-    check_successful_tx(web3, txid)
-    txid = resolver.functions.registerLengthFunction(
-        "getAccount(address,address)",
-        "getAccountLen()",
-        currency_network_address).transact()
-    check_successful_tx(web3, txid)
-    txid = resolver.functions.registerLengthFunction(
-        "name()", "nameLen()",
-        currency_network_address).transact()
-    check_successful_tx(web3, txid)
-    txid = resolver.functions.registerLengthFunction(
-        "symbol()", "symbolLen()",
-        currency_network_address).transact()
-    check_successful_tx(web3, txid)
-    return proxied_trustlines
-
-
 def deploy_networks(web3, network_settings, currency_network_contract_name=None):
     exchange = deploy_exchange(web3)
     unw_eth = deploy_unw_eth(web3, exchange.address)
