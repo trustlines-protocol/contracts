@@ -7,7 +7,6 @@ import pytest
 from tldeploy.core import deploy_network, deploy_exchange, deploy
 from tldeploy.exchange import Order
 from tldeploy.signing import priv_to_pubkey
-from eth_utils import to_checksum_address
 
 
 trustlines = [(0, 1, 100, 150),
@@ -21,25 +20,12 @@ trustlines = [(0, 1, 100, 150),
 NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 
-@pytest.fixture()
-def accounts(web3, tester):
-    """list of accounts, with account[0] being the maker,i.e. tester.a0 address"""
-    accounts = [tester.a0] + web3.personal.listAccounts[0:4]
-    assert len(accounts) == 5
-    return [to_checksum_address(account) for account in accounts]
-
-
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def exchange_contract(web3):
     return deploy_exchange(web3)
 
 
-@pytest.fixture()
-def currency_network_contract(web3):
-    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0)
-
-
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def token_contract(web3, accounts):
     A, B, C, *rest = accounts
     contract = deploy("DummyToken", web3, 'DummyToken', 'DT', 18, 10000000)
@@ -49,9 +35,9 @@ def token_contract(web3, accounts):
     return contract
 
 
-@pytest.fixture()
-def currency_network_contract_with_trustlines(currency_network_contract, exchange_contract, accounts):
-    contract = currency_network_contract
+@pytest.fixture(scope='session')
+def currency_network_contract_with_trustlines(web3, exchange_contract, accounts):
+    contract = deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0).transact()
     contract.functions.addAuthorizedAddress(exchange_contract.address).transact()
@@ -95,8 +81,10 @@ def test_order_signature(
         token_contract,
         currency_network_contract_with_trustlines,
         accounts,
-        tester):
+        account_keys,
+):
     maker_address, taker_address, *rest = accounts
+    maker_key = account_keys[0]
 
     order = Order(exchange_contract.address,
                   maker_address,
@@ -112,13 +100,18 @@ def test_order_signature(
                   1234
                   )
 
-    v, r, s = order.sign(tester.k0)
+    v, r, s = order.sign(maker_key.to_bytes())
 
     assert exchange_contract.functions.isValidSignature(maker_address, order.hash().hex(), v, r, s).call()
 
 
-def test_exchange(exchange_contract, token_contract, currency_network_contract_with_trustlines, accounts, tester):
+def test_exchange(exchange_contract,
+                  token_contract,
+                  currency_network_contract_with_trustlines,
+                  accounts,
+                  account_keys):
     maker_address, mediator_address, taker_address, *rest = accounts
+    maker_key = account_keys[0]
 
     assert token_contract.functions.balanceOf(maker_address).call() == 10000
     assert token_contract.functions.balanceOf(taker_address).call() == 10000
@@ -141,9 +134,9 @@ def test_exchange(exchange_contract, token_contract, currency_network_contract_w
                   1234
                   )
 
-    assert priv_to_pubkey(tester.k0) == maker_address
+    assert priv_to_pubkey(maker_key.to_bytes()) == maker_address
 
-    v, r, s = order.sign(tester.k0)
+    v, r, s = order.sign(maker_key.to_bytes())
 
     exchange_contract.functions.fillOrderTrustlines(
           [order.maker_address, order.taker_address, order.maker_token, order.taker_token, order.fee_recipient],

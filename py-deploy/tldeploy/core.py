@@ -6,10 +6,9 @@ import os
 import sys
 import json
 import collections
-from web3 import Web3
-from web3.utils.threads import (
-    Timeout,
-)
+
+from deploy_tools import deploy_compiled_contract
+from deploy_tools.deploy import wait_for_successful_transaction_receipt
 
 
 def load_contracts_json():
@@ -35,53 +34,14 @@ class LazyContractsLoader(collections.UserDict):
 contracts = LazyContractsLoader()
 
 
-class TransactionFailed(Exception):
-    pass
-
-
-def wait_for_transaction_receipt(web3, txid, timeout=180):
-    with Timeout(timeout) as time:
-            while not web3.eth.getTransactionReceipt(txid):
-                time.sleep(5)
-
-    return web3.eth.getTransactionReceipt(txid)
-
-
-def check_successful_tx(web3: Web3, txid: str, timeout=180) -> dict:
-    """See if transaction went through (Solidity code did not throw).
-    :return: Transaction receipt
-    """
-    receipt = wait_for_transaction_receipt(web3, txid, timeout=timeout)
-    tx_info = web3.eth.getTransaction(txid)
-    status = receipt.get("status", None)
-    if receipt["gasUsed"] == tx_info["gas"] or status is False:
-        raise TransactionFailed
-    return receipt
-
-
-def wait(transfer_filter):
-    with Timeout(30) as timeout:
-        while not transfer_filter.get(False):
-            timeout.sleep(2)
-
-
-def get_contract_factory(web3, contract_name):
-    contract_interface = contracts[contract_name]
-    return web3.eth.contract(
-        abi=contract_interface["abi"], bytecode=contract_interface["bytecode"]
-    )
-
-
 def deploy(contract_name, web3, *args):
-    contract = get_contract_factory(web3, contract_name)
-    txhash = contract.constructor(*args).transact()
-    receipt = check_successful_tx(web3, txhash)
-    id_address = receipt["contractAddress"]
-    return contract(id_address)
-
-
-# def contract(contract_name, address, chain):
-#     return chain.provider.get_contract_factory(contract_name)(address)
+    contract_interface = contracts[contract_name]
+    return deploy_compiled_contract(
+        abi=contract_interface["abi"],
+        bytecode=contract_interface["bytecode"],
+        web3=web3,
+        constructor_args=args,
+    )
 
 
 def deploy_exchange(web3):
@@ -95,7 +55,7 @@ def deploy_unw_eth(web3, exchange_address=None):
         if exchange_address is not None:
             txid = unw_eth.functions.addAuthorizedAddress(exchange_address).transact(
                 {"from": web3.eth.accounts[0]})
-            check_successful_tx(web3, txid)
+            wait_for_successful_transaction_receipt(web3, txid)
     return unw_eth
 
 
@@ -127,11 +87,11 @@ def deploy_network(
                                            custom_interests,
                                            prevent_mediator_interests).transact(
         {"from": web3.eth.accounts[0]})
-    check_successful_tx(web3, txid)
+    wait_for_successful_transaction_receipt(web3, txid)
     if exchange_address is not None:
         txid = currency_network.functions.addAuthorizedAddress(exchange_address).transact(
             {"from": web3.eth.accounts[0]})
-        check_successful_tx(web3, txid)
+        wait_for_successful_transaction_receipt(web3, txid)
 
     return currency_network
 
