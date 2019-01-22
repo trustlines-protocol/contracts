@@ -14,7 +14,7 @@ certifi==2018.8.24
 cffi==1.11.5
 chardet==3.0.4
 click==7.0
-contract-deploy-tools==0.1.1
+contract-deploy-tools==0.2.1
 coverage==4.5.1
 cryptography==2.3.1
 cytoolz==0.9.0.1

@@ -9,19 +9,22 @@ from tldeploy.core import deploy_network
 
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
+NETWORK_SETTING = {
+    'name': "TestCoin",
+    'symbol': "T",
+    'decimals': 6,
+    'fee_divisor': 100,
+    'default_interest_rate': 0,
+    'custom_interests': True,
+    'prevent_mediator_interests': False,
+}
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def currency_network_contract(web3):
     return deploy_network(
         web3,
-        name="TestCoin",
-        symbol="T",
-        decimals=6,
-        fee_divisor=100,
-        default_interest_rate=0,
-        custom_interests=True,
-        prevent_mediator_interests=False,
+        **NETWORK_SETTING
     )
 
 
@@ -30,12 +33,16 @@ def interest_rate(request):
     return request.param
 
 
-@pytest.fixture
+@pytest.fixture()
 def currency_network_contract_with_trustlines(
-    ethereum_tester_session, currency_network_contract, accounts, interest_rate
+    chain, web3, accounts, interest_rate
 ):
+    currency_network_contract = deploy_network(
+        web3,
+        **NETWORK_SETTING
+    )
     current_time = int(time.time())
-    ethereum_tester_session.time_travel(current_time + 10)
+    chain.time_travel(current_time + 10)
 
     for a in accounts:
         for b in accounts:
@@ -58,7 +65,7 @@ def currency_network_contract_with_trustlines(
         accounts[1], 10000, 102, [accounts[1]]
     ).transact({"from": accounts[0]})
 
-    ethereum_tester_session.time_travel(current_time + SECONDS_PER_YEAR)
+    chain.time_travel(current_time + SECONDS_PER_YEAR)
 
     return currency_network_contract
 

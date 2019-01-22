@@ -5,7 +5,6 @@ flake8
 pytest
 texttable
 setuptools_scm
-eth-tester[py-evm]
 contract-deploy-tools
 # require a recent pip version, otherwise make install may silently fail to
 # install the newly compiled contracts

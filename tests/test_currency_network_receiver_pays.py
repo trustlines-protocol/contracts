@@ -12,22 +12,17 @@ trustlines = [(0, 1, 100, 150),
               ]  # (A, B, clAB, clBA)
 
 
-@pytest.fixture()
-def currency_network_contract(web3):
-    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=100)
-
-
-@pytest.fixture()
-def currency_network_contract_with_trustlines(currency_network_contract, accounts):
-    contract = currency_network_contract
+@pytest.fixture(scope='session')
+def currency_network_contract_with_trustlines(web3, accounts):
+    contract = deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=100)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0).transact()
     return contract
 
 
-@pytest.fixture()
-def currency_network_contract_with_high_trustlines(currency_network_contract, accounts):
-    contract = currency_network_contract
+@pytest.fixture(scope='session')
+def currency_network_contract_with_high_trustlines(web3, accounts):
+    contract = deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=100)
     creditline = 1000000
     contract.functions.setAccount(accounts[0], accounts[1], creditline, creditline, 0, 0, 0, 0, 0, 0).transact()
     contract.functions.setAccount(accounts[1], accounts[2], creditline, creditline, 0, 0, 0, 0, 0, 0).transact()

@@ -5,32 +5,38 @@ from web3.exceptions import BadFunctionCallOutput
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-trustlines = [
-    (0, 1, 100, 150),
-    (1, 2, 200, 250),
-    (2, 3, 300, 350),
-    (3, 4, 400, 450),
-    (0, 4, 500, 550),
-]  # (A, B, clAB, clBA)
+
+trustlines = [(0, 1, 100, 150),
+              (1, 2, 200, 250),
+              (2, 3, 300, 350),
+              (3, 4, 400, 450),
+              (0, 4, 500, 550)
+              ]  # (A, B, clAB, clBA)
+
+NETWORK_SETTING = {
+    'name': "TestCoin",
+    'symbol': "T",
+    'decimals': 6,
+    'fee_divisor': 0,
+    'default_interest_rate': 0,
+    'custom_interests': False
+}
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def currency_network_contract(web3):
-    return deploy_network(web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=0, default_interest_rate=0,
-                          custom_interests=False)
+    return deploy_network(web3, **NETWORK_SETTING)
 
 
-@pytest.fixture()
-def currency_network_contract_with_trustlines(currency_network_contract, accounts):
-    contract = currency_network_contract
+@pytest.fixture(scope='session')
+def currency_network_contract_with_trustlines(web3, accounts):
+    contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
-        contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0
-        ).transact()
+        contract.functions.setAccount(accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0).transact()
     return contract
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def currency_network_contract_custom_interest(web3):
     return deploy_network(web3, name='TestCoin', symbol='T', decimals=6, fee_divisor=0,
                           default_interest_rate=0, custom_interests=True, prevent_mediator_interests=False)
