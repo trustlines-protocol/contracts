@@ -5,12 +5,12 @@ pragma solidity ^0.4.25;
 */
 
 
-import "./Identity.sol";
+import "../Identity.sol";
 
 
 contract TestIdentity is Identity {
 
-    function testIsSignatureFromOwner(bytes _data, bytes _signature) public view returns (bool) {
+    function testIsSignatureFromOwner(bytes32 _data, bytes _signature) public view returns (bool) {
         return isSignatureFromOwner(_data, _signature);
     }
 }

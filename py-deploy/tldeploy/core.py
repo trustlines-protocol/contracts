@@ -111,12 +111,3 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
     ]
 
     return networks, exchange, unw_eth
-
-
-def deploy_identity(web3, identiy_contract_name=None):
-
-    if identiy_contract_name is None:
-        identiy_contract_name = "Identity"
-    identity_contract = deploy(identiy_contract_name, web3)
-
-    return identity_contract
