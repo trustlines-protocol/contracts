@@ -7,7 +7,7 @@ pragma solidity ^0.4.25;
 */
 
 
-import "./CurrencyNetwork.sol";
+import "../CurrencyNetwork.sol";
 
 
 contract TestCurrencyNetwork is CurrencyNetwork {
