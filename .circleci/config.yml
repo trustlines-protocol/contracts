@@ -284,6 +284,7 @@ workflows:
             - run-flake8
             - install
             - run-pytest
+            - run-smoketests
 
       - upload-npm-latest:
           <<: *upload-npm
@@ -303,6 +304,7 @@ workflows:
             - run-flake8
             - install
             - run-pytest
+            - run-smoketests
 
       - build-docker-image:
           filters:
