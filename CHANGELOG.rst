@@ -1,6 +1,10 @@
 ==========
 Change Log
 ==========
+`0.5.0`_ (2019-01-23)
+-----------------------
+* Remove old populus dependency and substitute it with contract-deploy-tools
+
 `0.4.0`_ (2018-12-10)
 -----------------------
 * Remove the fees on the last hop
@@ -96,3 +100,4 @@ The rest of the changes are only interesting for developers:
 .. _0.3.2: https://github.com/trustlines-network/contracts/compare/0.3.1...0.3.2
 .. _0.3.3: https://github.com/trustlines-network/contracts/compare/0.3.2...0.3.3
 .. _0.4.0: https://github.com/trustlines-network/contracts/compare/0.3.3...0.4.0
+.. _0.4.0: https://github.com/trustlines-network/contracts/compare/0.4.0...0.5.0
