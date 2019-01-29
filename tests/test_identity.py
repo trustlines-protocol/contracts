@@ -1,115 +1,237 @@
 #! pytest
-
 import pytest
-import eth_tester.exceptions
-from tldeploy.core import deploy
-from web3 import Web3
-
-def data_delegate_transaction(to, from_, value, data, nonce, extrahash):
-    pass
-
-
-@pytest.fixture()
-def identity_contract(web3):
-    return deploy("Identity", web3)
+from eth_tester.exceptions import TransactionFailed
+from hexbytes import HexBytes
+from tldeploy.core import deploy_network
+from tldeploy.identity import MetaTransaction, IdentityContractProxy
+from tldeploy.signing import solidity_keccak, sign_msg_hash
 
 
-@pytest.fixture()
-def test_identity_contract(web3):
-    return deploy("TestIdentity", web3)
+@pytest.fixture(scope='session')
+def delegator(accounts):
+    return accounts[1]
 
 
-@pytest.fixture()
-def mock_contract(web3):
-    return deploy("Mock", web3)
+@pytest.fixture(scope='session')
+def owner(accounts):
+    return accounts[0]
 
 
-@pytest.fixture()
-def mock_contract_address(mock_contract, web3):
-    return mock_contract.address
+@pytest.fixture(scope='session')
+def owner_key(account_keys):
+    return account_keys[0]
 
 
-@pytest.fixture()
-def identity_contract_owned_by_0(identity_contract, web3, accounts):
-
-    owner = accounts[0]
-    identity_contract.functions.init(owner).transact({'from': accounts[0]})
+@pytest.fixture(scope='session')
+def identity_contract(deploy_contract, web3, owner):
+    identity_contract = deploy_contract("Identity")
+    identity_contract.functions.init(owner).transact({'from': owner})
+    web3.eth.sendTransaction({'to': identity_contract.address, 'from': owner, 'value': 1000000})
     return identity_contract
 
 
-@pytest.fixture()
-def test_identity_contract_owned_by_0(test_identity_contract, web3, accounts):
-
-    owner = accounts[0]
-    test_identity_contract.functions.init(owner).transact({'from': accounts[0]})
+@pytest.fixture(scope='session')
+def test_identity_contract(deploy_contract, web3, owner):
+    test_identity_contract = deploy_contract("TestIdentity")
+    test_identity_contract.functions.init(owner).transact({'from': owner})
+    web3.eth.sendTransaction({'to': test_identity_contract.address, 'from': owner, 'value': 1000000})
     return test_identity_contract
 
 
-@pytest.fixture()
-def key_0(ethereum_tester, accounts):
-    return ethereum_tester.backend.account_keys[0]
+@pytest.fixture(scope='session')
+def identity_contract_wrapper(identity_contract, delegator, owner_key):
+    return IdentityContractProxy(identity_contract, delegator, owner_key)
 
 
-def test_init_already_init(test_identity_contract_owned_by_0, accounts):
+@pytest.fixture(scope='session')
+def test_contract(deploy_contract):
+    return deploy_contract("TestContract")
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        test_identity_contract_owned_by_0.functions.init(accounts[0]).transact({'from': accounts[0]})
+
+NETWORK_SETTING = {
+    'name': "TestCoin",
+    'symbol': "T",
+    'decimals': 6,
+    'fee_divisor': 0,
+    'default_interest_rate': 0,
+    'custom_interests': False
+}
 
 
-def test_signature_from_owner(test_identity_contract_owned_by_0, key_0):
+@pytest.fixture(scope='session')
+def currency_network_contract(web3):
+    return deploy_network(web3, **NETWORK_SETTING)
+
+
+def test_init_already_init(test_identity_contract, accounts):
+    with pytest.raises(TransactionFailed):
+        test_identity_contract.functions.init(accounts[0]).transact({'from': accounts[0]})
+
+
+def test_signature_from_owner(test_identity_contract, owner_key):
 
     data_to_sign = (1234).to_bytes(10, byteorder='big')
-    signature = key_0.sign_msg(data_to_sign).to_bytes()
-    hash = Web3.soliditySha3(['bytes'], [data_to_sign])
+    hash = solidity_keccak(['bytes'], [data_to_sign])
+    signature = sign_msg_hash(hash, owner_key)
 
-    assert test_identity_contract_owned_by_0.functions.testIsSignatureFromOwner(hash, signature).call() is True
+    assert test_identity_contract.functions.testIsSignatureValid(hash, signature).call()
 
 
-def test_signature_not_owner(test_identity_contract_owned_by_0, key_0, ethereum_tester, accounts):
+def test_signature_not_owner(test_identity_contract, accounts, account_keys):
+    key = account_keys[1]
 
     data = (1234).to_bytes(10, byteorder='big')
-    private_key = ethereum_tester.backend.account_keys[1]
-    signature = private_key.sign_msg(data).to_bytes()
+    hash = solidity_keccak(['bytes'], [data])
+    signature = sign_msg_hash(hash, key)
 
-    assert test_identity_contract_owned_by_0.functions.testIsSignatureFromOwner(data, signature).call() is False
+    assert not test_identity_contract.functions.testIsSignatureValid(hash, signature).call()
 
 
-def test_wrong_signature_from_owner(test_identity_contract_owned_by_0, key_0, accounts):
+def test_wrong_signature_from_owner(test_identity_contract, account_keys, accounts):
 
     data = (1234).to_bytes(10, byteorder='big')
     wrong_data = (12345678).to_bytes(10, byteorder='big')
 
-    signature = key_0.sign_msg(data).to_bytes()
+    signature = account_keys[0].sign_msg(data).to_bytes()
 
-    assert test_identity_contract_owned_by_0.functions.testIsSignatureFromOwner(wrong_data, signature).call() is False
+    assert not test_identity_contract.functions.testIsSignatureValid(wrong_data, signature).call()
 
 
-def test_execute_delegated_transaction(identity_contract_owned_by_0, key_0, mock_contract, accounts, web3):
+def test_delegated_transaction_hash(test_identity_contract, test_contract, accounts):
+    to = accounts[3]
+    from_ = accounts[1]
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
 
-    latest_block_number = web3.eth.blockNumber
-    delegate = accounts[1]
+    meta_transaction = MetaTransaction.from_function_call(to, function_call, from_=from_, nonce=0)
 
-    to = mock_contract.address
-    from_ = identity_contract_owned_by_0.address
+    hash_by_contract = test_identity_contract.functions.testTransactionHash(
+        meta_transaction.from_,
+        meta_transaction.to,
+        meta_transaction.value,
+        meta_transaction.data,
+        meta_transaction.nonce,
+        meta_transaction.extra_hash
+    ).call()
+
+    hash = meta_transaction.hash
+
+    assert hash == HexBytes(hash_by_contract)
+
+
+def test_delegated_transaction_function_call(identity_contract_wrapper, test_contract):
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = MetaTransaction.from_function_call(to, function_call)
+
+    identity_contract_wrapper.send_transaction(meta_transaction)
+
+    event = test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()[0]["args"]
+
+    assert event['from'] == identity_contract_wrapper.address
+    assert event['value'] == 0
+    assert event['argument'] == argument
+
+
+def test_delegated_transaction_transfer(web3, identity_contract_wrapper, accounts):
+    to = accounts[2]
     value = 1000
 
-    data_for_mock_contract = (1234).to_bytes(10, byteorder='big')
-    data_for_identity_contract = mock_contract.functions.testFunction(data_for_mock_contract).buildTransaction()['data']
+    meta_transaction = MetaTransaction(to=to, value=value)
 
-    nonce = 0
-    extra_hash = (0).to_bytes(10, byteorder='big')
+    balance_before = web3.eth.getBalance(to)
+    identity_contract_wrapper.send_transaction(meta_transaction)
 
-    hash = Web3.soliditySha3(['address', 'address', 'uint256', 'bytes', 'uint256', 'bytes'], [from_, to, value, data_for_identity_contract, nonce, extra_hash])
-    signature = web3.eth.account.signHash(hash, key_0)
+    balance_after = web3.eth.getBalance(to)
 
-    # signature = key_0.sign_msg(to, from_).to_bytes()  # We should not hash before signing (sign data not hash)
+    assert balance_after - balance_before == value
 
-    identity_contract_owned_by_0.functions.executeDelegatedTransaction(from_, to, value, data_for_identity_contract, nonce, extra_hash, signature).transact({'from': accounts[0], 'value': value})
 
-    event = mock_contract.events.TestFunctionCalled.createFilter(
-        fromBlock=latest_block_number
-        ).get_all_entries()[0]["args"]
+def test_delegated_transaction_same_tx_fails(identity_contract_wrapper, accounts):
+    to = accounts[2]
+    value = 1000
 
-    assert event['from'] == identity_contract_owned_by_0.address
-    assert event['value'] == value
-    assert event['data'] == data_for_mock_contract
+    meta_transaction = MetaTransaction(to=to, value=value)
+
+    identity_contract_wrapper.send_transaction(meta_transaction)
+
+    with pytest.raises(TransactionFailed):
+        identity_contract_wrapper.send_transaction(meta_transaction)
+
+
+def test_delegated_transaction_wrong_from(identity_contract_wrapper, accounts):
+    from_ = accounts[3]
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = MetaTransaction(from_=from_, to=to, value=value)
+
+    with pytest.raises(TransactionFailed):
+        identity_contract_wrapper.send_transaction(meta_transaction)
+
+
+def test_delegated_transaction_wrong_signature(identity_contract_wrapper, accounts, account_keys):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = MetaTransaction(
+        from_=identity_contract_wrapper.address,
+        to=to,
+        value=value,
+        nonce=0,
+    )
+    meta_transaction.sign(account_keys[3])
+
+    with pytest.raises(TransactionFailed):
+        identity_contract_wrapper.send_signed_transaction(meta_transaction)
+
+
+def test_delegated_transaction_success_event(identity_contract_wrapper, test_contract):
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = MetaTransaction.from_function_call(to, function_call)
+
+    identity_contract_wrapper.send_transaction(meta_transaction)
+
+    event = (identity_contract_wrapper.contract.events.TransactionExecution
+             .createFilter(fromBlock=0).get_all_entries()[0]["args"])
+
+    assert event['hash'] == meta_transaction.hash
+    assert event['status'] is True
+
+
+def test_delegated_transaction_fail_event(identity_contract_wrapper, test_contract):
+    to = test_contract.address
+    function_call = test_contract.functions.fails()
+
+    meta_transaction = MetaTransaction.from_function_call(to, function_call)
+
+    identity_contract_wrapper.send_transaction(meta_transaction)
+
+    event = (identity_contract_wrapper.contract.events.TransactionExecution
+             .createFilter(fromBlock=0).get_all_entries()[0]["args"])
+
+    assert event['hash'] == meta_transaction.hash
+    assert event['status'] is False
+
+
+def test_delegated_transaction_trustlines_flow(currency_network_contract, identity_contract_wrapper, accounts):
+    A = identity_contract_wrapper.address
+    B = accounts[3]
+    to = currency_network_contract.address
+
+    function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
+    meta_transaction = MetaTransaction.from_function_call(to, function_call)
+    identity_contract_wrapper.send_transaction(meta_transaction)
+
+    currency_network_contract.functions.updateCreditlimits(A, 100, 100).transact({'from': B})
+
+    function_call = currency_network_contract.functions.transfer(B, 100, 0, [B])
+    meta_transaction = MetaTransaction.from_function_call(to, function_call)
+    identity_contract_wrapper.send_transaction(meta_transaction)
+
+    assert currency_network_contract.functions.balance(A, B).call() == -100
