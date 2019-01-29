@@ -30,7 +30,13 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         external
         returns (bool _success)
     {
-        _success = _mediatedTransferSenderPays(_from, _to, _value, _maxFee, _path);
+        _success = _mediatedTransferSenderPays(
+            _from,
+            _to,
+            _value,
+            _maxFee,
+            _path
+        );
     }
 
     function testTransferReceiverPays(
@@ -42,7 +48,13 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         external
         returns (bool _success)
     {
-        _success = _mediatedTransferReceiverPays(_from, _to, _value, _maxFee, _path);
+        _success = _mediatedTransferReceiverPays(
+            _from,
+            _to,
+            _value,
+            _maxFee,
+            _path
+        );
     }
 
     // XXX we already have setAccount inm CurrencyNetwork, but I cannot call it.

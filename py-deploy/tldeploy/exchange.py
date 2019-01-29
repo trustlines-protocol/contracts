@@ -1,4 +1,4 @@
-from tldeploy.signing import keccak256, eth_sign
+from tldeploy.signing import solidity_keccak, eth_sign
 
 
 class Order(object):
@@ -32,19 +32,35 @@ class Order(object):
         self.salt = salt
 
     def hash(self):
-        return keccak256(
-            self.exchange_address,
-            self.maker_address,
-            self.taker_address,
-            self.maker_token,
-            self.taker_token,
-            self.fee_recipient,
-            self.maker_token_amount,
-            self.taker_token_amount,
-            self.maker_fee,
-            self.taker_fee,
-            self.expiration_timestamp_in_sec,
-            self.salt
+        return solidity_keccak(
+            [
+                'address',
+                'address',
+                'address',
+                'address',
+                'address',
+                'address',
+                'uint256',
+                'uint256',
+                'uint256',
+                'uint256',
+                'uint256',
+                'uint256',
+            ],
+            [
+                self.exchange_address,
+                self.maker_address,
+                self.taker_address,
+                self.maker_token,
+                self.taker_token,
+                self.fee_recipient,
+                self.maker_token_amount,
+                self.taker_token_amount,
+                self.maker_fee,
+                self.taker_fee,
+                self.expiration_timestamp_in_sec,
+                self.salt
+            ]
         )
 
     def sign(self, key):
