@@ -108,17 +108,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address initiator;
     }
 
-    modifier notSender(address _sender) {
-        require(_sender != msg.sender);
-        _;
-    }
-
-    // check value is inbounds for accounting to prevent overflows
-    modifier valueWithinInt32(uint _value) {
-        require(_value < 2 ** 32);
-        _;
-    }
-
     constructor() public {
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
@@ -149,8 +138,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         onlyOwner
     {
         // verifies that only one parameter is selected.
-        require(! ((_defaultInterestRate != 0) && _customInterests));
-        require(!_preventMediatorInterests || (_preventMediatorInterests && _customInterests));
+        require(
+            ! ((_defaultInterestRate != 0) && _customInterests),
+            "Custom interests are set; default interest rate must be zero."
+        );
+        require(
+            !_preventMediatorInterests || (_preventMediatorInterests && _customInterests),
+            "The prevent mediator interest strategy cannot be set without using custom interests."
+        );
 
         name = _name;
         symbol = _symbol;
@@ -211,7 +206,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         returns (bool success)
     {
-        require(authorized[msg.sender]);
+        require(authorized[msg.sender], "The sender of the message is not authorized.");
 
         success = _mediatedTransferSenderPays(
             _from,
@@ -431,9 +426,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         onlyOwner
     {
-        require(customInterests || (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate));
+        require(
+            customInterests ||
+            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
+            "Interest rates given and received must be equal to default interest rates."
+        );
         if (customInterests) {
-            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
+            require(
+                _interestRateGiven >= 0 && _interestRateReceived >= 0,
+                "Only positive interest rates are supported."
+            );
         }
 
         _setAccount(
@@ -583,11 +585,17 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         int72 newBalance = _trustline.balances.balance - _value;
-        require(newBalance <= _trustline.balances.balance);
+        require(
+            newBalance <= _trustline.balances.balance,
+            "The transferred value underflows the balance"
+        );
 
         // check if creditline is not exceeded
         uint64 creditlineReceived = _trustline.agreement.creditlineReceived;
-        require(-newBalance <= int72(creditlineReceived));
+        require(
+            -newBalance <= int72(creditlineReceived),
+            "The transferred value exceeds the capacity of the credit line."
+        );
 
         _trustline.balances.balance = newBalance;
     }
@@ -617,8 +625,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
         returns (bool)
     {
-        // check Path: is there a Path and is _to the last address? Otherwise throw
-        require((_path.length > 0) && (_to == _path[_path.length - 1]));
+        require(_path.length > 0, "No path was given.");
+        require(_to == _path[_path.length - 1], "The last address of the path does not match the 'to' address.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -649,9 +657,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             // forward the value + the fee
             forwardedValue += fee;
             //Overflow check
-            require(forwardedValue >= fee);
+            require(forwardedValue >= fee, "The fees overflow the value to be forwarded.");
             fees += fee;
-            require(fees <= _maxFee);
+            require(fees <= _maxFee, "The fees exceed the max fee parameter.");
 
 
             int72 balanceBefore = trustline.balances.balance;
@@ -666,7 +674,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 // unless the transaction helps in reducing the debt of the next hop in the path
                 receiverHappiness = receiverUnhappiness;  // receiver was the sender in last iteration
                 receiverUnhappiness = _interestHappiness(trustline, balanceBefore);
-                require(receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly);
+                require(
+                    receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly,
+                    "The transfer was prevented by the prevent mediator interests strategy"
+                );
                 reducingDebtOfNextHopOnly = trustline.balances.balance >= 0;
             }
 
@@ -692,8 +703,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
         returns (bool)
     {
-        // check Path: is there a Path and is _to the last address? Otherwise throw
-        require((_path.length > 0) && (_to == _path[_path.length - 1]));
+        require(_path.length > 0, "No path was given.");
+        require(_to == _path[_path.length - 1], "The last address of the path does not match the 'to' address.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -727,7 +738,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 senderUnhappiness = senderHappiness;  // sender was the receiver in last iteration
                 senderHappiness = _interestHappiness(trustline, balanceBefore);
                 reducingDebtOnly = trustline.balances.balance >= 0;
-                require(senderHappiness >= senderUnhappiness || reducingDebtOnly);
+                require(
+                    senderHappiness >= senderUnhappiness || reducingDebtOnly,
+                    "The transfer was prevented by the prevent mediator interests strategy"
+                );
             }
 
             // store only balance because trustline agreement did not change
@@ -742,11 +756,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             // calculate fees for next mediator
             fee = _calculateFees(_imbalanceGenerated(forwardedValue, balanceBefore), capacityImbalanceFeeDivisor);
             // Underflow check
-            require(forwardedValue > fee);
+            require(forwardedValue > fee, "The fees underflow the value to be forwarded.");
             forwardedValue -= fee;
 
             fees += fee;
-            require(fees <= _maxFee);
+            require(fees <= _maxFee, "The fees exceed the max fee parameter.");
 
         }
 
@@ -760,7 +774,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         TrustlineBalances memory balances = _loadTrustlineBalances(_from, _otherParty);
-        require(balances.balance == 0);
+        require(balances.balance == 0, "A trustline can only be closed if its balance is zero.");
 
         bytes32 uniqueId = uniqueIdentifier(_from, _otherParty);
         delete requestedTrustlineUpdates[uniqueId];
@@ -803,21 +817,45 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         */
         TrustlineBalances memory balances = trustline.balances;
         if (balances.balance > 0) {
-            require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[0] == _otherParty);
+            require(
+                path.length >= 2,
+                "The path given is too short to be correct."
+            );
+            require(
+                _from == _path[_path.length - 1],
+                "The last element of the path does not match with the _from address."
+            );
+            require(
+                _path[0] == _otherParty,
+                "The first element of the path does not match with the _otherParty address."
+            );
             _mediatedTransferReceiverPays(
                 _from,
                 _from,
                 uint32(balances.balance),
                 _maxFee,
-                _path);
+                _path
+            );
         } else if (balances.balance < 0) {
-            require(_path.length >= 2 && _from == _path[_path.length - 1] && _path[_path.length - 2] == _otherParty);
+            require(
+                _path.length >= 2,
+                "The path given is too short to be correct."
+            );
+            require(
+                _from == _path[_path.length - 1],
+                "The last element of the path does not match with the _from address"
+            );
+            require(
+                _path[_path.length - 2] == _otherParty,
+                "The second to last element of the path does not match with the _otherParty address."
+            );
             _mediatedTransferSenderPays(
                 _from,
                 _from,
                 uint32(-balances.balance),
                 _maxFee,
-                _path);
+                _path
+            );
         } // else {} /* balance is zero, there's nothing to do here */
 
         _closeTrustline(_from, _otherParty);
@@ -983,14 +1021,18 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         require(
             customInterests ||
-            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate)
+            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
+            "Interest rates given and received must be equal to default interest rates."
         );
         if (customInterests) {
-            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
+            require(
+                _interestRateGiven >= 0 && _interestRateReceived >= 0,
+                "Only positive interest rates are supported."
+            );
         }
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
 
-        // reduce of creditlines and interests given is always possible
+        // reduction of creditlines and interests given is always possible
         if (_creditlineGiven <= trustlineAgreement.creditlineGiven &&
             _creditlineReceived <= trustlineAgreement.creditlineReceived &&
             _interestRateGiven <= trustlineAgreement.interestRateGiven &&
@@ -1192,7 +1234,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             return 0;
         }
         uint64 result = uint64(imbalanceGenerated);
-        require(result == imbalanceGenerated);
+        require(result == imbalanceGenerated, "The imbalance generated cannot be cast to a uint64.");
         return result;
     }
 
@@ -1284,7 +1326,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
-        require(_a != _b);
+        require(_a != _b, "Unique identifiers require different addresses");
         if (_a < _b) {
             return keccak256(_a, _b);
         } else if (_a > _b) {
