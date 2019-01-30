@@ -12,7 +12,7 @@ class MetaTransaction():
         value: int = 0,
         data: bytes = bytes(),
         nonce: int = None,
-        extra_hash: bytes = bytes(),
+        extra_data: bytes = bytes(),
         signature: bytes = None,
     ):
         self.from_ = from_
@@ -20,18 +20,23 @@ class MetaTransaction():
         self.value = value
         self.data = data
         self.nonce = nonce
-        self.extra_hash = extra_hash
+        self.extra_data = extra_data
         self.signature = signature
 
     @classmethod
     def from_function_call(
         cls,
-        to: str,
         function_call,
         *,
+        from_: str = None,
+        to: str,
         nonce: int = None,
-        from_: int = None,
     ):
+        """Construct a meta transaction from a web3 function call
+
+        Usage:
+        `from_function_call(contract.functions.function()`
+        """
         data = function_call.buildTransaction(transaction={'gas': 1_000_000})['data']
 
         return cls(
@@ -63,7 +68,7 @@ class MetaTransaction():
                 self.value,
                 solidity_keccak(['bytes'], [self.data]),
                 self.nonce,
-                self.extra_hash,
+                self.extra_data,
             ]
         )
 
@@ -78,22 +83,54 @@ class MetaTransaction():
                 value=self.value,
                 data=self.data,
                 nonce=self.nonce,
-                extra_hash=self.extra_hash,
+                extra_hash=self.extra_data,
                 signature=self.signature,
                 )
 
 
-class IdentityContractProxy:
+class Delegator:
 
     def __init__(
         self,
+        delegator_address: str,
+        *,
+        web3,
+        identity_contract_abi,
+    ):
+        self.delegator_address = delegator_address
+        self._web3 = web3
+        self._identity_contract_abi = identity_contract_abi
+
+    def send_signed_meta_transaction(
+        self,
+        signed_meta_transaction: MetaTransaction
+    ):
+        contract = self._web3.eth.contract(
+            abi=self._identity_contract_abi,
+            address=signed_meta_transaction.from_
+        )
+
+        contract.functions.executeTransaction(
+            signed_meta_transaction.from_,
+            signed_meta_transaction.to,
+            signed_meta_transaction.value,
+            signed_meta_transaction.data,
+            signed_meta_transaction.nonce,
+            signed_meta_transaction.extra_data,
+            signed_meta_transaction.signature,
+        ).transact({'from': self.delegator_address})
+
+
+class Identity:
+
+    def __init__(
+        self,
+        *,
         contract,
-        delegator,
-        private_key: PrivateKey = None
+        owner_private_key: PrivateKey
     ):
         self.contract = contract
-        self.private_key = private_key
-        self.delegator = delegator
+        self._owner_private_key = owner_private_key
 
     @property
     def address(self):
@@ -110,32 +147,12 @@ class IdentityContractProxy:
         if meta_transaction.nonce is None:
             meta_transaction.nonce = self.get_next_nonce()
 
-    def send_signed_transaction(
-        self,
-        signed_meta_transaction: MetaTransaction
-    ):
+    def sign_meta_transaction(self, meta_transaction: MetaTransaction):
+        meta_transaction.sign(self._owner_private_key)
 
-        self.contract.functions.executeTransaction(
-            signed_meta_transaction.from_,
-            signed_meta_transaction.to,
-            signed_meta_transaction.value,
-            signed_meta_transaction.data,
-            signed_meta_transaction.nonce,
-            signed_meta_transaction.extra_hash,
-            signed_meta_transaction.signature,
-        ).transact({'from': self.delegator})
-
-    def send_transaction(
-        self,
-        meta_transaction: MetaTransaction,
-    ):
-        if self.private_key is None:
-            raise ValueError('No private key set')
-
+    def fill_and_sign_meta_transaction(self, meta_transaction: MetaTransaction):
         self.fill_defaults(meta_transaction)
-        meta_transaction.sign(self.private_key)
-
-        self.send_signed_transaction(meta_transaction)
+        self.sign_meta_transaction(meta_transaction)
 
     def get_next_nonce(self):
         return 0

@@ -31,7 +31,7 @@ contract Identity {
         uint256 value,
         bytes data,
         uint256 nonce,
-        bytes extraHash,
+        bytes extraData,
         bytes signature
     )
         public returns (bool _success)
@@ -45,7 +45,7 @@ contract Identity {
             value,
             data,
             nonce,
-            extraHash
+            extraData
         );
 
         require(isSignatureValid(hash, signature), "The transaction signature is not valid");
@@ -66,7 +66,7 @@ contract Identity {
         uint256 value,
         bytes data,
         uint256 nonce,
-        bytes extraHash
+        bytes extraData
     )
         internal
         pure
@@ -74,15 +74,16 @@ contract Identity {
     {
         bytes32 dataHash = keccak256(data);
 
-        bytes32 hash = keccak256(abi.encodePacked(
-            byte(0x19),
-            byte(0),
-            from,
-            to,
-            value,
-            dataHash,
-            nonce,
-            extraHash
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                byte(0x19),
+                byte(0),
+                from,
+                to,
+                value,
+                dataHash,
+                nonce,
+                extraData
         ));
 
         return hash;
