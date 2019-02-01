@@ -172,8 +172,9 @@ def test_delegated_transaction_wrong_from(identity_contract, delegator_address, 
     to = accounts[2]
     value = 1000
 
-    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0)
-    meta_transaction = meta_transaction.signed(owner_key)
+    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0).signed(
+        owner_key
+    )
 
     with pytest.raises(TransactionFailed):
         identity_contract.functions.executeTransaction(
@@ -192,12 +193,8 @@ def test_delegated_transaction_wrong_signature(identity, delegator, accounts, ac
     value = 1000
 
     meta_transaction = MetaTransaction(
-        from_=identity.address,
-        to=to,
-        value=value,
-        nonce=0,
-    )
-    meta_transaction = meta_transaction.signed(account_keys[3])
+        from_=identity.address, to=to, value=value, nonce=0
+    ).signed(account_keys[3])
 
     with pytest.raises(TransactionFailed):
         delegator.send_signed_meta_transaction(meta_transaction)
@@ -208,8 +205,9 @@ def test_delegated_transaction_success_event(identity, delegator, test_contract)
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
-    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to)
+    )
     delegator.send_signed_meta_transaction(meta_transaction)
 
     event = (identity.contract.events.TransactionExecution
@@ -223,8 +221,9 @@ def test_delegated_transaction_fail_event(identity, delegator, test_contract):
     to = test_contract.address
     function_call = test_contract.functions.fails()
 
-    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to)
+    )
     delegator.send_signed_meta_transaction(meta_transaction)
 
     event = (identity.contract.events.TransactionExecution
@@ -240,8 +239,9 @@ def test_delegated_transaction_trustlines_flow(currency_network_contract, identi
     to = currency_network_contract.address
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
-    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to)
+    )
     delegator.send_signed_meta_transaction(meta_transaction)
 
     currency_network_contract.functions.updateCreditlimits(A, 100, 100).transact({'from': B})
@@ -261,10 +261,12 @@ def test_delegated_transaction_nonce_zero(identity, delegator, web3, accounts):
 
     balance_before = web3.eth.getBalance(to)
 
-    meta_transaction1 = MetaTransaction(to=to, value=value1, nonce=0)
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
-    meta_transaction2 = MetaTransaction(to=to, value=value2, nonce=0)
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value1, nonce=0)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value2, nonce=0)
+    )
 
     delegator.send_signed_meta_transaction(meta_transaction1)
     delegator.send_signed_meta_transaction(meta_transaction2)
@@ -280,10 +282,12 @@ def test_delegated_transaction_nonce_increase(identity, delegator, web3, account
 
     balance_before = web3.eth.getBalance(to)
 
-    meta_transaction1 = MetaTransaction(to=to, value=value, nonce=1)
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
-    meta_transaction2 = MetaTransaction(to=to, value=value, nonce=2)
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=2)
+    )
 
     delegator.send_signed_meta_transaction(meta_transaction1)
     delegator.send_signed_meta_transaction(meta_transaction2)
@@ -297,10 +301,12 @@ def test_delegated_transaction_same_nonce_fails(identity, delegator, web3, accou
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = MetaTransaction(to=to, value=value, nonce=1)
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
-    meta_transaction2 = MetaTransaction(to=to, value=value, nonce=1)
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
 
     delegator.send_signed_meta_transaction(meta_transaction1)
 
@@ -312,10 +318,12 @@ def test_delegated_transaction_nonce_gap_fails(identity, delegator, web3, accoun
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = MetaTransaction(to=to, value=value, nonce=1)
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
-    meta_transaction2 = MetaTransaction(to=to, value=value, nonce=3)
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=3)
+    )
 
     delegator.send_signed_meta_transaction(meta_transaction1)
 
