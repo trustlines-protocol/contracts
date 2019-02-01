@@ -48,6 +48,7 @@ setup(
         "click>=7.0",
         "trustlines-contracts-bin>=0.5.0,<0.6.0",
         "contract-deploy-tools>=0.2.1",
+        "attrs>=18.2",
     ],
     python_requires=">=3.5",
     # To provide executable scripts, use entry points in preference to the

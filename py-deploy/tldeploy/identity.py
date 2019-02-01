@@ -1,27 +1,24 @@
+from typing import Optional
+
+import attr
+
 from eth_keys.datatypes import PrivateKey
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
 
-class MetaTransaction():
+@attr.s(
+    auto_attribs=True,
+    kw_only=True,
+    frozen=True)
+class MetaTransaction:
 
-    def __init__(
-        self,
-        *,
-        from_: str = None,
-        to: str,
-        value: int = 0,
-        data: bytes = bytes(),
-        nonce: int = None,
-        extra_data: bytes = bytes(),
-        signature: bytes = None,
-    ):
-        self.from_ = from_
-        self.to = to
-        self.value = value
-        self.data = data
-        self.nonce = nonce
-        self.extra_data = extra_data
-        self.signature = signature
+    from_: Optional[str] = None
+    to: str
+    value: int = 0
+    data: bytes = bytes()
+    nonce: Optional[int] = None
+    extra_data: bytes = bytes()
+    signature: Optional[bytes] = None
 
     @classmethod
     def from_function_call(
@@ -72,20 +69,8 @@ class MetaTransaction():
             ]
         )
 
-    def sign(self, key: PrivateKey):
-        self.signature = sign_msg_hash(self.hash, key=key)
-
-    def __repr__(self):
-        return 'MetaTransaction(from_={from_}, to={to}, value={value}, ' \
-               'data={data}, nonce={nonce}, extra_hash={extra_hash}, signature={signature})'.format(
-                from_=self.from_,
-                to=self.to,
-                value=self.value,
-                data=self.data,
-                nonce=self.nonce,
-                extra_hash=self.extra_data,
-                signature=self.signature,
-                )
+    def signed(self, key: PrivateKey) -> 'MetaTransaction':
+        return attr.evolve(self, signature=sign_msg_hash(self.hash, key=key))
 
 
 class Delegator:
@@ -136,23 +121,29 @@ class Identity:
     def address(self):
         return self.contract.address
 
-    def fill_defaults(
+    def defaults_filled(
         self,
         meta_transaction: MetaTransaction,
-    ):
+    ) -> MetaTransaction:
+        """
+        Returns a meta transaction where the from field of the transaction is set to the identity address,
+        and the nonce if not set yet is set to the next nonce
+        """
 
-        if meta_transaction.from_ is None:
-            meta_transaction.from_ = self.address
+        meta_transaction = attr.evolve(meta_transaction, from_=self.address)
 
         if meta_transaction.nonce is None:
-            meta_transaction.nonce = self.get_next_nonce()
+            meta_transaction = attr.evolve(meta_transaction, nonce=self.get_next_nonce())
 
-    def sign_meta_transaction(self, meta_transaction: MetaTransaction):
-        meta_transaction.sign(self._owner_private_key)
+        return meta_transaction
 
-    def fill_and_sign_meta_transaction(self, meta_transaction: MetaTransaction):
-        self.fill_defaults(meta_transaction)
-        self.sign_meta_transaction(meta_transaction)
+    def signed_meta_transaction(self, meta_transaction: MetaTransaction) -> MetaTransaction:
+        return meta_transaction.signed(self._owner_private_key)
+
+    def filled_and_signed_meta_transaction(self, meta_transaction: MetaTransaction) -> MetaTransaction:
+        meta_transaction = self.defaults_filled(meta_transaction)
+        meta_transaction = self.signed_meta_transaction(meta_transaction)
+        return meta_transaction
 
     def get_next_nonce(self):
         return 0
