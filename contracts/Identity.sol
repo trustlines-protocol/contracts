@@ -9,6 +9,7 @@ contract Identity {
     bool private initialised;
 
     mapping(bytes32 => bool) private hashUsed;
+    uint public lastNonce = 0;
 
     event TransactionExecution(bytes32 hash, bool status);
 
@@ -49,9 +50,14 @@ contract Identity {
         );
 
         require(isSignatureValid(hash, signature), "The transaction signature is not valid");
-        require(!hashUsed[hash], "This transaction was already executed");
 
-        hashUsed[hash] = true; // To prevent replaying this meta transaction
+        if (nonce == 0) {
+            require(!hashUsed[hash], "This transaction was already executed");
+            hashUsed[hash] = true; // To prevent replaying this meta transaction
+        } else {
+            lastNonce++;
+            require(lastNonce==nonce);
+        }
 
         bool status = to.call.value(value)(data); // solium-disable-line security/no-call-value
 

@@ -9,7 +9,8 @@ from tldeploy.signing import solidity_keccak, sign_msg_hash
 @attr.s(
     auto_attribs=True,
     kw_only=True,
-    frozen=True)
+    frozen=True,
+)
 class MetaTransaction:
 
     from_: Optional[str] = None
@@ -146,4 +147,4 @@ class Identity:
         return meta_transaction
 
     def get_next_nonce(self):
-        return 0
+        return self.contract.functions.lastNonce().call() + 1
