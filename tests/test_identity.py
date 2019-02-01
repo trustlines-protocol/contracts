@@ -130,7 +130,7 @@ def test_delegated_transaction_function_call(identity, delegator, test_contract)
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     event = test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()[0]["args"]
@@ -147,7 +147,7 @@ def test_delegated_transaction_transfer(web3, identity, delegator, accounts):
     meta_transaction = MetaTransaction(to=to, value=value)
 
     balance_before = web3.eth.getBalance(to)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     balance_after = web3.eth.getBalance(to)
@@ -160,7 +160,7 @@ def test_delegated_transaction_same_tx_fails(identity, delegator, accounts):
     value = 1000
 
     meta_transaction = MetaTransaction(to=to, value=value)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     with pytest.raises(TransactionFailed):
@@ -173,7 +173,7 @@ def test_delegated_transaction_wrong_from(identity_contract, delegator_address, 
     value = 1000
 
     meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0)
-    meta_transaction.sign(owner_key)
+    meta_transaction = meta_transaction.signed(owner_key)
 
     with pytest.raises(TransactionFailed):
         identity_contract.functions.executeTransaction(
@@ -197,7 +197,7 @@ def test_delegated_transaction_wrong_signature(identity, delegator, accounts, ac
         value=value,
         nonce=0,
     )
-    meta_transaction.sign(account_keys[3])
+    meta_transaction = meta_transaction.signed(account_keys[3])
 
     with pytest.raises(TransactionFailed):
         delegator.send_signed_meta_transaction(meta_transaction)
@@ -209,7 +209,7 @@ def test_delegated_transaction_success_event(identity, delegator, test_contract)
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     event = (identity.contract.events.TransactionExecution
@@ -224,7 +224,7 @@ def test_delegated_transaction_fail_event(identity, delegator, test_contract):
     function_call = test_contract.functions.fails()
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     event = (identity.contract.events.TransactionExecution
@@ -241,14 +241,14 @@ def test_delegated_transaction_trustlines_flow(currency_network_contract, identi
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     currency_network_contract.functions.updateCreditlimits(A, 100, 100).transact({'from': B})
 
     function_call = currency_network_contract.functions.transfer(B, 100, 0, [B])
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    identity.fill_and_sign_meta_transaction(meta_transaction)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
     assert currency_network_contract.functions.balance(A, B).call() == -100
