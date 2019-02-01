@@ -299,9 +299,9 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-mypy
             - install
             - run-pytest
-            - run-mypy
             - run-smoketests
 
       - upload-npm-latest:
@@ -320,19 +320,21 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-mypy
             - run-pytest
             - install
-            - run-pytest
             - run-smoketests
 
       - build-docker-image:
           filters:
             <<: *tagged-filter
+
       - run-smoketests:
           filters:
             <<: *tagged-filter
           requires:
             - build-docker-image
+
       - deploy-docker-image:
           context: docker-credentials
           filters:
@@ -343,8 +345,8 @@ workflows:
             - run-solium
             - run-flake8
             - run-pytest
+            - run-mypy
             - install
-            - run-pytest
             - build-docker-image
             - run-smoketests
 

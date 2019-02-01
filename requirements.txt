@@ -4,6 +4,7 @@ attrs>=18.2
 contract-deploy-tools
 # --- development dependencies, i.e. dependencies not needed for running contracts
 flake8
+mypy
 pytest
 texttable
 setuptools_scm
