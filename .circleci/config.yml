@@ -161,6 +161,17 @@ jobs:
           name: Run pytest
           command: pytest
 
+  run-mypy:
+    executor: ubuntu-builder
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - run:
+          name: Run mypy
+          command: |
+            mypy --ignore-missing-imports py-deploy/tldeploy tests
+
   build-docker-image:
     executor: ubuntu-builder
 
@@ -262,6 +273,12 @@ workflows:
           filters:
             <<: *tagged-filter
 
+      - run-mypy:
+          requires:
+            - install
+          filters:
+            <<: *tagged-filter
+
       - install:
           filters:
             <<: *tagged-filter
@@ -284,6 +301,7 @@ workflows:
             - run-flake8
             - install
             - run-pytest
+            - run-mypy
             - run-smoketests
 
       - upload-npm-latest:
@@ -302,6 +320,7 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-pytest
             - install
             - run-pytest
             - run-smoketests
@@ -323,6 +342,7 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-pytest
             - install
             - run-pytest
             - build-docker-image

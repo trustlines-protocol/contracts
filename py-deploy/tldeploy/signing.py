@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from eth_keys import keys
 from eth_keys.exceptions import BadSignature
@@ -14,10 +14,10 @@ def eth_sign(hash: bytes, key: bytes):
     return v, r, s
 
 
-def eth_validate(msg_hash: bytes, vrs: Tuple[any, any, any], address: str):
+def eth_validate(msg_hash: bytes, vrs: Tuple[Union[int, bytes], Union[int, bytes], Union[int, bytes]], address: str):
     v, r, s = vrs
     if isinstance(v, bytes):
-        v = int.from_bytes(r, byteorder='big')
+        v = int.from_bytes(v, byteorder='big')
     if isinstance(r, bytes):
         r = int.from_bytes(r, byteorder='big')
     if isinstance(s, bytes):
@@ -32,7 +32,7 @@ def eth_validate(msg_hash: bytes, vrs: Tuple[any, any, any], address: str):
         return False
 
 
-def priv_to_pubkey(key):
+def priv_to_pubkey(key: bytes):
     return keys.PrivateKey(key).public_key.to_checksum_address()
 
 
