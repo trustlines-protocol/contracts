@@ -252,3 +252,72 @@ def test_delegated_transaction_trustlines_flow(currency_network_contract, identi
     delegator.send_signed_meta_transaction(meta_transaction)
 
     assert currency_network_contract.functions.balance(A, B).call() == -100
+
+
+def test_delegated_transaction_nonce_zero(identity, delegator, web3, accounts):
+    to = accounts[2]
+    value1 = 1000
+    value2 = 1001
+
+    balance_before = web3.eth.getBalance(to)
+
+    meta_transaction1 = MetaTransaction(to=to, value=value1, nonce=0)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
+    meta_transaction2 = MetaTransaction(to=to, value=value2, nonce=0)
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+    delegator.send_signed_meta_transaction(meta_transaction2)
+
+    balance_after = web3.eth.getBalance(to)
+
+    assert balance_after - balance_before == value1 + value2
+
+
+def test_delegated_transaction_nonce_increase(identity, delegator, web3, accounts):
+    to = accounts[2]
+    value = 1000
+
+    balance_before = web3.eth.getBalance(to)
+
+    meta_transaction1 = MetaTransaction(to=to, value=value, nonce=1)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
+    meta_transaction2 = MetaTransaction(to=to, value=value, nonce=2)
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+    delegator.send_signed_meta_transaction(meta_transaction2)
+
+    balance_after = web3.eth.getBalance(to)
+
+    assert balance_after - balance_before == value + value
+
+
+def test_delegated_transaction_same_nonce_fails(identity, delegator, web3, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction1 = MetaTransaction(to=to, value=value, nonce=1)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
+    meta_transaction2 = MetaTransaction(to=to, value=value, nonce=1)
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+
+    with pytest.raises(TransactionFailed):
+        delegator.send_signed_meta_transaction(meta_transaction2)
+
+
+def test_delegated_transaction_nonce_gap_fails(identity, delegator, web3, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction1 = MetaTransaction(to=to, value=value, nonce=1)
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(meta_transaction1)
+    meta_transaction2 = MetaTransaction(to=to, value=value, nonce=3)
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(meta_transaction2)
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+
+    with pytest.raises(TransactionFailed):
+        delegator.send_signed_meta_transaction(meta_transaction2)
