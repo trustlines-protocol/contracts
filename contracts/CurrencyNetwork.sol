@@ -818,7 +818,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         TrustlineBalances memory balances = trustline.balances;
         if (balances.balance > 0) {
             require(
-                path.length >= 2,
+                _path.length >= 2,
                 "The path given is too short to be correct."
             );
             require(
