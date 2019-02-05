@@ -128,8 +128,16 @@ contract Exchange is SafeMath, Destructable {
             orderHash: getOrderHash(orderAddresses, orderValues)
         });
 
-        require(order.taker == address(0) || order.taker == msg.sender);
-        require(order.makerTokenAmount > 0 && order.takerTokenAmount > 0 && fillTakerTokenAmount > 0);
+        require(
+            order.taker == address(0) || order.taker == msg.sender,
+            "The taker of the order must be either the message sender or the zero address."
+        );
+        require(
+            order.makerTokenAmount > 0 &&
+            order.takerTokenAmount > 0 &&
+            fillTakerTokenAmount > 0,
+            "The token amount of order maker, order taker, and fill taker must be positive."
+        );
         require(
             isValidSignature(
                 order.maker,
@@ -137,7 +145,9 @@ contract Exchange is SafeMath, Destructable {
                 v,
                 r,
                 s
-        ));
+            ),
+            "The signature of the order is incorrect."
+        );
 
         if (block.timestamp >= order.expirationTimestampInSec) {
             emit LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
@@ -165,13 +175,17 @@ contract Exchange is SafeMath, Destructable {
                 order.maker,
                 msg.sender,
                 filledMakerTokenAmount
-        ));
+            ),
+            "The maker token cannot be transferred from the maker to the taker."
+        );
         require(
             Token(order.takerToken).transferFrom(
                 msg.sender,
                 order.maker,
                 filledTakerTokenAmount
-        ));
+            ),
+            "The taker token cannot be transferred from the taker to the maker."
+        );
 
         emit LogFill(
             order.maker,
@@ -225,8 +239,17 @@ contract Exchange is SafeMath, Destructable {
             orderHash: getOrderHash(orderAddresses, orderValues)
         });
 
-        require(order.taker == address(0) || order.taker == msg.sender);
-        require(order.makerTokenAmount > 0 && order.takerTokenAmount > 0 && fillTakerTokenAmount > 0);
+        require(
+            order.taker == address(0) ||
+            order.taker == msg.sender,
+            "Order taker must be message sender or the zero address."
+        );
+        require(
+            order.makerTokenAmount > 0 &&
+            order.takerTokenAmount > 0 &&
+            fillTakerTokenAmount > 0,
+            "The token amount of order maker, order taker, and fill taker must be positive."
+        );
         require(
             isValidSignature(
                 order.maker,
@@ -234,7 +257,9 @@ contract Exchange is SafeMath, Destructable {
                 v,
                 r,
                 s
-        ));
+            ),
+            "The signature of the order is incorrect."
+        );
 
         if (block.timestamp >= order.expirationTimestampInSec) {
             emit LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
@@ -265,7 +290,9 @@ contract Exchange is SafeMath, Destructable {
                     uint32(filledMakerTokenAmount), // TODO Overflow check
                     MAX_FEE,
                     makerPath
-            ));
+                ),
+                "The Trustlines Network transfer from the maker to the taker failed."
+            );
         } else {
             // Normal token transfer
             require(
@@ -273,7 +300,9 @@ contract Exchange is SafeMath, Destructable {
                     order.maker,
                     msg.sender,
                     filledMakerTokenAmount
-            ));
+                ),
+                "The maker token cannot be transferred from the maker to the taker."
+            );
         }
 
         if (takerPath.length > 0) {
@@ -284,15 +313,17 @@ contract Exchange is SafeMath, Destructable {
                     order.maker,
                     uint32(filledTakerTokenAmount), // TODO Overflow check
                     MAX_FEE,
-                    takerPath
-            ));
+                    takerPath),
+                "The Trustlines Network transfer from the taker to the maker failed."
+            );
         } else {
             require(
                 Token(order.takerToken).transferFrom(
                     msg.sender,
                     order.maker,
-                    filledTakerTokenAmount
-            ));
+                    filledTakerTokenAmount),
+                "The taker token cannot be transferred from the taker to the maker."
+            );
         }
 
         emit LogFill(
@@ -337,8 +368,13 @@ contract Exchange is SafeMath, Destructable {
             orderHash: getOrderHash(orderAddresses, orderValues)
         });
 
-        require(order.maker == msg.sender);
-        require(order.makerTokenAmount > 0 && order.takerTokenAmount > 0 && cancelTakerTokenAmount > 0);
+        require(order.maker == msg.sender, "The order maker has to match the message sender.");
+        require(
+            order.makerTokenAmount > 0 &&
+            order.takerTokenAmount > 0 &&
+            cancelTakerTokenAmount > 0,
+            "The token amount of order maker, order taker, and cancel taker must be positive."
+        );
 
         if (block.timestamp >= order.expirationTimestampInSec) {
             emit LogError(uint8(Errors.ORDER_EXPIRED), order.orderHash);
@@ -396,7 +432,9 @@ contract Exchange is SafeMath, Destructable {
                 v,
                 r,
                 s
-            ) == fillTakerTokenAmount);
+            ) == fillTakerTokenAmount,
+            "The specified amount was not filled entirely."
+        );
     }
 
     /// @dev Synchronously executes multiple fill orders in a single transaction.
@@ -480,7 +518,10 @@ contract Exchange is SafeMath, Destructable {
     {
         uint filledTakerTokenAmount = 0;
         for (uint i = 0; i < orderAddresses.length; i++) {
-            require(orderAddresses[i][3] == orderAddresses[0][3]); // takerToken must be the same for each order
+            require(
+                orderAddresses[i][3] == orderAddresses[0][3],
+                "The taker token must be the same for each order."
+            );
             filledTakerTokenAmount = safeAdd(
                 filledTakerTokenAmount,
                 fillOrder(
