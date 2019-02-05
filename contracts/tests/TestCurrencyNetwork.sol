@@ -73,9 +73,17 @@ contract TestCurrencyNetwork is CurrencyNetwork {
     )
         external
     {
-        require(customInterests || (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate));
+        require(
+            customInterests ||
+            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
+            "Interest rates given and received must be equal to default interest rates."
+        );
         if (customInterests) {
-            require(_interestRateGiven >= 0 && _interestRateReceived >= 0);
+            require(
+                _interestRateGiven >= 0 &&
+                _interestRateReceived >= 0,
+                "Only positive interest rates are supported."
+            );
         }
 
         _setAccount(
