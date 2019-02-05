@@ -1,6 +1,16 @@
 ==========
 Change Log
 ==========
+`0.6.0`_ (2019-02-05)
+-----------------------
+* Add an identity contract implementation and a way for delegators to execute
+  meta transactions on behalf users using these identity contracts. The result
+  is that users do not have to pay for gas directly.
+
+`0.5.1`_ (2019-01-23)
+-----------------------
+* Fix internal version dependency, 0.5.0 was broken
+
 `0.5.0`_ (2019-01-23)
 -----------------------
 * Remove old populus dependency and substitute it with contract-deploy-tools
@@ -101,3 +111,5 @@ The rest of the changes are only interesting for developers:
 .. _0.3.3: https://github.com/trustlines-network/contracts/compare/0.3.2...0.3.3
 .. _0.4.0: https://github.com/trustlines-network/contracts/compare/0.3.3...0.4.0
 .. _0.5.0: https://github.com/trustlines-network/contracts/compare/0.4.0...0.5.0
+.. _0.5.1: https://github.com/trustlines-network/contracts/compare/0.5.0...0.5.1
+.. _0.6.0: https://github.com/trustlines-network/contracts/compare/0.5.1...0.6.0
