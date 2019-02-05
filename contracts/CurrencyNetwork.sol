@@ -1234,7 +1234,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             return 0;
         }
         uint64 result = uint64(imbalanceGenerated);
-        require(result == imbalanceGenerated, "The imbalance generated cannot be cast to a uint64.");
+        require(result == imbalanceGenerated, "The imbalance does not fit into uint64.");
         return result;
     }
 
