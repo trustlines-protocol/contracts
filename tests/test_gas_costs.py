@@ -3,7 +3,7 @@
  for example because of a different solidity version"""
 import pytest
 from texttable import Texttable
-from tldeploy.core import deploy_network
+from tldeploy.core import deploy_network, deploy_identity
 
 trustlines = [(0, 1, 100, 150),
               (1, 2, 200, 250),
@@ -135,3 +135,19 @@ def test_cost_close_trustline(web3, currency_network_contract_with_trustlines, a
     tx_hash = contract.functions.closeTrustline(B).transact({"from": A})
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, 'Close Trustline', gas_cost, limit=55000)
+
+
+def test_deploy_identity(web3, accounts, table):
+    A, *rest = accounts
+
+    block_number_before = web3.eth.blockNumber
+
+    deploy_identity(web3, A)
+
+    block_number_after = web3.eth.blockNumber
+
+    gas_cost = 0
+    for block_number in range(block_number_after, block_number_before, - 1):
+        gas_cost += web3.eth.getBlock(block_number).gasUsed
+
+    report_gas_costs(table, 'Deploy Identity', gas_cost, limit=1_000_000)
