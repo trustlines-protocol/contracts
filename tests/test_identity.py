@@ -3,7 +3,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
 from tldeploy.core import deploy_network, deploy_identity
-from tldeploy.identity import MetaTransaction, Identity, Delegator
+from tldeploy.identity import MetaTransaction, Identity, Delegator, UnexpectedIdentityContractException
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
 
@@ -356,7 +356,8 @@ def test_validate_from_no_code(identity_contract, delegator, accounts, owner_key
         owner_key
     )
 
-    assert not delegator.validate_meta_transaction(meta_transaction)
+    with pytest.raises(UnexpectedIdentityContractException):
+        delegator.validate_meta_transaction(meta_transaction)
 
 
 def test_validate_from_wrong_contract(identity_contract, delegator, accounts, owner_key, currency_network_contract):
@@ -368,7 +369,8 @@ def test_validate_from_wrong_contract(identity_contract, delegator, accounts, ow
         owner_key
     )
 
-    assert not delegator.validate_meta_transaction(meta_transaction)
+    with pytest.raises(UnexpectedIdentityContractException):
+        delegator.validate_meta_transaction(meta_transaction)
 
 
 def test_validate_wrong_signature(identity, delegator, accounts, account_keys):
@@ -466,3 +468,20 @@ def test_deploy_identity(web3, delegator, owner, owner_key, test_contract):
     delegator.send_signed_meta_transaction(meta_transaction)
 
     assert len(test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()) > 0
+
+
+def test_next_nonce(identity, delegator, web3, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=2)
+    )
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+    delegator.send_signed_meta_transaction(meta_transaction2)
+
+    assert delegator.get_next_nonce(identity.address) == 3

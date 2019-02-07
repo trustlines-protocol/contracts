@@ -76,6 +76,10 @@ class MetaTransaction:
         return attr.evolve(self, signature=sign_msg_hash(self.hash, key=key))
 
 
+class UnexpectedIdentityContractException(Exception):
+    pass
+
+
 class Delegator:
 
     def __init__(
@@ -122,6 +126,7 @@ class Delegator:
         ```
         validate_replay_mechanism(tx)
         validate_signature(tx)
+        Will raise UnexpectedIdentityContractException, if it could not find the check in the contract.
         """
         return (self.validate_nonce(signed_meta_transaction) and
                 self.validate_signature(signed_meta_transaction))
@@ -133,8 +138,8 @@ class Delegator:
         """
         Validates the nonce by using the provided check by the identity contract
 
-        Returns: True, if the nonce was successfully validated, False if it was wrong, or if
-        the check could not be executed.
+        Returns: True, if the nonce was successfully validated, False if it was wrong
+        Will raise UnexpectedIdentityContractException, if it could not find the check in the contract.
         """
         from_ = signed_meta_transaction.from_
         if from_ is None:
@@ -146,7 +151,7 @@ class Delegator:
                 signed_meta_transaction.hash,
             ).call()
         except BadFunctionCallOutput:
-            return False
+            raise UnexpectedIdentityContractException('validateNonce function not found')
 
         return nonce_valid
 
@@ -157,8 +162,8 @@ class Delegator:
         """
         Validates the signature by using the provided check by the identity contract
 
-        Returns: True, if the signature was successfully validated, False if it was wrong, or if
-        the check could not be executed.
+        Returns: True, if the signature was successfully validated, False if it was wrong
+        Will raise UnexpectedIdentityContractException, if it could not find the check in the contract.
         """
         from_ = signed_meta_transaction.from_
         if from_ is None:
@@ -171,9 +176,22 @@ class Delegator:
                 signed_meta_transaction.signature,
             ).call()
         except BadFunctionCallOutput:
-            return False
+            raise UnexpectedIdentityContractException('validateSignature function not found')
 
         return signature_valid
+
+    def get_next_nonce(self, identity_address: str):
+        """
+        Returns the next usable nonce
+
+        Will raise UnexpectedIdentityContractException, if  it could not find the necessary function in the contract.
+        """
+        contract = self._get_identity_contract(identity_address)
+        try:
+            next_nonce = contract.functions.lastNonce().call() + 1
+        except BadFunctionCallOutput:
+            raise UnexpectedIdentityContractException('lastNonce function not found')
+        return next_nonce
 
     def _get_identity_contract(self, address: str):
         return self._web3.eth.contract(
