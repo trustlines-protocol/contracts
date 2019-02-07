@@ -23,6 +23,6 @@ contract TestContract {
     }
 
     function fails() public {
-        revert();
+        revert("This will just always fail");
     }
 }

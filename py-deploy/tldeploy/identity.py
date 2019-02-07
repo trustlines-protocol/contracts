@@ -1,9 +1,11 @@
 from typing import Optional
 
 import attr
-
 from eth_keys.datatypes import PrivateKey
 from tldeploy.signing import solidity_keccak, sign_msg_hash
+from web3.exceptions import BadFunctionCallOutput
+
+MAX_GAS = 1_000_000
 
 
 @attr.s(
@@ -35,7 +37,7 @@ class MetaTransaction:
         Usage:
         `from_function_call(contract.functions.function()`
         """
-        data = function_call.buildTransaction(transaction={'gas': 1_000_000})['data']
+        data = function_call.buildTransaction(transaction={'gas': MAX_GAS})['data']
 
         return cls(
             from_=from_,
@@ -82,21 +84,25 @@ class Delegator:
         *,
         web3,
         identity_contract_abi,
+        max_gas=MAX_GAS,
     ):
         self.delegator_address = delegator_address
         self._web3 = web3
         self._identity_contract_abi = identity_contract_abi
+        self._max_gas = max_gas
 
     def send_signed_meta_transaction(
         self,
         signed_meta_transaction: MetaTransaction
-    ):
-        contract = self._web3.eth.contract(
-            abi=self._identity_contract_abi,
-            address=signed_meta_transaction.from_
-        )
+    ) -> str:
+        """
+        Sends the meta transaction out inside of a ethereum transaction
+        Returns: the hash of the envelop ethereum transaction
 
-        contract.functions.executeTransaction(
+        """
+        contract = self._get_identity_contract(signed_meta_transaction.from_)
+
+        return contract.functions.executeTransaction(
             signed_meta_transaction.from_,
             signed_meta_transaction.to,
             signed_meta_transaction.value,
@@ -104,7 +110,58 @@ class Delegator:
             signed_meta_transaction.nonce,
             signed_meta_transaction.extra_data,
             signed_meta_transaction.signature,
-        ).transact({'from': self.delegator_address})
+        ).transact({'from': self.delegator_address, 'gas': self._max_gas})
+
+    def validate_meta_transaction_values(
+        self,
+        signed_meta_transaction: MetaTransaction
+    ) -> bool:
+        """
+        Validates the fields of the meta transaction against the state of the identity contract
+
+        This is equivalent to
+        ```
+        validate_replay_mechanism(tx)
+        validate_signature(tx)
+        """
+        return (self.validate_replay_mechanism(signed_meta_transaction) and
+                self.validate_signature(signed_meta_transaction))
+
+    def validate_replay_mechanism(
+        self,
+        signed_meta_transaction: MetaTransaction,
+    ):
+        contract = self._get_identity_contract(signed_meta_transaction.from_)
+        try:
+            nonce_valid = contract.functions.isNonceValid(
+                signed_meta_transaction.nonce,
+                signed_meta_transaction.hash,
+            ).call()
+        except BadFunctionCallOutput:
+            return False
+
+        return nonce_valid
+
+    def validate_signature(
+        self,
+        signed_meta_transaction: MetaTransaction,
+    ):
+        contract = self._get_identity_contract(signed_meta_transaction.from_)
+        try:
+            signature_valid = contract.functions.isSignatureValid(
+                signed_meta_transaction.hash,
+                signed_meta_transaction.signature,
+            ).call()
+        except BadFunctionCallOutput:
+            return False
+
+        return signature_valid
+
+    def _get_identity_contract(self, address: str):
+        return self._web3.eth.contract(
+            abi=self._identity_contract_abi,
+            address=address,
+        )
 
 
 class Identity:

@@ -6,6 +6,7 @@
     "function-order": "error",
     "mixedcase": "error",
     "quotes": ["error", "double"],
+    "error-reason": "error",
     "security/no-inline-assembly": "off",
     "security/no-block-members": "off",
     "operator-whitespace": "off"
