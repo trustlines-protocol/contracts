@@ -111,3 +111,14 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
     ]
 
     return networks, exchange, unw_eth
+
+
+def deploy_identity(web3, owner_address):
+    identity = deploy('Identity', web3=web3)
+
+    tx_id = identity.functions.init(owner_address).transact(
+        {"from": web3.eth.accounts[0]}
+    )
+    wait_for_successful_transaction_receipt(web3, tx_id)
+
+    return identity

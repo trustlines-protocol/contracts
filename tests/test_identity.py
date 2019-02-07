@@ -2,7 +2,7 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
-from tldeploy.core import deploy_network
+from tldeploy.core import deploy_network, deploy_identity
 from tldeploy.identity import MetaTransaction, Identity, Delegator
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
@@ -446,3 +446,23 @@ def test_estimate_gas(identity, delegator, accounts):
     meta_transaction = identity.filled_and_signed_meta_transaction(MetaTransaction(to=to, value=value))
 
     assert isinstance(delegator.estimate_gas_signed_meta_transaction(meta_transaction), int)
+
+
+def test_deploy_identity(web3, delegator, owner, owner_key, test_contract):
+    identity_contract = deploy_identity(web3, owner)
+
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = MetaTransaction.from_function_call(
+        function_call,
+        to=to,
+        from_=identity_contract.address,
+        nonce=0,
+    ).signed(
+        owner_key
+    )
+    delegator.send_signed_meta_transaction(meta_transaction)
+
+    assert len(test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()) > 0
