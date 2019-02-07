@@ -25,3 +25,8 @@ repos:
     hooks:
     - id: solium
       args: [--dir=contracts]
+- repo: git://github.com/luismayta/pre-commit-mypy
+  sha: '0.1.1'
+  hooks:
+  - id: mypy
+    args: ["--scripts-are-modules", "--ignore-missing-imports"]

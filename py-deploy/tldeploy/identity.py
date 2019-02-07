@@ -84,35 +84,34 @@ class Delegator:
         *,
         web3,
         identity_contract_abi,
-        max_gas=MAX_GAS,
     ):
         self.delegator_address = delegator_address
         self._web3 = web3
         self._identity_contract_abi = identity_contract_abi
-        self._max_gas = max_gas
+
+    def estimate_gas_signed_meta_transaction(
+        self,
+        signed_meta_transaction: MetaTransaction,
+    ):
+        return self._meta_transaction_function_call(signed_meta_transaction).estimateGas(
+            {'from': self.delegator_address}
+        )
 
     def send_signed_meta_transaction(
         self,
-        signed_meta_transaction: MetaTransaction
+        signed_meta_transaction: MetaTransaction,
+        gas: int = MAX_GAS,
     ) -> str:
         """
         Sends the meta transaction out inside of a ethereum transaction
         Returns: the hash of the envelop ethereum transaction
 
         """
-        contract = self._get_identity_contract(signed_meta_transaction.from_)
+        return self._meta_transaction_function_call(signed_meta_transaction).transact(
+            {'from': self.delegator_address, 'gas': gas}
+        )
 
-        return contract.functions.executeTransaction(
-            signed_meta_transaction.from_,
-            signed_meta_transaction.to,
-            signed_meta_transaction.value,
-            signed_meta_transaction.data,
-            signed_meta_transaction.nonce,
-            signed_meta_transaction.extra_data,
-            signed_meta_transaction.signature,
-        ).transact({'from': self.delegator_address, 'gas': self._max_gas})
-
-    def validate_meta_transaction_values(
+    def validate_meta_transaction(
         self,
         signed_meta_transaction: MetaTransaction
     ) -> bool:
@@ -124,16 +123,25 @@ class Delegator:
         validate_replay_mechanism(tx)
         validate_signature(tx)
         """
-        return (self.validate_replay_mechanism(signed_meta_transaction) and
+        return (self.validate_nonce(signed_meta_transaction) and
                 self.validate_signature(signed_meta_transaction))
 
-    def validate_replay_mechanism(
+    def validate_nonce(
         self,
         signed_meta_transaction: MetaTransaction,
     ):
-        contract = self._get_identity_contract(signed_meta_transaction.from_)
+        """
+        Validates the nonce by using the provided check by the identity contract
+
+        Returns: True, if the nonce was successfully validated, False if it was wrong, or if
+        the check could not be executed.
+        """
+        from_ = signed_meta_transaction.from_
+        if from_ is None:
+            raise ValueError('From has to be set')
+        contract = self._get_identity_contract(from_)
         try:
-            nonce_valid = contract.functions.isNonceValid(
+            nonce_valid = contract.functions.validateNonce(
                 signed_meta_transaction.nonce,
                 signed_meta_transaction.hash,
             ).call()
@@ -146,9 +154,19 @@ class Delegator:
         self,
         signed_meta_transaction: MetaTransaction,
     ):
-        contract = self._get_identity_contract(signed_meta_transaction.from_)
+        """
+        Validates the signature by using the provided check by the identity contract
+
+        Returns: True, if the signature was successfully validated, False if it was wrong, or if
+        the check could not be executed.
+        """
+        from_ = signed_meta_transaction.from_
+        if from_ is None:
+            raise ValueError('From has to be set')
+
+        contract = self._get_identity_contract(from_)
         try:
-            signature_valid = contract.functions.isSignatureValid(
+            signature_valid = contract.functions.validateSignature(
                 signed_meta_transaction.hash,
                 signed_meta_transaction.signature,
             ).call()
@@ -161,6 +179,22 @@ class Delegator:
         return self._web3.eth.contract(
             abi=self._identity_contract_abi,
             address=address,
+        )
+
+    def _meta_transaction_function_call(self, signed_meta_transaction: MetaTransaction):
+        from_ = signed_meta_transaction.from_
+        if from_ is None:
+            raise ValueError('From has to be set')
+        contract = self._get_identity_contract(from_)
+
+        return contract.functions.executeTransaction(
+            signed_meta_transaction.from_,
+            signed_meta_transaction.to,
+            signed_meta_transaction.value,
+            signed_meta_transaction.data,
+            signed_meta_transaction.nonce,
+            signed_meta_transaction.extra_data,
+            signed_meta_transaction.signature,
         )
 
 

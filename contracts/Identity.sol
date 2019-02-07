@@ -49,8 +49,8 @@ contract Identity {
             extraData
         );
 
-        require(isSignatureValid(hash, signature), "The transaction signature is not valid");
-        require(isNonceValid(nonce, hash), "The transaction nonce is invalid");
+        require(validateSignature(hash, signature), "The transaction signature is not valid");
+        require(validateNonce(nonce, hash), "The transaction nonce is invalid");
 
         if (nonce == 0) {
             hashUsed[hash] = true; // To prevent replaying this meta transaction
@@ -65,7 +65,7 @@ contract Identity {
         _success = true;
     }
 
-    function isNonceValid(uint nonce, bytes32 hash) public view returns (bool) {
+    function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
         if (nonce == 0) {
             return !hashUsed[hash];
         } else {
@@ -74,7 +74,7 @@ contract Identity {
 
     }
 
-    function isSignatureValid(bytes32 hash, bytes _signature) public view returns (bool) {
+    function validateSignature(bytes32 hash, bytes _signature) public view returns (bool) {
         address signer = ECDSA.recover(hash, _signature);
         return owner == signer;
     }
