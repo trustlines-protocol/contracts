@@ -10,10 +10,6 @@ import "../Identity.sol";
 
 contract TestIdentity is Identity {
 
-    function testIsSignatureValid(bytes32 _data, bytes _signature) public view returns (bool) {
-        return isSignatureValid(_data, _signature);
-    }
-
     function testTransactionHash(
         address from,
         address to,

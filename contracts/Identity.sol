@@ -50,13 +50,12 @@ contract Identity {
         );
 
         require(isSignatureValid(hash, signature), "The transaction signature is not valid");
+        require(isNonceValid(nonce, hash), "The transaction nonce is invalid");
 
         if (nonce == 0) {
-            require(!hashUsed[hash], "This transaction was already executed");
             hashUsed[hash] = true; // To prevent replaying this meta transaction
         } else {
             lastNonce++;
-            require(lastNonce==nonce);
         }
 
         bool status = to.call.value(value)(data); // solium-disable-line security/no-call-value
@@ -64,6 +63,20 @@ contract Identity {
         emit TransactionExecution(hash, status);
 
         _success = true;
+    }
+
+    function isNonceValid(uint nonce, bytes32 hash) public view returns (bool) {
+        if (nonce == 0) {
+            return !hashUsed[hash];
+        } else {
+            return lastNonce + 1 == nonce;
+        }
+
+    }
+
+    function isSignatureValid(bytes32 hash, bytes _signature) public view returns (bool) {
+        address signer = ECDSA.recover(hash, _signature);
+        return owner == signer;
     }
 
     function transactionHash(
@@ -74,9 +87,9 @@ contract Identity {
         uint256 nonce,
         bytes extraData
     )
-        internal
-        pure
-        returns (bytes32)
+    internal
+    pure
+    returns (bytes32)
     {
         bytes32 dataHash = keccak256(data);
 
@@ -90,13 +103,8 @@ contract Identity {
                 dataHash,
                 nonce,
                 extraData
-        ));
+            ));
 
         return hash;
-    }
-
-    function isSignatureValid(bytes32 _dataHash, bytes _signature) internal view returns (bool) {
-        address signer = ECDSA.recover(_dataHash, _signature);
-        return owner == signer;
     }
 }

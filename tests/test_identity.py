@@ -7,6 +7,10 @@ from tldeploy.identity import MetaTransaction, Identity, Delegator
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
 
+def get_transaction_status(web3, tx_id):
+    return web3.eth.getTransactionReceipt(tx_id).get('status')
+
+
 @pytest.fixture(scope='session')
 def delegator_address(accounts):
     return accounts[1]
@@ -79,7 +83,7 @@ def test_signature_from_owner(test_identity_contract, owner_key):
     hash = solidity_keccak(['bytes'], [data_to_sign])
     signature = sign_msg_hash(hash, owner_key)
 
-    assert test_identity_contract.functions.testIsSignatureValid(hash, signature).call()
+    assert test_identity_contract.functions.isSignatureValid(hash, signature).call()
 
 
 def test_signature_not_owner(test_identity_contract, account_keys):
@@ -89,7 +93,7 @@ def test_signature_not_owner(test_identity_contract, account_keys):
     hash = solidity_keccak(['bytes'], [data])
     signature = sign_msg_hash(hash, key)
 
-    assert not test_identity_contract.functions.testIsSignatureValid(hash, signature).call()
+    assert not test_identity_contract.functions.isSignatureValid(hash, signature).call()
 
 
 def test_wrong_signature_from_owner(test_identity_contract, owner_key, accounts):
@@ -99,7 +103,7 @@ def test_wrong_signature_from_owner(test_identity_contract, owner_key, accounts)
 
     signature = owner_key.sign_msg(data).to_bytes()
 
-    assert not test_identity_contract.functions.testIsSignatureValid(wrong_data, signature).call()
+    assert not test_identity_contract.functions.isSignatureValid(wrong_data, signature).call()
 
 
 def test_delegated_transaction_hash(test_identity_contract, test_contract, accounts):
@@ -124,17 +128,18 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
     assert hash == HexBytes(hash_by_contract)
 
 
-def test_delegated_transaction_function_call(identity, delegator, test_contract):
+def test_delegated_transaction_function_call(identity, delegator, test_contract, web3):
     to = test_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
-    delegator.send_signed_meta_transaction(meta_transaction)
+    tx_id = delegator.send_signed_meta_transaction(meta_transaction)
 
     event = test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()[0]["args"]
 
+    assert get_transaction_status(web3, tx_id)
     assert event['from'] == identity.address
     assert event['value'] == 0
     assert event['argument'] == argument
@@ -148,14 +153,15 @@ def test_delegated_transaction_transfer(web3, identity, delegator, accounts):
 
     balance_before = web3.eth.getBalance(to)
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
-    delegator.send_signed_meta_transaction(meta_transaction)
+    tx_id = delegator.send_signed_meta_transaction(meta_transaction)
 
     balance_after = web3.eth.getBalance(to)
 
+    assert get_transaction_status(web3, tx_id)
     assert balance_after - balance_before == value
 
 
-def test_delegated_transaction_same_tx_fails(identity, delegator, accounts):
+def test_delegated_transaction_same_tx_fails(identity, delegator, accounts, web3):
     to = accounts[2]
     value = 1000
 
@@ -163,8 +169,8 @@ def test_delegated_transaction_same_tx_fails(identity, delegator, accounts):
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
 
-    with pytest.raises(TransactionFailed):
-        delegator.send_signed_meta_transaction(meta_transaction)
+    tx_id = delegator.send_signed_meta_transaction(meta_transaction)
+    assert get_transaction_status(web3, tx_id)
 
 
 def test_delegated_transaction_wrong_from(identity_contract, delegator_address, accounts, owner_key):
@@ -188,7 +194,7 @@ def test_delegated_transaction_wrong_from(identity_contract, delegator_address, 
         ).transact({'from': delegator_address})
 
 
-def test_delegated_transaction_wrong_signature(identity, delegator, accounts, account_keys):
+def test_delegated_transaction_wrong_signature(identity, delegator, accounts, account_keys, web3):
     to = accounts[2]
     value = 1000
 
@@ -196,8 +202,8 @@ def test_delegated_transaction_wrong_signature(identity, delegator, accounts, ac
         from_=identity.address, to=to, value=value, nonce=0
     ).signed(account_keys[3])
 
-    with pytest.raises(TransactionFailed):
-        delegator.send_signed_meta_transaction(meta_transaction)
+    tx_id = delegator.send_signed_meta_transaction(meta_transaction)
+    assert not get_transaction_status(web3, tx_id)
 
 
 def test_delegated_transaction_success_event(identity, delegator, test_contract):
@@ -310,8 +316,8 @@ def test_delegated_transaction_same_nonce_fails(identity, delegator, web3, accou
 
     delegator.send_signed_meta_transaction(meta_transaction1)
 
-    with pytest.raises(TransactionFailed):
-        delegator.send_signed_meta_transaction(meta_transaction2)
+    tx_id = delegator.send_signed_meta_transaction(meta_transaction2)
+    assert not get_transaction_status(web3, tx_id)
 
 
 def test_delegated_transaction_nonce_gap_fails(identity, delegator, web3, accounts):
@@ -327,5 +333,107 @@ def test_delegated_transaction_nonce_gap_fails(identity, delegator, web3, accoun
 
     delegator.send_signed_meta_transaction(meta_transaction1)
 
-    with pytest.raises(TransactionFailed):
-        delegator.send_signed_meta_transaction(meta_transaction2)
+    tx_id = delegator.send_signed_meta_transaction(meta_transaction2)
+    assert not get_transaction_status(web3, tx_id)
+
+
+def test_validate_same_tx(identity, delegator, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = identity.filled_and_signed_meta_transaction(MetaTransaction(to=to, value=value))
+    delegator.send_signed_meta_transaction(meta_transaction)
+
+    assert not delegator.validate_meta_transaction_values(meta_transaction)
+
+
+def test_validate_from_no_code(identity_contract, delegator, accounts, owner_key):
+    from_ = accounts[3]
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0).signed(
+        owner_key
+    )
+
+    assert not delegator.validate_meta_transaction_values(meta_transaction)
+
+
+def test_validate_from_wrong_contract(identity_contract, delegator, accounts, owner_key, currency_network_contract):
+    from_ = currency_network_contract.address
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0).signed(
+        owner_key
+    )
+
+    assert not delegator.validate_meta_transaction_values(meta_transaction)
+
+
+def test_validate_wrong_signature(identity, delegator, accounts, account_keys):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = MetaTransaction(
+        from_=identity.address, to=to, value=value, nonce=0
+    ).signed(account_keys[3])
+
+    assert not delegator.validate_meta_transaction_values(meta_transaction)
+
+
+def test_validate_same_nonce_fails(identity, delegator, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+
+    assert not delegator.validate_meta_transaction_values(meta_transaction2)
+
+
+def test_validate_nonce_gap_fails(identity, delegator, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=3)
+    )
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+
+    assert not delegator.validate_meta_transaction_values(meta_transaction2)
+
+
+def test_validate_valid_transfer(identity, delegator, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction = identity.filled_and_signed_meta_transaction(MetaTransaction(to=to, value=value))
+
+    assert delegator.validate_meta_transaction_values(meta_transaction)
+
+
+def test_validate_valid_nonce_increase(identity, delegator, accounts):
+    to = accounts[2]
+    value = 1000
+
+    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=1)
+    )
+    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=to, value=value, nonce=2)
+    )
+
+    delegator.send_signed_meta_transaction(meta_transaction1)
+
+    assert delegator.validate_meta_transaction_values(meta_transaction2)
