@@ -1,6 +1,13 @@
 ==========
 Change Log
 ==========
+`0.6.1`_ (2019-02-08)
+-----------------------
+* Add deploy identity function
+* Add estimate gas for meta transaction
+* Add validation to delegator
+* Add error messages to requires
+
 `0.6.0`_ (2019-02-05)
 -----------------------
 * Add an identity contract implementation and a way for delegators to execute
@@ -113,3 +120,4 @@ The rest of the changes are only interesting for developers:
 .. _0.5.0: https://github.com/trustlines-network/contracts/compare/0.4.0...0.5.0
 .. _0.5.1: https://github.com/trustlines-network/contracts/compare/0.5.0...0.5.1
 .. _0.6.0: https://github.com/trustlines-network/contracts/compare/0.5.1...0.6.0
+.. _0.6.1: https://github.com/trustlines-network/contracts/compare/0.6.0...0.6.1
