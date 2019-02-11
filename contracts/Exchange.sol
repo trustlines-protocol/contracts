@@ -88,6 +88,7 @@ contract Exchange is SafeMath, Destructable {
     }
 
     constructor() public {
+        // solium-disable-previous-line no-empty-blocks
     }
 
     /*

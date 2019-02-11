@@ -14,6 +14,7 @@ contract Identity {
     event TransactionExecution(bytes32 hash, bool status);
 
     constructor() public {
+        // solium-disable-previous-line no-empty-blocks
         // don't do anything here to allow usage of proxy contracts.
     }
 
