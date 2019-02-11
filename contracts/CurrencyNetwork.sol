@@ -109,6 +109,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     constructor() public {
+        // solium-disable-previous-line no-empty-blocks
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
 
