@@ -1,6 +1,10 @@
 ==========
 Change Log
 ==========
+`0.6.2`_ (2019-02-13)
+-----------------------
+* Add a function to query the nonce so that the delegator can provided it
+
 `0.6.1`_ (2019-02-08)
 -----------------------
 * Add deploy identity function
@@ -121,3 +125,4 @@ The rest of the changes are only interesting for developers:
 .. _0.5.1: https://github.com/trustlines-network/contracts/compare/0.5.0...0.5.1
 .. _0.6.0: https://github.com/trustlines-network/contracts/compare/0.5.1...0.6.0
 .. _0.6.1: https://github.com/trustlines-network/contracts/compare/0.6.0...0.6.1
+.. _0.6.2: https://github.com/trustlines-network/contracts/compare/0.6.1...0.6.2
