@@ -21,7 +21,7 @@ repos:
     - id: no-commit-to-branch
       args: [--branch, develop, --branch, master]
 -   repo: https://github.com/schmir/ethlint-pre-commit.git
-    rev: 'f25cec614947e1fb9966f52009eeb466650185f6'
+    rev: 'fc4f655fe2ad22a6f3668045a99b5cc1b21f79da'
     hooks:
     - id: ethlint
 - repo: git://github.com/luismayta/pre-commit-mypy
