@@ -70,6 +70,18 @@ jobs:
           name: Run flake8
           command: |
             flake8 py-bin py-deploy tests
+
+  run-black:
+    executor: ubuntu-builder
+
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - run:
+          name: Run black
+          command: |
+            black --check py-bin py-deploy tests
   run-solium:
     executor: ubuntu-builder
 
@@ -273,6 +285,12 @@ workflows:
           filters:
             <<: *tagged-filter
 
+      - run-black:
+          requires:
+            - install
+          filters:
+            <<: *tagged-filter
+
       - run-mypy:
           requires:
             - install
@@ -299,6 +317,7 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-black
             - run-mypy
             - install
             - run-pytest
@@ -320,6 +339,7 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-black
             - run-mypy
             - run-pytest
             - install
@@ -344,6 +364,7 @@ workflows:
           requires:
             - run-solium
             - run-flake8
+            - run-black
             - run-pytest
             - run-mypy
             - install
