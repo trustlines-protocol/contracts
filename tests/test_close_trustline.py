@@ -10,22 +10,19 @@ from tldeploy.core import deploy_network
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
 NETWORK_SETTING = {
-    'name': "TestCoin",
-    'symbol': "T",
-    'decimals': 6,
-    'fee_divisor': 100,
-    'default_interest_rate': 0,
-    'custom_interests': True,
-    'prevent_mediator_interests': False,
+    "name": "TestCoin",
+    "symbol": "T",
+    "decimals": 6,
+    "fee_divisor": 100,
+    "default_interest_rate": 0,
+    "custom_interests": True,
+    "prevent_mediator_interests": False,
 }
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(
-        web3,
-        **NETWORK_SETTING
-    )
+    return deploy_network(web3, **NETWORK_SETTING)
 
 
 @pytest.fixture(params=[0, 100, 2000])  # 0% , 1%, 20%
@@ -34,13 +31,8 @@ def interest_rate(request):
 
 
 @pytest.fixture()
-def currency_network_contract_with_trustlines(
-    chain, web3, accounts, interest_rate
-):
-    currency_network_contract = deploy_network(
-        web3,
-        **NETWORK_SETTING
-    )
+def currency_network_contract_with_trustlines(chain, web3, accounts, interest_rate):
+    currency_network_contract = deploy_network(web3, **NETWORK_SETTING)
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
 
@@ -86,35 +78,46 @@ def ensure_trustline_closed(contract, address1, address2):
     assert address1 not in contract.functions.getFriends(address2).call()
 
 
-def test_close_trustline(currency_network_contract,
-                         accounts):
+def test_close_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
 
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact({'from': accounts[0]})
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact({'from': accounts[1]})
+    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact(
+        {"from": accounts[0]}
+    )
+    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact(
+        {"from": accounts[1]}
+    )
 
-    contract.functions.closeTrustline(accounts[1]).transact({'from': accounts[0]})
+    contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
     ensure_trustline_closed(contract, accounts[0], accounts[1])
 
 
-def test_cannot_close_with_balance(currency_network_contract,
-                                   accounts):
+def test_cannot_close_with_balance(currency_network_contract, accounts):
     contract = currency_network_contract
 
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact({'from': accounts[0]})
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact({'from': accounts[1]})
+    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact(
+        {"from": accounts[0]}
+    )
+    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact(
+        {"from": accounts[1]}
+    )
 
-    contract.functions.transfer(accounts[1], 20, 1, [accounts[1]]).transact({'from': accounts[0]})
+    contract.functions.transfer(accounts[1], 20, 1, [accounts[1]]).transact(
+        {"from": accounts[0]}
+    )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.closeTrustline(accounts[1]).transact({'from': accounts[0]})
+        contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
 
 
-def test_cannot_reopen_closed_trustline(currency_network_contract,
-                                        accounts):
+def test_cannot_reopen_closed_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact({'from': accounts[0]})
-    contract.functions.closeTrustline(accounts[1]).transact({'from': accounts[0]})
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact({'from': accounts[1]})
+    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact(
+        {"from": accounts[0]}
+    )
+    contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
+    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact(
+        {"from": accounts[1]}
+    )
     ensure_trustline_closed(contract, accounts[0], accounts[1])
 
 

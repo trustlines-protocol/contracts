@@ -2,7 +2,6 @@ from tldeploy.signing import solidity_keccak, eth_sign
 
 
 class Order(object):
-
     def __init__(
         self,
         exchange_address,
@@ -16,7 +15,7 @@ class Order(object):
         maker_fee,
         taker_fee,
         expiration_timestamp_in_sec,
-        salt
+        salt,
     ):
         self.exchange_address = exchange_address
         self.maker_address = maker_address
@@ -34,18 +33,18 @@ class Order(object):
     def hash(self):
         return solidity_keccak(
             [
-                'address',
-                'address',
-                'address',
-                'address',
-                'address',
-                'address',
-                'uint256',
-                'uint256',
-                'uint256',
-                'uint256',
-                'uint256',
-                'uint256',
+                "address",
+                "address",
+                "address",
+                "address",
+                "address",
+                "address",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
             ],
             [
                 self.exchange_address,
@@ -59,8 +58,8 @@ class Order(object):
                 self.maker_fee,
                 self.taker_fee,
                 self.expiration_timestamp_in_sec,
-                self.salt
-            ]
+                self.salt,
+            ],
         )
 
     def sign(self, key):

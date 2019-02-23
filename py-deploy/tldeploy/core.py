@@ -12,17 +12,16 @@ from deploy_tools.deploy import wait_for_successful_transaction_receipt
 
 
 def load_contracts_json():
-    path = (os.environ.get("TRUSTLINES_CONTRACTS_JSON")
-            or os.path.join(sys.prefix,
-                            'trustlines-contracts',
-                            'build',
-                            'contracts.json'))
+    path = os.environ.get("TRUSTLINES_CONTRACTS_JSON") or os.path.join(
+        sys.prefix, "trustlines-contracts", "build", "contracts.json"
+    )
     with open(path, "rb") as f:
         return json.load(f)
 
 
 # lazily load the contracts, so the compile_contracts fixture has a chance to
 # set TRUSTLINES_CONTRACTS_JSON
+
 
 class LazyContractsLoader(collections.UserDict):
     def __getitem__(self, *args):
@@ -54,7 +53,8 @@ def deploy_unw_eth(web3, exchange_address=None):
     if exchange_address is not None:
         if exchange_address is not None:
             txid = unw_eth.functions.addAuthorizedAddress(exchange_address).transact(
-                {"from": web3.eth.accounts[0]})
+                {"from": web3.eth.accounts[0]}
+            )
             wait_for_successful_transaction_receipt(web3, txid)
     return unw_eth
 
@@ -69,7 +69,7 @@ def deploy_network(
     custom_interests=True,
     prevent_mediator_interests=False,
     exchange_address=None,
-    currency_network_contract_name=None
+    currency_network_contract_name=None,
 ):
     # CurrencyNetwork is the standard contract to deploy, If we're running
     # tests or trying to export data for testing the python implementation of
@@ -79,18 +79,20 @@ def deploy_network(
         currency_network_contract_name = "CurrencyNetwork"
     currency_network = deploy(currency_network_contract_name, web3)
 
-    txid = currency_network.functions.init(name,
-                                           symbol,
-                                           decimals,
-                                           fee_divisor,
-                                           default_interest_rate,
-                                           custom_interests,
-                                           prevent_mediator_interests).transact(
-        {"from": web3.eth.accounts[0]})
+    txid = currency_network.functions.init(
+        name,
+        symbol,
+        decimals,
+        fee_divisor,
+        default_interest_rate,
+        custom_interests,
+        prevent_mediator_interests,
+    ).transact({"from": web3.eth.accounts[0]})
     wait_for_successful_transaction_receipt(web3, txid)
     if exchange_address is not None:
-        txid = currency_network.functions.addAuthorizedAddress(exchange_address).transact(
-            {"from": web3.eth.accounts[0]})
+        txid = currency_network.functions.addAuthorizedAddress(
+            exchange_address
+        ).transact({"from": web3.eth.accounts[0]})
         wait_for_successful_transaction_receipt(web3, txid)
 
     return currency_network
@@ -114,7 +116,7 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
 
 
 def deploy_identity(web3, owner_address):
-    identity = deploy('Identity', web3=web3)
+    identity = deploy("Identity", web3=web3)
 
     tx_id = identity.functions.init(owner_address).transact(
         {"from": web3.eth.accounts[0]}

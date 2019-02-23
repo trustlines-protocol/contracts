@@ -6,27 +6,37 @@ from web3 import Web3
 
 
 def eth_sign(hash: bytes, key: bytes):
-    v, r, s = keys.PrivateKey(key).sign_msg_hash(Web3.sha3(b'\x19Ethereum Signed Message:\n32' + hash)).vrs
+    v, r, s = (
+        keys.PrivateKey(key)
+        .sign_msg_hash(Web3.sha3(b"\x19Ethereum Signed Message:\n32" + hash))
+        .vrs
+    )
     if v < 27:
         v += 27
-    r = r.to_bytes(32, byteorder='big')
-    s = s.to_bytes(32, byteorder='big')
+    r = r.to_bytes(32, byteorder="big")
+    s = s.to_bytes(32, byteorder="big")
     return v, r, s
 
 
-def eth_validate(msg_hash: bytes, vrs: Tuple[Union[int, bytes], Union[int, bytes], Union[int, bytes]], address: str):
+def eth_validate(
+    msg_hash: bytes,
+    vrs: Tuple[Union[int, bytes], Union[int, bytes], Union[int, bytes]],
+    address: str,
+):
     v, r, s = vrs
     if isinstance(v, bytes):
-        v = int.from_bytes(v, byteorder='big')
+        v = int.from_bytes(v, byteorder="big")
     if isinstance(r, bytes):
-        r = int.from_bytes(r, byteorder='big')
+        r = int.from_bytes(r, byteorder="big")
     if isinstance(s, bytes):
-        s = int.from_bytes(s, byteorder='big')
+        s = int.from_bytes(s, byteorder="big")
     if v >= 27:
         v -= 27
     sig = keys.Signature(vrs=(v, r, s))
     try:
-        pubkey = sig.recover_public_key_from_msg_hash(Web3.sha3(b'\x19Ethereum Signed Message:\n32' + msg_hash))
+        pubkey = sig.recover_public_key_from_msg_hash(
+            Web3.sha3(b"\x19Ethereum Signed Message:\n32" + msg_hash)
+        )
         return pubkey.to_checksum_address() == address
     except BadSignature:
         return False
