@@ -11,3 +11,5 @@ setuptools_scm
 # require a recent pip version, otherwise make install may silently fail to
 # install the newly compiled contracts
 pip>=18.1
+black
+pre-commit

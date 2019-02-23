@@ -1,3 +1,5 @@
+|Code style: black|
+
 Trustlines Smart Contract Platform
 ==================================
 
@@ -94,3 +96,6 @@ Change log
 ----------
 
 See `CHANGELOG <https://github.com/trustlines-network/contracts/blob/develop/CHANGELOG.rst>`_.
+
+.. |Code style: black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :target: https://github.com/ambv/black
