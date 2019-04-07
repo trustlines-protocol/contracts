@@ -312,7 +312,7 @@ workflows:
           filters:
             branches:
               only:
-                - develop
+                - master
 
           requires:
             - run-solium
@@ -360,7 +360,7 @@ workflows:
           filters:
             <<: *tagged-filter
             branches:
-              only: develop
+              only: master
           requires:
             - run-solium
             - run-flake8
