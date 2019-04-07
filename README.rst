@@ -58,7 +58,7 @@ tl-deploy
 The tool ``tl-deploy`` allows you to deploy the relevant contracts.
 
 Use ``tl-deploy --help`` to find out about the relevant commands or read
-further in the `deploy documentation <https://github.com/trustlines-protocol/contracts/blob/develop/docs/deploy.md>`__
+further in the `deploy documentation <https://github.com/trustlines-protocol/contracts/blob/master/docs/deploy.md>`__
 
 Development
 -----------
@@ -95,7 +95,7 @@ trustlines-contracts-deploy tool from the git checkout.
 Change log
 ----------
 
-See `CHANGELOG <https://github.com/trustlines-protocol/contracts/blob/develop/CHANGELOG.rst>`_.
+See `CHANGELOG <https://github.com/trustlines-protocol/contracts/blob/master/CHANGELOG.rst>`_.
 
 .. |Code style: black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
    :target: https://github.com/ambv/black
