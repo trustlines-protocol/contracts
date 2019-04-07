@@ -259,7 +259,7 @@ jobs:
       - run:
           name: Checkout end2end repo
           command: |
-            git clone https://github.com/trustlines-network/end2end.git
+            git clone https://github.com/trustlines-protocol/end2end.git
       - run:
           name: Load docker image
           command: |

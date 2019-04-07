@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/trustlines-network/contracts.git"
+    "url": "git+https://github.com/trustlines-protocol/contracts.git"
   },
   "keywords": [
     "trustlines",
@@ -19,7 +19,7 @@
   "author": "trustlines-network",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/trustlines-network/contracts/issues"
+    "url": "https://github.com/trustlines-protocol/contracts/issues"
   },
-  "homepage": "https://github.com/trustlines-network/contracts#readme"
+  "homepage": "https://github.com/trustlines-protocol/contracts#readme"
 }

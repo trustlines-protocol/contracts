@@ -18,7 +18,7 @@ setup(
     description="Smart Contracts for Trustlines-Network",
     long_description=long_description,
     # The project's main homepage.
-    url="https://github.com/trustlines-network/contracts",
+    url="https://github.com/trustlines-protocol/contracts",
     # Author details
     author="Trustlines-Network",
     author_email="contact@brainbot.com",

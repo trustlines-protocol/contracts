@@ -17,7 +17,7 @@ setup(
     use_scm_version={"root": ".."},
     description="deploy trustlines contracts",
     long_description=long_description,
-    url="https://github.com/trustlines-network/contracts",
+    url="https://github.com/trustlines-protocol/contracts",
     author="Trustlines-Network",
     author_email="contact@brainbot.com",
     license="MIT",
