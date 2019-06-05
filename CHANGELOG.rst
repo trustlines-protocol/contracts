@@ -1,6 +1,13 @@
 ==========
 Change Log
 ==========
+`0.6.3`_ (2019-06-05)
+-----------------------
+* Copyright has been transferred to the trustlines foundation
+* format code with black
+* relax requirements in py-deploy in order to make it compatible with newer web3
+  releases
+
 `0.6.2`_ (2019-02-13)
 -----------------------
 * Add a function to query the nonce so that the delegator can provided it
@@ -126,3 +133,4 @@ The rest of the changes are only interesting for developers:
 .. _0.6.0: https://github.com/trustlines-protocol/contracts/compare/0.5.1...0.6.0
 .. _0.6.1: https://github.com/trustlines-protocol/contracts/compare/0.6.0...0.6.1
 .. _0.6.2: https://github.com/trustlines-protocol/contracts/compare/0.6.1...0.6.2
+.. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.2...0.6.3
