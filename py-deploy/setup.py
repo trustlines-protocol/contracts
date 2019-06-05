@@ -44,13 +44,13 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=["contrib", "docs", "tests"]),
     install_requires=[
-        "web3>=4.7.1,<4.8.0",
+        "web3>=4.7.1",
         "click>=7.0",
         "trustlines-contracts-bin>=0.6.0,<0.7.0",
         "contract-deploy-tools>=0.2.1",
         "attrs>=18.2",
     ],
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.

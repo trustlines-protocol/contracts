@@ -26,12 +26,12 @@ RUN apt-get -y update && \
 
 # cache /opt/contracts with requirements installed
 RUN python3 -m venv /opt/contracts
-WORKDIR /opt/contracts
-ENV PATH "/opt/contracts/bin:${PATH}"
-RUN pip install pip==18.0.0 setuptools==40.0.0
-COPY ./requirements.txt /contracts/requirements.txt
-COPY ./constraints.txt /contracts/constraints.txt
 WORKDIR /contracts
+ENV PATH "/opt/contracts/bin:${PATH}"
+COPY ./constraints.txt /contracts/constraints.txt
+RUN pip install -c constraints.txt pip wheel setuptools
+COPY ./requirements.txt /contracts/requirements.txt
+
 # remove development dependencies from the end of the file and install requierements
 RUN sed -i -e '/development dependencies/q' requirements.txt && \
     pip install -c constraints.txt -r requirements.txt

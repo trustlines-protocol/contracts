@@ -7,7 +7,7 @@
 
 set -x
 
-container=$(docker run -d -p 8545:8545 --entrypoint '' --rm parity/parity:v2.2.9 bash -c 'echo >/tmp/empty-password; parity --no-color --jsonrpc-apis=all --jsonrpc-hosts=all --jsonrpc-interface 0.0.0.0 --config dev --unlock 0x00a329c0648769a73afac7f9381e08fb43dbea72 --password=/tmp/empty-password')
+container=$(docker run -d -p 8545:8545 --entrypoint '' --rm parity/parity:v2.4.6 bash -c 'echo >/tmp/empty-password; parity --no-color --jsonrpc-apis=all --jsonrpc-hosts=all --jsonrpc-interface 0.0.0.0 --config dev --unlock 0x00a329c0648769a73afac7f9381e08fb43dbea72 --password=/tmp/empty-password')
 sleep 3
 docker run --net="host" contracts test
 retval=$?
