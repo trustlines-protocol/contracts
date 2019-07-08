@@ -620,3 +620,46 @@ def test_interests_over_creditline_is_usable(
     assert contract.functions.balance(accounts[0], accounts[1]).call() == pytest.approx(
         10201, abs=2
     )
+
+
+def test_correct_balance_update_event_on_interest_rate_change(
+    chain, currency_network_contract_custom_interests_safe_ripple, accounts
+):
+    contract = currency_network_contract_custom_interests_safe_ripple
+    current_time = int(time.time())
+    chain.time_travel(current_time + 10)
+
+    # Set trustline
+    contract.functions.updateTrustline(accounts[0], 10000, 10000, 100, 100).transact(
+        {"from": accounts[1]}
+    )
+    contract.functions.updateTrustline(accounts[1], 10000, 10000, 100, 100).transact(
+        {"from": accounts[0]}
+    )
+    contract.functions.transfer(accounts[0], 10000, 0, [accounts[0]]).transact(
+        {"from": accounts[1]}
+    )
+
+    # Time travel
+    chain.time_travel(current_time + SECONDS_PER_YEAR)
+
+    # Update trustline
+    contract.functions.updateTrustline(accounts[0], 11000, 11000, 200, 200).transact(
+        {"from": accounts[1]}
+    )
+    contract.functions.updateTrustline(accounts[1], 11000, 11000, 200, 200).transact(
+        {"from": accounts[0]}
+    )
+
+    # Check event
+    events = contract.events.BalanceUpdate.createFilter(fromBlock=0).get_all_entries()
+    args = events[-1]["args"]
+    from_ = args["_from"]
+    to = args["_to"]
+    value = args["_value"]
+
+    assert from_ in [accounts[0], accounts[1]]
+    assert to in [accounts[0], accounts[1]]
+    assert from_ != to
+
+    assert contract.functions.balance(from_, to).call() == value

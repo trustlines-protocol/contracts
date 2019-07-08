@@ -1135,7 +1135,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         Trustline memory _trustline = _loadTrustline(_creditor, _debtor);
 
         // Because the interest rate might change, we need to apply interests.
-        _applyInterests(_trustline);
+        if ((_interestRateGiven != _trustline.agreement.interestRateGiven ||
+            _interestRateReceived != _trustline.agreement.interestRateReceived
+            ) && _trustline.balances.balance != 0) {
+            _applyInterests(_trustline);
+            emit BalanceUpdate(_creditor, _debtor, _trustline.balances.balance);
+        }
 
         addToUsersAndFriends(_creditor, _debtor);
         _trustline.agreement.creditlineGiven = _creditlineGiven;
