@@ -9,6 +9,9 @@ assert eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT < 6 * 10 ** 6
 eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 6 * 10 ** 6
 
 
+EXTRA_DATA = b"\x124Vx\x124Vx\x124Vx\x124Vx"
+
+
 @pytest.fixture(scope="session", autouse=True)
 def bind_contracts(contract_assets):
     tldeploy.core.contracts.data = contract_assets

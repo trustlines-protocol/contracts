@@ -6,6 +6,7 @@ import pytest
 import eth_tester.exceptions
 
 from tldeploy.core import deploy_network
+from .conftest import EXTRA_DATA
 
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
@@ -54,7 +55,7 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
             ).transact()
 
     currency_network_contract.functions.transfer(
-        accounts[1], 10000, 102, [accounts[1]]
+        accounts[1], 10000, 102, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
@@ -102,7 +103,7 @@ def test_cannot_close_with_balance(currency_network_contract, accounts):
         {"from": accounts[1]}
     )
 
-    contract.functions.transfer(accounts[1], 20, 1, [accounts[1]]).transact(
+    contract.functions.transfer(accounts[1], 20, 1, [accounts[1]], EXTRA_DATA).transact(
         {"from": accounts[0]}
     )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):

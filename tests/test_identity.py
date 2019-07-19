@@ -11,6 +11,8 @@ from tldeploy.identity import (
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
+from .conftest import EXTRA_DATA
+
 
 def get_transaction_status(web3, tx_id):
     return bool(web3.eth.getTransactionReceipt(tx_id).get("status"))
@@ -283,7 +285,9 @@ def test_delegated_transaction_trustlines_flow(
         {"from": B}
     )
 
-    function_call = currency_network_contract.functions.transfer(B, 100, 0, [B])
+    function_call = currency_network_contract.functions.transfer(
+        B, 100, 0, [B], EXTRA_DATA
+    )
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     delegator.send_signed_meta_transaction(meta_transaction)
