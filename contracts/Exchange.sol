@@ -290,7 +290,8 @@ contract Exchange is SafeMath, Destructable {
                     msg.sender,
                     uint32(filledMakerTokenAmount), // TODO Overflow check
                     MAX_FEE,
-                    makerPath
+                    makerPath,
+                    ""
                 ),
                 "The Trustlines Network transfer from the maker to the taker failed."
             );
@@ -314,7 +315,9 @@ contract Exchange is SafeMath, Destructable {
                     order.maker,
                     uint32(filledTakerTokenAmount), // TODO Overflow check
                     MAX_FEE,
-                    takerPath),
+                    takerPath,
+                    ""
+            ),
                 "The Trustlines Network transfer from the taker to the maker failed."
             );
         } else {
