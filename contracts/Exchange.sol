@@ -16,7 +16,7 @@
 
 */
 
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.8;
 
 import "./tokens/Token.sol";
 import "./lib/SafeMath.sol";
@@ -105,8 +105,8 @@ contract Exchange is SafeMath, Destructable {
     /// @param s ECDSA signature parameters s.
     /// @return Total amount of takerToken filled in trade.
     function fillOrder(
-        address[5] orderAddresses,
-        uint[6] orderValues,
+        address[5] memory orderAddresses,
+        uint[6] memory orderValues,
         uint fillTakerTokenAmount,
         bool shouldThrowOnInsufficientBalanceOrAllowance,
         uint8 v,
@@ -198,7 +198,7 @@ contract Exchange is SafeMath, Destructable {
             filledTakerTokenAmount,
             paidMakerFee,
             paidTakerFee,
-            keccak256(order.makerToken, order.takerToken),
+            keccak256(abi.encodePacked(order.makerToken, order.takerToken)),
             order.orderHash
         );
         return filledTakerTokenAmount;
@@ -215,8 +215,8 @@ contract Exchange is SafeMath, Destructable {
     /// @param s ECDSA signature parameters s.
     /// @return Total amount of takerToken filled in trade.
     function fillOrderTrustlines(
-        address[5] orderAddresses,
-        uint[6] orderValues,
+        address[5] memory orderAddresses,
+        uint[6] memory orderValues,
         uint fillTakerTokenAmount,
         address[] memory makerPath,
         address[] memory takerPath,
@@ -337,7 +337,7 @@ contract Exchange is SafeMath, Destructable {
             filledTakerTokenAmount,
             0,
             0,
-            keccak256(order.makerToken, order.takerToken),
+            keccak256(abi.encodePacked(order.makerToken, order.takerToken)),
             order.orderHash
         );
         return filledTakerTokenAmount;
@@ -349,8 +349,8 @@ contract Exchange is SafeMath, Destructable {
     /// @param cancelTakerTokenAmount Desired amount of takerToken to cancel in order.
     /// @return Amount of takerToken cancelled.
     function cancelOrder(
-        address[5] orderAddresses,
-        uint[6] orderValues,
+        address[5] memory orderAddresses,
+        uint[6] memory orderValues,
         uint cancelTakerTokenAmount)
         public
         returns (uint)
@@ -398,7 +398,7 @@ contract Exchange is SafeMath, Destructable {
             order.takerToken,
             getPartialAmount(cancelledTakerTokenAmount, order.takerTokenAmount, order.makerTokenAmount),
             cancelledTakerTokenAmount,
-            keccak256(order.makerToken, order.takerToken),
+            keccak256(abi.encodePacked(order.makerToken, order.takerToken)),
             order.orderHash
         );
         return cancelledTakerTokenAmount;
@@ -416,8 +416,8 @@ contract Exchange is SafeMath, Destructable {
     /// @param r ECDSA signature parameters r.
     /// @param s ECDSA signature parameters s.
     function fillOrKillOrder(
-        address[5] orderAddresses,
-        uint[6] orderValues,
+        address[5] memory orderAddresses,
+        uint[6] memory orderValues,
         uint fillTakerTokenAmount,
         uint8 v,
         bytes32 r,
@@ -447,13 +447,13 @@ contract Exchange is SafeMath, Destructable {
     /// @param r Array of ECDSA signature r parameters.
     /// @param s Array of ECDSA signature s parameters.
     function batchFillOrders(
-        address[5][] orderAddresses,
-        uint[6][] orderValues,
-        uint[] fillTakerTokenAmounts,
+        address[5][] memory orderAddresses,
+        uint[6][] memory orderValues,
+        uint[] memory fillTakerTokenAmounts,
         bool shouldThrowOnInsufficientBalanceOrAllowance,
-        uint8[] v,
-        bytes32[] r,
-        bytes32[] s)
+        uint8[] memory v,
+        bytes32[] memory r,
+        bytes32[] memory s)
         public
     {
         for (uint i = 0; i < orderAddresses.length; i++) {
@@ -477,12 +477,12 @@ contract Exchange is SafeMath, Destructable {
     /// @param r Array of ECDSA signature r parameters.
     /// @param s Array of ECDSA signature s parameters.
     function batchFillOrKillOrders(
-        address[5][] orderAddresses,
-        uint[6][] orderValues,
-        uint[] fillTakerTokenAmounts,
-        uint8[] v,
-        bytes32[] r,
-        bytes32[] s)
+        address[5][] memory orderAddresses,
+        uint[6][] memory orderValues,
+        uint[] memory fillTakerTokenAmounts,
+        uint8[] memory v,
+        bytes32[] memory r,
+        bytes32[] memory s)
         public
     {
         for (uint i = 0; i < orderAddresses.length; i++) {
@@ -507,13 +507,13 @@ contract Exchange is SafeMath, Destructable {
     /// @param s Array of ECDSA signature s parameters.
     /// @return Total amount of fillTakerTokenAmount filled in orders.
     function fillOrdersUpTo(
-        address[5][] orderAddresses,
-        uint[6][] orderValues,
+        address[5][] memory orderAddresses,
+        uint[6][] memory orderValues,
         uint fillTakerTokenAmount,
         bool shouldThrowOnInsufficientBalanceOrAllowance,
-        uint8[] v,
-        bytes32[] r,
-        bytes32[] s)
+        uint8[] memory v,
+        bytes32[] memory r,
+        bytes32[] memory s)
         public
         returns (uint)
     {
@@ -546,9 +546,9 @@ contract Exchange is SafeMath, Destructable {
     /// @param orderValues Array of uint arrays containing individual order values.
     /// @param cancelTakerTokenAmounts Array of desired amounts of takerToken to cancel in orders.
     function batchCancelOrders(
-        address[5][] orderAddresses,
-        uint[6][] orderValues,
-        uint[] cancelTakerTokenAmounts)
+        address[5][] memory orderAddresses,
+        uint[6][] memory orderValues,
+        uint[] memory cancelTakerTokenAmounts)
         public
     {
         for (uint i = 0; i < orderAddresses.length; i++) {
@@ -568,24 +568,26 @@ contract Exchange is SafeMath, Destructable {
     /// @param orderAddresses Array of order's maker, taker, makerToken, takerToken, and feeRecipient.
     /// @param orderValues Array of order's makerTokenAmount, takerTokenAmount, makerFee, takerFee, expirationTimestampInSec, and salt.
     /// @return Keccak-256 hash of order.
-    function getOrderHash(address[5] orderAddresses, uint[6] orderValues)
+    function getOrderHash(address[5] memory orderAddresses, uint[6] memory orderValues)
         public
         view
         returns (bytes32)
     {
         return keccak256(
-            address(this),
-            orderAddresses[0], // maker
-            orderAddresses[1], // taker
-            orderAddresses[2], // makerToken
-            orderAddresses[3], // takerToken
-            orderAddresses[4], // feeRecipient
-            orderValues[0],    // makerTokenAmount
-            orderValues[1],    // takerTokenAmount
-            orderValues[2],    // makerFee
-            orderValues[3],    // takerFee
-            orderValues[4],    // expirationTimestampInSec
-            orderValues[5]     // salt
+            abi.encodePacked(
+                address(this),
+                orderAddresses[0], // maker
+                orderAddresses[1], // taker
+                orderAddresses[2], // makerToken
+                orderAddresses[3], // takerToken
+                orderAddresses[4], // feeRecipient
+                orderValues[0],    // makerTokenAmount
+                orderValues[1],    // takerTokenAmount
+                orderValues[2],    // makerFee
+                orderValues[3],    // takerFee
+                orderValues[4],    // expirationTimestampInSec
+                orderValues[5]     // salt
+            )
         );
     }
 
@@ -607,7 +609,7 @@ contract Exchange is SafeMath, Destructable {
         returns (bool)
     {
         return signer == ecrecover(
-            keccak256("\x19Ethereum Signed Message:\n32", hash),
+            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),
             v,
             r,
             s
@@ -661,26 +663,26 @@ contract Exchange is SafeMath, Destructable {
     }
 
     /// @dev Get token balance of an address.
+    /// @dev The called token contract may attempt to change state, but will not be able to due to an added gas limit.
     /// @param token Address of token.
     /// @param owner Address of owner.
     /// @return Token balance of owner.
     function getBalance(address token, address owner)
         internal
-        view  // The called token contract may attempt to change state, but will not be able to due to an added gas limit.
         returns (uint)
     {
         return Token(token).balanceOf.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner); // Limit gas to prevent reentrancy
     }
 
     /// @dev Get allowance of token given to TokenTransferProxy by an address.
+    /// @dev The called token contract may attempt to change state, but will not be able to due to an added gas limit.
     /// @param token Address of token.
     /// @param owner Address of owner.
     /// @return Allowance of token given to TokenTransferProxy by owner.
     function getAllowance(address token, address owner)
         internal
-        view  // The called token contract may attempt to change state, but will not be able to due to an added gas limit.
         returns (uint)
     {
-        return Token(token).allowance.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner, this); // Limit gas to prevent reentrancy
+        return Token(token).allowance.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner, address(this)); // Limit gas to prevent reentrancy
     }
 }

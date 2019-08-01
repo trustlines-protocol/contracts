@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.5.8;
 
 
 contract CurrencyNetworkInterface {
@@ -7,7 +7,7 @@ contract CurrencyNetworkInterface {
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] calldata _path
     )
         external
         returns (bool success);
@@ -17,7 +17,7 @@ contract CurrencyNetworkInterface {
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] calldata _path
     )
         external
         returns (bool success);

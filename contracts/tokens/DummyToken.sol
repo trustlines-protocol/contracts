@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.5.8;
 
 import "./../lib/Ownable.sol";
 import "./../lib/SafeMath.sol";
@@ -10,9 +10,9 @@ contract DummyToken is Ownable, StandardToken, SafeMath {
     string public symbol;
     uint public decimals;
 
-    function DummyToken(
-        string _name,
-        string _symbol,
+    constructor(
+        string memory _name,
+        string memory _symbol,
         uint _decimals,
         uint _totalSupply
     )

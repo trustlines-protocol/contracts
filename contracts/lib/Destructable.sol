@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.5.8;
 
 import "./Ownable.sol";
 
@@ -12,6 +12,6 @@ import "./Ownable.sol";
 contract Destructable is Ownable {
 
     function destruct() external onlyOwner {
-        selfdestruct(owner);
+        selfdestruct(address(uint160(owner)));
     }
 }

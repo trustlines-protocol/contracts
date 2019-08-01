@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.8;
 
 import "./lib/ECDSA.sol";
 
@@ -19,7 +19,7 @@ contract Identity {
     }
 
     // This contract can receive ether
-    function () public payable {}
+    function () external payable {}
 
     function init(address _owner) public {
         require(! initialised, "The contract has already been initialised.");
@@ -29,12 +29,12 @@ contract Identity {
 
     function executeTransaction(
         address from,
-        address to,
+        address payable to,
         uint256 value,
-        bytes data,
+        bytes memory data,
         uint256 nonce,
-        bytes extraData,
-        bytes signature
+        bytes memory extraData,
+        bytes memory signature
     )
         public returns (bool _success)
     {
@@ -59,7 +59,7 @@ contract Identity {
             lastNonce++;
         }
 
-        bool status = to.call.value(value)(data); // solium-disable-line security/no-call-value
+        (bool status, bytes memory returnedData) = to.call.value(value)(data); // solium-disable-line
 
         emit TransactionExecution(hash, status);
 
@@ -75,7 +75,7 @@ contract Identity {
 
     }
 
-    function validateSignature(bytes32 hash, bytes _signature) public view returns (bool) {
+    function validateSignature(bytes32 hash, bytes memory _signature) public view returns (bool) {
         address signer = ECDSA.recover(hash, _signature);
         return owner == signer;
     }
@@ -84,9 +84,9 @@ contract Identity {
         address from,
         address to,
         uint256 value,
-        bytes data,
+        bytes memory data,
         uint256 nonce,
-        bytes extraData
+        bytes memory extraData
     )
     internal
     pure

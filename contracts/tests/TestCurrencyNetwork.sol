@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.8;
 
 /*
   The sole purpose of this file is to be able to test the internal functions of
@@ -23,7 +23,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path)
+        address[] calldata _path)
         external
         returns (bool _success)
     {
@@ -41,7 +41,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path)
+        address[] calldata _path)
         external
         returns (bool _success)
     {
