@@ -1,10 +1,7 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.5.8;
 
 
 contract Token {
-
-    /// @return total amount of tokens
-    function totalSupply() public view returns (uint supply) {}
 
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance

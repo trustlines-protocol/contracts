@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.4.18;
+pragma solidity ^0.5.8;
 
 import "../lib/Authorizable.sol";
 import "../lib/Destructable.sol";
@@ -32,7 +32,7 @@ contract UnwEth is Authorizable, Destructable {
     mapping (address => uint)                       public  balanceOf;
     mapping (address => mapping (address => uint))  public  allowance;
 
-    function() public payable {
+    function() external payable {
         deposit();
     }
 
@@ -49,7 +49,7 @@ contract UnwEth is Authorizable, Destructable {
     }
 
     function totalSupply() public view returns (uint) {
-        return this.balance;
+        return address(this).balance;
     }
 
     function approve(address guy, uint wad) public returns (bool) {
@@ -58,11 +58,11 @@ contract UnwEth is Authorizable, Destructable {
         return true;
     }
 
-    function transfer(address dst, uint wad) public returns (bool) {
+    function transfer(address payable dst, uint wad) public returns (bool) {
         return transferFrom(msg.sender, dst, wad);
     }
 
-    function transferFrom(address src, address dst, uint wad)
+    function transferFrom(address src, address payable dst, uint wad)
         public
         returns (bool)
     {

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.9;
+pragma solidity ^0.5.8;
 
 
 /*
@@ -7,6 +7,6 @@ pragma solidity ^0.4.9;
 
 interface ContractReceiver {
 
-    function tokenFallback(address _from, uint _value, bytes _data) external;
+    function tokenFallback(address _from, uint _value, bytes calldata _data) external;
 
 }

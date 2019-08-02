@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.8;
 
 
 import "./lib/it_set_lib.sol";
@@ -127,8 +127,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      *         intermediaries, unless the transaction exclusively reduces balances
      */
     function init(
-        string _name,
-        string _symbol,
+        string calldata _name,
+        string calldata _symbol,
         uint8 _decimals,
         uint16 _capacityImbalanceFeeDivisor,
         int16 _defaultInterestRate,
@@ -169,7 +169,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] calldata _path
     )
         external
         returns (bool _success)
@@ -202,7 +202,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] calldata _path
     )
         external
         returns (bool success)
@@ -236,7 +236,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] calldata _path
     )
     external
     returns (bool _success)
@@ -252,7 +252,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             emit Transfer(
                 msg.sender,
                 _to,
-                _value);
+                _value
+            );
         }
     }
 
@@ -492,7 +493,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function closeTrustlineByTriangularTransfer(
         address _otherParty,
         uint32 _maxFee,
-        address[] _path
+        address[] calldata _path
     )
         external
     {
@@ -557,24 +558,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         _balance = trustlineBalances.balance;
     }
 
-    function getFriends(address _user) public view returns (address[]) {
+    function getFriends(address _user) public view returns (address[] memory) {
         return friends[_user].list;
     }
 
-    function getUsers() public view returns (address[]) {
+    function getUsers() public view returns (address[] memory) {
         return users.list;
-    }
-
-    function name() public view returns (string) {
-        return name;
-    }
-
-    function symbol() public view returns (string) {
-        return symbol;
-    }
-
-    function decimals() public view returns (uint8) {
-        return decimals;
     }
 
     // This function transfers value over this trustline
@@ -621,7 +610,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] memory _path
     )
         internal
         returns (bool)
@@ -699,7 +688,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] _path
+        address[] memory _path
     )
         internal
         returns (bool)
@@ -806,7 +795,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _from,
         address _otherParty,
         uint32 _maxFee,
-        address[] _path)
+        address[] memory _path)
         internal
     {
         Trustline memory trustline = _loadTrustline(_from, _otherParty);
@@ -901,14 +890,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         addToUsersAndFriends(_a, _b);
     }
 
-    function _loadTrustline(address _a, address _b) internal view returns (Trustline) {
+    function _loadTrustline(address _a, address _b) internal view returns (Trustline memory) {
         Trustline memory trustline;
         trustline.agreement = _loadTrustlineAgreement(_a, _b);
         trustline.balances = _loadTrustlineBalances(_a, _b);
         return trustline;
     }
 
-    function _loadTrustlineAgreement(address _a, address _b) internal view returns (TrustlineAgreement) {
+    function _loadTrustlineAgreement(address _a, address _b) internal view returns (TrustlineAgreement memory) {
         TrustlineAgreement memory trustlineAgreement = trustlines[uniqueIdentifier(_a, _b)].agreement;
         TrustlineAgreement memory result;
         if (_a < _b) {
@@ -922,7 +911,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return result;
     }
 
-    function _loadTrustlineBalances(address _a, address _b) internal view returns (TrustlineBalances) {
+    function _loadTrustlineBalances(address _a, address _b) internal view returns (TrustlineBalances memory) {
         TrustlineBalances memory balances = trustlines[uniqueIdentifier(_a, _b)].balances;
         TrustlineBalances memory result;
         if (_a < _b) {
@@ -980,16 +969,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         }
     }
 
-    function _loadTrustlineRequest(address _a, address _b) internal view returns (TrustlineRequest) {
+    function _loadTrustlineRequest(address _a, address _b) internal view returns (TrustlineRequest memory) {
         TrustlineRequest memory trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
         return trustlineRequest;
     }
 
-    function _deleteTrustlineRequest(address _a, address _b) internal view {
+    function _deleteTrustlineRequest(address _a, address _b) internal {
         delete requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
     }
 
-    function _storeTrustlineRequest(address _a, address _b, TrustlineRequest _trustlineRequest) internal {
+    function _storeTrustlineRequest(address _a, address _b, TrustlineRequest memory _trustlineRequest) internal {
         if (!customInterests) {
             assert(_trustlineRequest.interestRateGiven == defaultInterestRate);
             assert(_trustlineRequest.interestRateReceived == defaultInterestRate);
@@ -1334,9 +1323,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
         require(_a != _b, "Unique identifiers require different addresses");
         if (_a < _b) {
-            return keccak256(_a, _b);
+            return keccak256(abi.encodePacked(_a, _b));
         } else if (_a > _b) {
-            return keccak256(_b, _a);
+            return keccak256(abi.encodePacked(_b, _a));
         }
     }
 
@@ -1348,7 +1337,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         pure
         returns (bytes32)
     {
-        return keccak256(_creditor, _debtor);
+        return keccak256(abi.encodePacked(_creditor, _debtor));
     }
 
 }

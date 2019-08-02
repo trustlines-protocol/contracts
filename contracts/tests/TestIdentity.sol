@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.8;
 
 /*
   The sole purpose of this file is to be able to test the internal functions of the identity contract
@@ -14,9 +14,9 @@ contract TestIdentity is Identity {
         address from,
         address to,
         uint256 value,
-        bytes data,
+        bytes memory data,
         uint256 nonce,
-        bytes extraHash
+        bytes memory extraHash
     )
         public
         view
