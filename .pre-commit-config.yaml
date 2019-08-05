@@ -1,28 +1,27 @@
+default_language_version:
+    python: python3
+
 repos:
--   repo: https://github.com/ambv/black
-    rev: 18.9b0
+-   repo: https://github.com/psf/black
+    rev: 19.3b0
     hooks:
     - id: black
-      language_version: python3.6
 
--   repo: git://github.com/pre-commit/pre-commit-hooks
-    sha: v2.0.0
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.2.3
     hooks:
     - id: check-added-large-files
     - id: check-ast
-      language_version: python3.6
     - id: check-byte-order-marker
     - id: check-case-conflict
     - id: check-json
     - id: check-merge-conflict
     - id: check-yaml
     - id: debug-statements
-      language_version: python3.6
     - id: end-of-file-fixer
       exclude: .bumpversion.cfg
     - id: flake8
-      language_version: python3.6
-      additional_dependencies: ["flake8-string-format", "flake8-per-file-ignores"]
+      additional_dependencies: ["flake8-string-format"]
     - id: trailing-whitespace
     - id: no-commit-to-branch
       args: [--branch, develop, --branch, master]
@@ -30,8 +29,9 @@ repos:
     rev: 'fc4f655fe2ad22a6f3668045a99b5cc1b21f79da'
     hooks:
     - id: ethlint
-- repo: git://github.com/luismayta/pre-commit-mypy
-  sha: '0.1.1'
+      exclude: ^(contracts/lib/|contracts/tokens)
+- repo: https://github.com/luismayta/pre-commit-mypy
+  rev: 0.1.1
   hooks:
   - id: mypy
     args: ["--scripts-are-modules", "--ignore-missing-imports"]
