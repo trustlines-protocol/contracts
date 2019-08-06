@@ -140,4 +140,4 @@ The rest of the changes are only interesting for developers:
 .. _0.6.1: https://github.com/trustlines-protocol/contracts/compare/0.6.0...0.6.1
 .. _0.6.2: https://github.com/trustlines-protocol/contracts/compare/0.6.1...0.6.2
 .. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.2...0.6.3
-.. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.3...0.7.0
+.. _0.7.0: https://github.com/trustlines-protocol/contracts/compare/0.6.3...0.7.0
