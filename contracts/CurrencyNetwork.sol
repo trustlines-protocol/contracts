@@ -47,7 +47,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     bool public preventMediatorInterests;
 
     // Events
-    event Transfer(address indexed _from, address indexed _to, uint _value);
+    event Transfer(address indexed _from, address indexed _to, uint _value, bytes _extraData);
 
     event TrustlineUpdateRequest(
         address indexed _creditor,
@@ -164,12 +164,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
      * @param _path Path between msg.sender and _to
+     * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transfer(
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path
+        address[] calldata _path,
+        bytes calldata _extraData
     )
         external
         returns (bool _success)
@@ -185,7 +187,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             emit Transfer(
                 msg.sender,
                 _to,
-                _value);
+                _value,
+                _extraData
+            );
         }
     }
 
@@ -196,13 +200,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
      * @param _path Path between msg.sender and _to
+     * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transferFrom(
         address _from,
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path
+        address[] calldata _path,
+        bytes calldata _extraData
     )
         external
         returns (bool success)
@@ -220,7 +226,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             emit Transfer(
                 _from,
                 _to,
-                _value);
+                _value,
+                _extraData
+            );
         }
     }
 
@@ -231,12 +239,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
      * @param _path Path between msg.sender and _to
+     * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transferReceiverPays(
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path
+        address[] calldata _path,
+        bytes calldata _extraData
     )
     external
     returns (bool _success)
@@ -252,7 +262,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             emit Transfer(
                 msg.sender,
                 _to,
-                _value
+                _value,
+                _extraData
             );
         }
     }

@@ -7,7 +7,8 @@ contract CurrencyNetworkInterface {
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path
+        address[] calldata _path,
+        bytes calldata _extraData
     )
         external
         returns (bool success);
@@ -17,7 +18,8 @@ contract CurrencyNetworkInterface {
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path
+        address[] calldata _path,
+        bytes calldata _extraData
     )
         external
         returns (bool success);
@@ -26,6 +28,6 @@ contract CurrencyNetworkInterface {
 
     function creditline(address _creditor, address _debtor) public view returns (uint);
 
-    event Transfer(address indexed _from, address indexed _to, uint _value);
+    event Transfer(address indexed _from, address indexed _to, uint _value, bytes _extraData);
 
 }

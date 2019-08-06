@@ -1,10 +1,12 @@
 #! pytest
 
 import pytest
+
 from web3.exceptions import BadFunctionCallOutput
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
+from .conftest import EXTRA_DATA
 
 trustlines = [
     (0, 1, 100, 150),
@@ -199,9 +201,9 @@ def test_balance(currency_network_contract, accounts):
 
 def test_transfer_0_mediators(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
-    contract.functions.transfer(accounts[1], 110, 0, [accounts[1]]).transact(
-        {"from": accounts[0]}
-    )
+    contract.functions.transfer(
+        accounts[1], 110, 0, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
     assert contract.functions.balance(accounts[0], accounts[1]).call() == -110
 
 
@@ -210,9 +212,9 @@ def test_transfer_0_mediators_fail_not_enough_credit(
 ):
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(accounts[1], 151, 0, [accounts[1]]).transact(
-            {"from": accounts[0]}
-        )
+        contract.functions.transfer(
+            accounts[1], 151, 0, [accounts[1]], EXTRA_DATA
+        ).transact({"from": accounts[0]})
 
 
 def test_transfer_0_mediators_fail_wrong_path(
@@ -220,19 +222,19 @@ def test_transfer_0_mediators_fail_wrong_path(
 ):
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(accounts[1], 110, 0, [accounts[2]]).transact(
-            {"from": accounts[0]}
-        )
+        contract.functions.transfer(
+            accounts[1], 110, 0, [accounts[2]], EXTRA_DATA
+        ).transact({"from": accounts[0]})
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(accounts[2], 1, 0, [accounts[1]]).transact(
-            {"from": accounts[0]}
-        )
+        contract.functions.transfer(
+            accounts[2], 1, 0, [accounts[1]], EXTRA_DATA
+        ).transact({"from": accounts[0]})
 
 
 def test_transfer_1_mediators(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     contract.functions.transfer(
-        accounts[2], 110, 0, [accounts[1], accounts[2]]
+        accounts[2], 110, 0, [accounts[1], accounts[2]], EXTRA_DATA
     ).transact({"from": accounts[0]})
     assert contract.functions.balance(accounts[0], accounts[1]).call() == -110
     assert contract.functions.balance(accounts[2], accounts[1]).call() == 110
@@ -244,7 +246,7 @@ def test_transfer_1_mediators_not_enough_credit(
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[2], 151, 0, [accounts[1], accounts[2]]
+            accounts[2], 151, 0, [accounts[1], accounts[2]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 
@@ -254,14 +256,18 @@ def test_transfer_1_mediators_not_enough_wrong_path(
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[2], 110, 0, [accounts[1], accounts[3]]
+            accounts[2], 110, 0, [accounts[1], accounts[3]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 
 def test_transfer_3_mediators(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     contract.functions.transfer(
-        accounts[4], 110, 0, [accounts[1], accounts[2], accounts[3], accounts[4]]
+        accounts[4],
+        110,
+        0,
+        [accounts[1], accounts[2], accounts[3], accounts[4]],
+        EXTRA_DATA,
     ).transact({"from": accounts[0]})
     assert contract.functions.balance(accounts[0], accounts[1]).call() == -110
     assert contract.functions.balance(accounts[1], accounts[2]).call() == -110
@@ -272,10 +278,18 @@ def test_transfer_3_mediators(currency_network_contract_with_trustlines, account
 def test_transfer_payback(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     contract.functions.transfer(
-        accounts[4], 110, 0, [accounts[1], accounts[2], accounts[3], accounts[4]]
+        accounts[4],
+        110,
+        0,
+        [accounts[1], accounts[2], accounts[3], accounts[4]],
+        EXTRA_DATA,
     ).transact({"from": accounts[0]})
     contract.functions.transfer(
-        accounts[0], 110, 0, [accounts[3], accounts[2], accounts[1], accounts[0]]
+        accounts[0],
+        110,
+        0,
+        [accounts[3], accounts[2], accounts[1], accounts[0]],
+        EXTRA_DATA,
     ).transact({"from": accounts[4]})
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 0
     assert contract.functions.balance(accounts[1], accounts[2]).call() == 0
@@ -286,26 +300,26 @@ def test_transfer_payback(currency_network_contract_with_trustlines, accounts):
 def test_send_back(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 0
-    contract.functions.transfer(accounts[1], 120, 0, [accounts[1]]).transact(
-        {"from": accounts[0]}
-    )
+    contract.functions.transfer(
+        accounts[1], 120, 0, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
     assert contract.functions.balance(accounts[1], accounts[0]).call() == 120
-    contract.functions.transfer(accounts[0], 120, 0, [accounts[0]]).transact(
-        {"from": accounts[1]}
-    )
+    contract.functions.transfer(
+        accounts[0], 120, 0, [accounts[0]], EXTRA_DATA
+    ).transact({"from": accounts[1]})
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 0
 
 
 def test_send_more(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 0
-    contract.functions.transfer(accounts[1], 120, 0, [accounts[1]]).transact(
-        {"from": accounts[0]}
-    )
+    contract.functions.transfer(
+        accounts[1], 120, 0, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
     assert contract.functions.balance(accounts[1], accounts[0]).call() == 120
-    contract.functions.transfer(accounts[0], 200, 0, [accounts[0]]).transact(
-        {"from": accounts[1]}
-    )
+    contract.functions.transfer(
+        accounts[0], 200, 0, [accounts[0]], EXTRA_DATA
+    ).transact({"from": accounts[1]})
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 80
 
 
@@ -639,7 +653,7 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
     A, B, *rest = accounts
     assert contract.functions.spendableTo(A, B).call() == 150
     assert contract.functions.spendableTo(B, A).call() == 100
-    contract.functions.transfer(B, 40, 0, [B]).transact({"from": A})
+    contract.functions.transfer(B, 40, 0, [B], EXTRA_DATA).transact({"from": A})
     assert contract.functions.spendableTo(A, B).call() == 110
     assert contract.functions.spendableTo(B, A).call() == 140
 
@@ -648,9 +662,9 @@ def test_balance_of(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, C, D, E, *rest = accounts
     assert contract.functions.balanceOf(A).call() == 700
-    contract.functions.transfer(B, 40, 0, [B]).transact({"from": A})
+    contract.functions.transfer(B, 40, 0, [B], EXTRA_DATA).transact({"from": A})
     assert contract.functions.balanceOf(A).call() == 660
-    contract.functions.transfer(C, 20, 0, [E, D, C]).transact({"from": A})
+    contract.functions.transfer(C, 20, 0, [E, D, C], EXTRA_DATA).transact({"from": A})
     assert contract.functions.balanceOf(A).call() == 640
 
 
@@ -663,7 +677,7 @@ def test_total_supply(currency_network_contract_with_trustlines):
 def test_balance_event(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    contract.functions.transfer(B, 110, 0, [B]).transact({"from": A})
+    contract.functions.transfer(B, 110, 0, [B], EXTRA_DATA).transact({"from": A})
     events = contract.events.BalanceUpdate.createFilter(fromBlock=0).get_all_entries()
     assert len(events) == 1
     args = events[0]["args"]
@@ -685,16 +699,18 @@ def test_balance_event(currency_network_contract_with_trustlines, accounts):
 def test_transfer_event(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    contract.functions.transfer(B, 110, 0, [B]).transact({"from": A})
+    contract.functions.transfer(B, 110, 0, [B], EXTRA_DATA).transact({"from": A})
     events = contract.events.Transfer.createFilter(fromBlock=0).get_all_entries()
     assert len(events) == 1
     args = events[0]["args"]
     from_ = args["_from"]
     to = args["_to"]
     value = args["_value"]
+    extra_data = args["_extraData"]
     assert from_ == A
     assert to == B
     assert value == 110
+    assert extra_data == EXTRA_DATA
 
 
 def test_update_trustline_add_users(currency_network_contract, accounts):
@@ -736,7 +752,9 @@ def test_max_transfer(currency_network_contract, accounts):
     contract.functions.updateCreditlimits(A, MAX_CREDITLINE, MAX_CREDITLINE).transact(
         {"from": B}
     )
-    contract.functions.transfer(B, MAX_CREDITLINE, 0, [B]).transact({"from": A})
+    contract.functions.transfer(B, MAX_CREDITLINE, 0, [B], EXTRA_DATA).transact(
+        {"from": A}
+    )
 
     assert contract.functions.balance(A, B).call() == -MAX_CREDITLINE
 
@@ -750,6 +768,8 @@ def test_overflow_max_transfer(currency_network_contract, accounts):
     contract.functions.updateCreditlimits(A, MAX_CREDITLINE, MAX_CREDITLINE).transact(
         {"from": B}
     )
-    contract.functions.transfer(B, MAX_CREDITLINE, 0, [B]).transact({"from": A})
+    contract.functions.transfer(B, MAX_CREDITLINE, 0, [B], EXTRA_DATA).transact(
+        {"from": A}
+    )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(B, 1, 0, [B]).transact({"from": A})
+        contract.functions.transfer(B, 1, 0, [B], EXTRA_DATA).transact({"from": A})

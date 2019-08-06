@@ -5,6 +5,7 @@ import eth_tester.exceptions
 from math import exp
 
 from tldeploy.core import deploy_network
+from .conftest import EXTRA_DATA
 
 trustlines = [
     (0, 1, 2000000000, 2000000000),
@@ -101,7 +102,7 @@ def test_interests_positive_balance(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -137,7 +138,7 @@ def test_interests_high_value(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -170,7 +171,7 @@ def test_interests_negative_balance(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -203,7 +204,7 @@ def test_no_interests(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -226,12 +227,12 @@ def test_custom_interests(
     current_time = int(time.time())
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 100000000, 2000000, [accounts[1]]
+        accounts[1], 100000000, 2000000, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     chain.time_travel(current_time + 2 * SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -256,7 +257,7 @@ def test_custom_interests_postive_balance(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -293,7 +294,7 @@ def test_safe_interest_allows_direct_transactions(
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
 
@@ -317,7 +318,7 @@ def test_safe_interest_allows_transactions_mediated(
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     getattr(contract.functions, transfer_function_name)(
-        accounts[2], 1, 2, [accounts[1], accounts[2]]
+        accounts[2], 1, 2, [accounts[1], accounts[2]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
 
@@ -342,7 +343,7 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         getattr(contract.functions, transfer_function_name)(
-            accounts[2], 1, 2, [accounts[1], accounts[2]]
+            accounts[2], 1, 2, [accounts[1], accounts[2]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 
@@ -365,7 +366,7 @@ def test_safe_interest_allows_transactions_mediated_solves_imbalance(
     ).transact()
 
     getattr(contract.functions, transfer_function_name)(
-        accounts[2], 1, 2, [accounts[1], accounts[2]]
+        accounts[2], 1, 2, [accounts[1], accounts[2]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
 
@@ -389,7 +390,7 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         getattr(contract.functions, transfer_function_name)(
-            accounts[2], 201, 2, [accounts[1], accounts[2]]
+            accounts[2], 201, 2, [accounts[1], accounts[2]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 
@@ -420,7 +421,7 @@ def test_negative_interests_default_positive_balance(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -455,7 +456,7 @@ def test_negative_interests_default_negative_balance(
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        accounts[1], 1, 2, [accounts[1]]
+        accounts[1], 1, 2, [accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -489,7 +490,7 @@ def test_interests_overflow(
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
     chain.time_travel(current_time + int(1.6923 * SECONDS_PER_YEAR))
-    contract.functions.transfer(accounts[1], 1, 2, [accounts[1]]).transact(
+    contract.functions.transfer(accounts[1], 1, 2, [accounts[1]], EXTRA_DATA).transact(
         {"from": accounts[0]}
     )
 
@@ -521,11 +522,11 @@ def test_interests_underflow(
     chain.time_travel(current_time + int(2.23 * SECONDS_PER_YEAR))
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(accounts[1], 1, 0, [accounts[1]]).transact(
-            {"from": accounts[0]}
-        )
+        contract.functions.transfer(
+            accounts[1], 1, 0, [accounts[1]], EXTRA_DATA
+        ).transact({"from": accounts[0]})
 
-    contract.functions.transfer(accounts[0], 1, 0, [accounts[0]]).transact(
+    contract.functions.transfer(accounts[0], 1, 0, [accounts[0]], EXTRA_DATA).transact(
         {"from": accounts[1]}
     )
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
@@ -546,9 +547,9 @@ def test_interests_over_change_in_trustline(
     contract.functions.updateTrustline(accounts[1], 100000, 100000, 0, 0).transact(
         {"from": accounts[0]}
     )
-    contract.functions.transfer(accounts[1], 10000, 0, [accounts[1]]).transact(
-        {"from": accounts[0]}
-    )
+    contract.functions.transfer(
+        accounts[1], 10000, 0, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
 
@@ -559,7 +560,7 @@ def test_interests_over_change_in_trustline(
         accounts[1], 100000, 100000, 1000, 1000
     ).transact({"from": accounts[0]})
 
-    contract.functions.transfer(accounts[1], 1, 0, [accounts[1]]).transact(
+    contract.functions.transfer(accounts[1], 1, 0, [accounts[1]], EXTRA_DATA).transact(
         {"from": accounts[0]}
     )
 
@@ -579,15 +580,15 @@ def test_payback_interests_even_over_creditline(
     contract.functions.updateTrustline(accounts[1], 10000, 10000, 200, 200).transact(
         {"from": accounts[0]}
     )
-    contract.functions.transfer(accounts[0], 10000, 0, [accounts[0]]).transact(
-        {"from": accounts[1]}
-    )
+    contract.functions.transfer(
+        accounts[0], 10000, 0, [accounts[0]], EXTRA_DATA
+    ).transact({"from": accounts[1]})
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
 
-    contract.functions.transfer(accounts[1], 10202, 0, [accounts[1]]).transact(
-        {"from": accounts[0]}
-    )
+    contract.functions.transfer(
+        accounts[1], 10202, 0, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
 
     assert contract.functions.balance(accounts[0], accounts[1]).call() == pytest.approx(
         0, abs=2
@@ -607,13 +608,13 @@ def test_interests_over_creditline_is_usable(
     contract.functions.updateTrustline(accounts[1], 10000, 10000, 200, 200).transact(
         {"from": accounts[0]}
     )
-    contract.functions.transfer(accounts[0], 10000, 0, [accounts[0]]).transact(
-        {"from": accounts[1]}
-    )
+    contract.functions.transfer(
+        accounts[0], 10000, 0, [accounts[0]], EXTRA_DATA
+    ).transact({"from": accounts[1]})
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
 
-    contract.functions.transfer(accounts[1], 1, 0, [accounts[1]]).transact(
+    contract.functions.transfer(accounts[1], 1, 0, [accounts[1]], EXTRA_DATA).transact(
         {"from": accounts[0]}
     )
 
@@ -636,9 +637,9 @@ def test_correct_balance_update_event_on_interest_rate_change(
     contract.functions.updateTrustline(accounts[1], 10000, 10000, 100, 100).transact(
         {"from": accounts[0]}
     )
-    contract.functions.transfer(accounts[0], 10000, 0, [accounts[0]]).transact(
-        {"from": accounts[1]}
-    )
+    contract.functions.transfer(
+        accounts[0], 10000, 0, [accounts[0]], EXTRA_DATA
+    ).transact({"from": accounts[1]})
 
     # Time travel
     chain.time_travel(current_time + SECONDS_PER_YEAR)
