@@ -1,6 +1,12 @@
 ==========
 Change Log
 ==========
+`0.7.0`_ (2019-08-06)
+-----------------------
+* Add missing BalanceUpdate on trustlines changes
+* Update the contracts to solc 0.5.8.
+* Add extraData to transfer and Transfer events
+
 `0.6.3`_ (2019-06-05)
 -----------------------
 * Copyright has been transferred to the trustlines foundation
@@ -134,3 +140,4 @@ The rest of the changes are only interesting for developers:
 .. _0.6.1: https://github.com/trustlines-protocol/contracts/compare/0.6.0...0.6.1
 .. _0.6.2: https://github.com/trustlines-protocol/contracts/compare/0.6.1...0.6.2
 .. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.2...0.6.3
+.. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.3...0.7.0
