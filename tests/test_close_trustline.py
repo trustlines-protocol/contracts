@@ -18,6 +18,7 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": True,
     "prevent_mediator_interests": False,
+    "currency_network_contract_name": "TestCurrencyNetwork",
 }
 
 

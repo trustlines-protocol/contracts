@@ -142,6 +142,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         require(!isInitialized, "Currency Network already initialized.");
         isInitialized = true;
+
         // verifies that only one parameter is selected.
         require(
             ! ((_defaultInterestRate != 0) && _customInterests),
@@ -422,82 +423,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             trustline.balances.feesOutstandingB,
             trustline.balances.mtime,
             trustline.balances.balance);
-    }
-
-    /**
-    * Set the trustline account between two users.
-    * Can be removed once structs are supported in the ABI
-    */
-    function setAccount(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        int16 _interestRateGiven,
-        int16 _interestRateReceived,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        external
-        onlyOwner
-    {
-        require(
-            customInterests ||
-            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
-            "Interest rates given and received must be equal to default interest rates."
-        );
-        if (customInterests) {
-            require(
-                _interestRateGiven >= 0 && _interestRateReceived >= 0,
-                "Only positive interest rates are supported."
-            );
-        }
-
-        _setAccount(
-            _a,
-            _b,
-            _creditlineGiven,
-            _creditlineReceived,
-            _interestRateGiven,
-            _interestRateReceived,
-            _feesOutstandingA,
-            _feesOutstandingB,
-            _mtime,
-            _balance
-        );
-    }
-
-    /**
-    * Set the trustline account between two users with default interests.
-    * Can be removed once structs are supported in the ABI
-    */
-    function setAccountDefaultInterests(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        external
-        onlyOwner
-    {
-        _setAccount(
-            _a,
-            _b,
-            _creditlineGiven,
-            _creditlineReceived,
-            defaultInterestRate,
-            defaultInterestRate,
-            _feesOutstandingA,
-            _feesOutstandingB,
-            _mtime,
-            _balance
-        );
     }
 
     /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
@@ -871,38 +796,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         users.insert(_b);
         friends[_a].insert(_b);
         friends[_b].insert(_a);
-    }
-
-    function _setAccount(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        int16 _interestRateGiven,
-        int16 _interestRateReceived,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        internal
-    {
-        TrustlineAgreement memory trustlineAgreement;
-        trustlineAgreement.creditlineGiven = _creditlineGiven;
-        trustlineAgreement.creditlineReceived = _creditlineReceived;
-        trustlineAgreement.interestRateGiven = _interestRateGiven;
-        trustlineAgreement.interestRateReceived = _interestRateReceived;
-
-        TrustlineBalances memory trustlineBalances;
-        trustlineBalances.feesOutstandingA = _feesOutstandingA;
-        trustlineBalances.feesOutstandingB = _feesOutstandingB;
-        trustlineBalances.mtime = _mtime;
-        trustlineBalances.balance = _balance;
-
-        _storeTrustlineAgreement(_a, _b, trustlineAgreement);
-        _storeTrustlineBalances(_a, _b, trustlineBalances);
-
-        addToUsersAndFriends(_a, _b);
     }
 
     function _loadTrustline(address _a, address _b) internal view returns (Trustline memory) {

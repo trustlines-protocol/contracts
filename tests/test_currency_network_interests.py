@@ -29,6 +29,7 @@ def currency_network_contract_no_interests(web3):
         default_interest_rate=0,
         custom_interests=False,
         prevent_mediator_interests=False,
+        currency_network_contract_name="TestCurrencyNetwork",
     )
 
 
@@ -43,6 +44,7 @@ def currency_network_contract_default_interests(web3):
         default_interest_rate=100,
         custom_interests=False,
         prevent_mediator_interests=False,
+        currency_network_contract_name="TestCurrencyNetwork",
     )
 
 
@@ -57,6 +59,7 @@ def currency_network_contract_negative_interests(web3):
         default_interest_rate=-100,
         custom_interests=False,
         prevent_mediator_interests=False,
+        currency_network_contract_name="TestCurrencyNetwork",
     )
 
 
@@ -71,6 +74,7 @@ def currency_network_contract_custom_interests_safe_ripple(web3):
         0,
         custom_interests=True,
         prevent_mediator_interests=True,
+        currency_network_contract_name="TestCurrencyNetwork",
     )
 
 

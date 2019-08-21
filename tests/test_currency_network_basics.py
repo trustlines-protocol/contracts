@@ -23,21 +23,18 @@ NETWORK_SETTING = {
     "fee_divisor": 0,
     "default_interest_rate": 0,
     "custom_interests": False,
+    "currency_network_contract_name": "TestCurrencyNetwork",
 }
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(
-        web3, currency_network_contract_name="TestCurrencyNetwork", **NETWORK_SETTING
-    )
+    return deploy_network(web3, **NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
-    contract = deploy_network(
-        web3, currency_network_contract_name="TestCurrencyNetwork", **NETWORK_SETTING
-    )
+    contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
             accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0

@@ -20,7 +20,12 @@ trustlines = [
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
     contract = deploy_network(
-        web3, name="TestCoin", symbol="T", decimals=6, fee_divisor=100
+        web3,
+        currency_network_contract_name="TestCurrencyNetwork",
+        name="TestCoin",
+        symbol="T",
+        decimals=6,
+        fee_divisor=100,
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
