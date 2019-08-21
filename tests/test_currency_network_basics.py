@@ -28,12 +28,16 @@ NETWORK_SETTING = {
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
+    return deploy_network(
+        web3, currency_network_contract_name="TestCurrencyNetwork", **NETWORK_SETTING
+    )
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
-    contract = deploy_network(web3, **NETWORK_SETTING)
+    contract = deploy_network(
+        web3, currency_network_contract_name="TestCurrencyNetwork", **NETWORK_SETTING
+    )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
             accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0
@@ -45,6 +49,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
 def currency_network_contract_custom_interest(web3):
     return deploy_network(
         web3,
+        currency_network_contract_name="TestCurrencyNetwork",
         name="TestCoin",
         symbol="T",
         decimals=6,
@@ -588,7 +593,9 @@ def test_update_trustline_with_custom_while_forbidden_lowering_interests(
 ):
     """Verifies that if the network uses default interests of 0, no custom interests can be put"""
     contract = currency_network_contract
-    contract.functions.init("TestCoin", "T", 6, 0, 5, False, False).transact()
+    contract.functions.setNetworkSettings(
+        "TestCoin", "T", 6, 0, 5, False, False
+    ).transact()
 
     A, B, *rest = accounts
     contract.functions.setAccountDefaultInterests(A, B, 200, 200, 0, 0, 0, 0).transact()
@@ -600,7 +607,9 @@ def test_update_trustline_with_custom_while_forbidden_lowering_interests(
 def test_update_trustline_lowering_interest_given(currency_network_contract, accounts):
     """Verifies that one can update a trustline by lowering interests rate given without agreement of debtor"""
     contract = currency_network_contract
-    contract.functions.init("TestCoin", "T", 6, 0, 0, True, False).transact()
+    contract.functions.setNetworkSettings(
+        "TestCoin", "T", 6, 0, 0, True, False
+    ).transact()
 
     A, B, *rest = accounts
     contract.functions.updateTrustline(B, 100, 100, 0, 2).transact({"from": A})
@@ -615,7 +624,9 @@ def test_update_trustline_lowering_interest_received(
 ):
     """Verifies that one can update a trustline by lowering interests rate given without agreement of debtor"""
     contract = currency_network_contract
-    contract.functions.init("TestCoin", "T", 6, 0, 0, True, False).transact()
+    contract.functions.setNetworkSettings(
+        "TestCoin", "T", 6, 0, 0, True, False
+    ).transact()
 
     A, B, *rest = accounts
     contract.functions.updateTrustline(B, 100, 100, 2, 0).transact({"from": A})
@@ -633,7 +644,9 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
     """Verifies we cannot use negative interests if the flag for custom is set"""
 
     contract = currency_network_contract_with_trustlines
-    contract.functions.init("TestCoin", "T", 6, 0, 0, True, False).transact()
+    contract.functions.setNetworkSettings(
+        "TestCoin", "T", 6, 0, 0, True, False
+    ).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.setAccount(
