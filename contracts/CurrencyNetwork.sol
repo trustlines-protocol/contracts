@@ -33,6 +33,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     //list of all users of the system
     ItSet.AddressSet internal users;
 
+    bool public isInitialized;
+
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
 
@@ -138,6 +140,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         onlyOwner
     {
+        require(!isInitialized, "Currency Network already initialized.");
+        isInitialized = true;
         // verifies that only one parameter is selected.
         require(
             ! ((_defaultInterestRate != 0) && _customInterests),
