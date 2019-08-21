@@ -67,6 +67,13 @@ def test_meta_decimal(currency_network_contract):
     assert currency_network_contract.functions.decimals().call() == 6
 
 
+def test_init_only_once(currency_network_contract):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_contract.functions.init(
+            "TestCoin", "T", 6, 0, 0, False, False
+        ).transact()
+
+
 def test_users(currency_network_contract_with_trustlines, accounts):
     A, B, C, D, E, *rest = accounts
     assert set(
