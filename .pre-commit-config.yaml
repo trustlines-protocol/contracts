@@ -8,7 +8,7 @@ repos:
     - id: black
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.2.3
+    rev: v2.3.0
     hooks:
     - id: check-added-large-files
     - id: check-ast
@@ -26,7 +26,7 @@ repos:
     - id: no-commit-to-branch
       args: [--branch, develop, --branch, master]
 -   repo: https://github.com/schmir/ethlint-pre-commit.git
-    rev: 'fc4f655fe2ad22a6f3668045a99b5cc1b21f79da'
+    rev: ceedc72aa232b9391840256c7781226a3e238b1a
     hooks:
     - id: ethlint
       exclude: ^(contracts/lib/|contracts/tokens)
