@@ -45,14 +45,24 @@ def table():
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
     return deploy_network(
-        web3, name="Teuro", symbol="TEUR", decimals=2, fee_divisor=100
+        web3,
+        name="Teuro",
+        symbol="TEUR",
+        decimals=2,
+        fee_divisor=100,
+        currency_network_contract_name="TestCurrencyNetwork",
     )
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
     contract = deploy_network(
-        web3, name="Teuro", symbol="TEUR", decimals=2, fee_divisor=100
+        web3,
+        name="Teuro",
+        symbol="TEUR",
+        decimals=2,
+        fee_divisor=100,
+        currency_network_contract_name="TestCurrencyNetwork",
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
