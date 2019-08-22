@@ -794,3 +794,59 @@ def test_overflow_max_transfer(currency_network_contract, accounts):
     )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(B, 1, 0, [B], EXTRA_DATA).transact({"from": A})
+
+
+def test_disabled_set_account(web3, accounts):
+    """
+    Tests that we cannot set an account when set_account_enabled is False.
+    We need to redeploy a network not to use TestCurrencyNetwork.sol
+    """
+    network = deploy_network(
+        web3,
+        name="Testcoin",
+        symbol="T",
+        decimals=2,
+        fee_divisor=100,
+        default_interest_rate=100,
+        custom_interests=False,
+        prevent_mediator_interests=False,
+        set_account_enabled=False,
+    )
+
+    assert network.functions.setAccountEnabled().call() is False
+
+    account = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0, 0, 0)
+    account_no_interest = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0)
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        network.functions.setAccount(*account).transact()
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        network.functions.setAccountDefaultInterests(*account_no_interest).transact()
+
+
+def test_enabled_set_account(web3, accounts):
+    """
+    Tests that we can set an account when set_account_enabled is True.
+    We need to redeploy a network not to use TestCurrencyNetwork.sol
+    """
+    network = deploy_network(
+        web3,
+        name="Testcoin",
+        symbol="T",
+        decimals=2,
+        fee_divisor=100,
+        default_interest_rate=0,
+        custom_interests=False,
+        prevent_mediator_interests=False,
+        set_account_enabled=True,
+    )
+
+    assert network.functions.setAccountEnabled().call() is True
+
+    account = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0, 0, 0)
+    account_no_interest = (accounts[0], accounts[1], 200, 200, 0, 0, 0, 0)
+
+    network.functions.setAccount(*account).transact()
+    assert network.functions.balanceOf(accounts[0]).call() == 100
+    network.functions.setAccountDefaultInterests(*account_no_interest).transact()
+    assert network.functions.balanceOf(accounts[0]).call() == 200
