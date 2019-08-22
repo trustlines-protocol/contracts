@@ -34,6 +34,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     ItSet.AddressSet internal users;
 
     bool public isInitialized;
+    bool public setAccountEnabled = true;
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
@@ -386,6 +387,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return true;
     }
 
+    function disableSetAccount() external onlyOwner {
+        setAccountEnabled = false;
+    }
+
     /**
     * Set the trustline account between two users.
     * Can be removed once structs are supported in the ABI
@@ -405,6 +410,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         onlyOwner
     {
+        require(setAccountEnabled, "This function has been disabled and cannot be used anymore.");
         require(
             customInterests ||
             (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
@@ -449,6 +455,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         onlyOwner
     {
+        require(setAccountEnabled, "This function has been disabled and cannot be used anymore.");
         _setAccount(
             _a,
             _b,
