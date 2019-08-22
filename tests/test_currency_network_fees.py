@@ -26,6 +26,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
         symbol="T",
         decimals=6,
         fee_divisor=100,
+        set_account_enabled=True,
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
