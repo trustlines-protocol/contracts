@@ -5,7 +5,7 @@ import pytest
 import eth_tester.exceptions
 from tldeploy.core import deploy_network
 
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 
 trustlines = [
@@ -26,6 +26,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
         symbol="T",
         decimals=6,
         fee_divisor=100,
+        expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(

@@ -8,7 +8,7 @@ import pytest
 from texttable import Texttable
 from tldeploy.core import deploy_network, deploy_identity
 
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 trustlines = [
     (0, 1, 100, 150),
@@ -51,6 +51,7 @@ def currency_network_contract(web3):
         decimals=2,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
+        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -63,6 +64,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
         decimals=2,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
+        expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(

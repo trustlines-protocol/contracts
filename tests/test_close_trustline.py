@@ -6,7 +6,7 @@ import pytest
 import eth_tester.exceptions
 
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
@@ -19,6 +19,7 @@ NETWORK_SETTING = {
     "custom_interests": True,
     "prevent_mediator_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
+    "expiration_time": EXPIRATION_TIME,
 }
 
 

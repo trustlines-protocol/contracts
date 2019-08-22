@@ -6,7 +6,7 @@ from web3.exceptions import BadFunctionCallOutput
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 trustlines = [
     (0, 1, 100, 150),
@@ -24,6 +24,7 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
+    "expiration_time": EXPIRATION_TIME,
 }
 
 
@@ -54,6 +55,7 @@ def currency_network_contract_custom_interest(web3):
         default_interest_rate=0,
         custom_interests=True,
         prevent_mediator_interests=False,
+        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -72,7 +74,7 @@ def test_meta_decimal(currency_network_contract):
 def test_init_only_once(currency_network_contract):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.init(
-            "TestCoin", "T", 6, 0, 0, False, False
+            "TestCoin", "T", 6, 0, 0, False, False, EXPIRATION_TIME
         ).transact()
 
 

@@ -64,6 +64,7 @@ def deploy_network(
     name,
     symbol,
     decimals,
+    expiration_time,
     fee_divisor=0,
     default_interest_rate=0,
     custom_interests=True,
@@ -87,6 +88,7 @@ def deploy_network(
         default_interest_rate,
         custom_interests,
         prevent_mediator_interests,
+        expiration_time,
     ).transact({"from": web3.eth.accounts[0]})
     wait_for_successful_transaction_receipt(web3, txid)
     if exchange_address is not None:
@@ -107,7 +109,7 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
             web3,
             exchange_address=exchange.address,
             currency_network_contract_name=currency_network_contract_name,
-            **network_setting,
+            **network_setting
         )
         for network_setting in network_settings
     ]

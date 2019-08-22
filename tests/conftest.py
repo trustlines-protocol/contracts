@@ -10,6 +10,7 @@ eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 6 * 10 ** 6
 
 
 EXTRA_DATA = b"\x124Vx\x124Vx\x124Vx\x124Vx"
+EXPIRATION_TIME = 4102444800  # 01/01/2100
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -81,6 +81,12 @@ currency_network_contract_name_option = click.option(
     show_default=True,
 )
 @currency_network_contract_name_option
+@click.option(
+    "--expiration-time",
+    help="Expiration time of the currency network after which it will be frozen",
+    default=4102444800,  # 01/01/2100
+    show_default=True,
+)
 @jsonrpc_option
 def currencynetwork(
     name: str,
@@ -93,6 +99,7 @@ def currencynetwork(
     prevent_mediator_interests: bool,
     exchange_contract: str,
     currency_network_contract_name: str,
+    expiration_time: int,
 ):
     """Deploy a currency network contract with custom settings and optionally connect it to an exchange contract"""
     if exchange_contract is not None and not is_checksum_address(exchange_contract):
@@ -132,6 +139,7 @@ def currencynetwork(
         prevent_mediator_interests=prevent_mediator_interests,
         exchange_address=exchange_contract,
         currency_network_contract_name=currency_network_contract_name,
+        expiration_time=expiration_time,
     )
 
     click.echo(
@@ -182,6 +190,8 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     This can be used for testing"""
 
+    expiration_time = 4102444800  # 01/01/2100
+
     network_settings = [
         {
             "name": "Cash",
@@ -190,6 +200,7 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
             "fee_divisor": 1000,
             "default_interest_rate": 0,
             "custom_interests": True,
+            "expiration_time": expiration_time,
         },
         {
             "name": "Work Hours",
@@ -198,6 +209,7 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
             "fee_divisor": 0,
             "default_interest_rate": 1000,
             "custom_interests": False,
+            "expiration_time": expiration_time,
         },
         {
             "name": "Beers",
@@ -205,6 +217,7 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
             "decimals": 0,
             "fee_divisor": 0,
             "custom_interests": False,
+            "expiration_time": expiration_time,
         },
     ]
 

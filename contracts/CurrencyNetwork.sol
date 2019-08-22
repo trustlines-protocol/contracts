@@ -34,6 +34,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     ItSet.AddressSet internal users;
 
     bool public isInitialized;
+    uint public expirationTime;
+    bool public isFrozen;
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
@@ -127,6 +129,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
      * @param _preventMediatorInterests Flag to allow or disallow transactions resulting in loss of interests for
      *         intermediaries, unless the transaction exclusively reduces balances
+     * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore
      */
     function init(
         string calldata _name,
@@ -135,7 +138,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint16 _capacityImbalanceFeeDivisor,
         int16 _defaultInterestRate,
         bool _customInterests,
-        bool _preventMediatorInterests
+        bool _preventMediatorInterests,
+        uint _expirationTime
     )
         external
         onlyOwner
@@ -153,6 +157,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             "The prevent mediator interest strategy cannot be set without using custom interests."
         );
 
+        require(_expirationTime > now, "Expiration time must be in the future.");
+
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -160,6 +166,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
         preventMediatorInterests = _preventMediatorInterests;
+        expirationTime = _expirationTime;
     }
 
     /**
@@ -442,6 +449,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _otherParty,
             _maxFee,
             _path);
+    }
+
+    function freezeNetwork() external {
+        require(expirationTime <= now, "The currency network cannot be frozen yet.");
+        isFrozen = true;
     }
 
     /**

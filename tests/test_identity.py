@@ -11,7 +11,7 @@ from tldeploy.identity import (
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 
 def get_transaction_status(web3, tx_id):
@@ -77,6 +77,7 @@ NETWORK_SETTING = {
     "fee_divisor": 0,
     "default_interest_rate": 0,
     "custom_interests": False,
+    "expiration_time": EXPIRATION_TIME,
 }
 
 

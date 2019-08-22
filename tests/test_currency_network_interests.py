@@ -5,7 +5,7 @@ import eth_tester.exceptions
 from math import exp
 
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 trustlines = [
     (0, 1, 2000000000, 2000000000),
@@ -24,12 +24,13 @@ def currency_network_contract_no_interests(web3):
         web3,
         "TestCoin",
         "T",
-        6,
-        0,
+        decimals=6,
+        fee_divisor=0,
         default_interest_rate=0,
         custom_interests=False,
         prevent_mediator_interests=False,
         currency_network_contract_name="TestCurrencyNetwork",
+        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -39,12 +40,13 @@ def currency_network_contract_default_interests(web3):
         web3,
         "TestCoin",
         "T",
-        6,
-        0,
+        decimals=6,
+        fee_divisor=0,
         default_interest_rate=100,
         custom_interests=False,
         prevent_mediator_interests=False,
         currency_network_contract_name="TestCurrencyNetwork",
+        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -54,12 +56,13 @@ def currency_network_contract_negative_interests(web3):
         web3,
         "TestCoin",
         "T",
-        6,
-        0,
+        decimals=6,
+        fee_divisor=0,
         default_interest_rate=-100,
         custom_interests=False,
         prevent_mediator_interests=False,
         currency_network_contract_name="TestCurrencyNetwork",
+        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -69,12 +72,13 @@ def currency_network_contract_custom_interests_safe_ripple(web3):
         web3,
         "TestCoin",
         "T",
-        6,
-        0,
-        0,
+        decimals=6,
+        fee_divisor=0,
+        default_interest_rate=0,
         custom_interests=True,
         prevent_mediator_interests=True,
         currency_network_contract_name="TestCurrencyNetwork",
+        expiration_time=EXPIRATION_TIME,
     )
 
 
