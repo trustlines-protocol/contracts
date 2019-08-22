@@ -132,7 +132,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         int72 _balance
     )
         external
-        onlyOwner
     {
         _setAccount(
             _a,
@@ -170,37 +169,5 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         returns (uint64)
     {
         return _imbalanceGenerated(_value, _balance);
-    }
-
-    function _setAccount(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        int16 _interestRateGiven,
-        int16 _interestRateReceived,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        internal
-    {
-        TrustlineAgreement memory trustlineAgreement;
-        trustlineAgreement.creditlineGiven = _creditlineGiven;
-        trustlineAgreement.creditlineReceived = _creditlineReceived;
-        trustlineAgreement.interestRateGiven = _interestRateGiven;
-        trustlineAgreement.interestRateReceived = _interestRateReceived;
-
-        TrustlineBalances memory trustlineBalances;
-        trustlineBalances.feesOutstandingA = _feesOutstandingA;
-        trustlineBalances.feesOutstandingB = _feesOutstandingB;
-        trustlineBalances.mtime = _mtime;
-        trustlineBalances.balance = _balance;
-
-        _storeTrustlineAgreement(_a, _b, trustlineAgreement);
-        _storeTrustlineBalances(_a, _b, trustlineBalances);
-
-        addToUsersAndFriends(_a, _b);
     }
 }
