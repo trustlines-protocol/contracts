@@ -387,6 +387,83 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     /**
+    * Set the trustline account between two users.
+    * Can be removed once structs are supported in the ABI
+    */
+    function setAccount(
+        address _a,
+        address _b,
+        uint64 _creditlineGiven,
+        uint64 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
+        uint16 _feesOutstandingA,
+        uint16 _feesOutstandingB,
+        uint32 _mtime,
+        int72 _balance
+    )
+        external
+        onlyOwner
+    {
+        require(
+            customInterests ||
+            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
+            "Interest rates given and received must be equal to default interest rates."
+        );
+        if (customInterests) {
+            require(
+                _interestRateGiven >= 0 &&
+                _interestRateReceived >= 0,
+                "Only positive interest rates are supported."
+            );
+        }
+
+        _setAccount(
+            _a,
+            _b,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _feesOutstandingA,
+            _feesOutstandingB,
+            _mtime,
+            _balance
+        );
+    }
+
+    /**
+    * Set the trustline account between two users with default interests.
+    * Can be removed once structs are supported in the ABI
+    */
+    function setAccountDefaultInterests(
+        address _a,
+        address _b,
+        uint64 _creditlineGiven,
+        uint64 _creditlineReceived,
+        uint16 _feesOutstandingA,
+        uint16 _feesOutstandingB,
+        uint32 _mtime,
+        int72 _balance
+    )
+        external
+        onlyOwner
+    {
+        _setAccount(
+            _a,
+            _b,
+            _creditlineGiven,
+            _creditlineReceived,
+            defaultInterestRate,
+            defaultInterestRate,
+            _feesOutstandingA,
+            _feesOutstandingB,
+            _mtime,
+            _balance
+        );
+    }
+
+    /**
      * @dev The ERC20 Token balance for the spender. This is different from the balance within a trustline.
      *      In Trustlines this is the spendable amount
      * @param _owner The address from which the balance will be retrieved
@@ -789,6 +866,38 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         } // else {} /* balance is zero, there's nothing to do here */
 
         _closeTrustline(_from, _otherParty);
+    }
+
+    function _setAccount(
+        address _a,
+        address _b,
+        uint64 _creditlineGiven,
+        uint64 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
+        uint16 _feesOutstandingA,
+        uint16 _feesOutstandingB,
+        uint32 _mtime,
+        int72 _balance
+    )
+        internal
+    {
+        TrustlineAgreement memory trustlineAgreement;
+        trustlineAgreement.creditlineGiven = _creditlineGiven;
+        trustlineAgreement.creditlineReceived = _creditlineReceived;
+        trustlineAgreement.interestRateGiven = _interestRateGiven;
+        trustlineAgreement.interestRateReceived = _interestRateReceived;
+
+        TrustlineBalances memory trustlineBalances;
+        trustlineBalances.feesOutstandingA = _feesOutstandingA;
+        trustlineBalances.feesOutstandingB = _feesOutstandingB;
+        trustlineBalances.mtime = _mtime;
+        trustlineBalances.balance = _balance;
+
+        _storeTrustlineAgreement(_a, _b, trustlineAgreement);
+        _storeTrustlineBalances(_a, _b, trustlineBalances);
+
+        addToUsersAndFriends(_a, _b);
     }
 
     function addToUsersAndFriends(address _a, address _b) internal {
