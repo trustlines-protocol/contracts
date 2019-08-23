@@ -109,7 +109,7 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
             web3,
             exchange_address=exchange.address,
             currency_network_contract_name=currency_network_contract_name,
-            **network_setting
+            **network_setting,
         )
         for network_setting in network_settings
     ]
