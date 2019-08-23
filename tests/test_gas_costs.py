@@ -94,7 +94,7 @@ def test_cost_transfer_1_mediators(
         {"from": A}
     )
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "1 hop transfer", gas_cost, limit=64000)
+    report_gas_costs(table, "1 hop transfer", gas_cost, limit=64500)
 
 
 def test_cost_transfer_2_mediators(
@@ -106,7 +106,7 @@ def test_cost_transfer_2_mediators(
         {"from": A}
     )
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "2 hop transfer", gas_cost, limit=82000)
+    report_gas_costs(table, "2 hop transfer", gas_cost, limit=83000)
 
 
 def test_cost_transfer_3_mediators(
@@ -118,7 +118,7 @@ def test_cost_transfer_3_mediators(
         {"from": A}
     )
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "3 hop transfer", gas_cost, limit=100_000)
+    report_gas_costs(table, "3 hop transfer", gas_cost, limit=101_000)
 
 
 def test_cost_first_trustline_request(web3, currency_network_contract, accounts, table):
@@ -126,7 +126,7 @@ def test_cost_first_trustline_request(web3, currency_network_contract, accounts,
     A, B, *rest = accounts
     tx_hash = contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=77000)
+    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=77500)
 
 
 def test_cost_second_trustline_request(
