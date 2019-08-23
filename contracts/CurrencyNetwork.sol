@@ -35,7 +35,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     bool public isInitialized;
     uint public expirationTime;
-    bool public isFrozen;
+    bool public isNetworkFrozen;
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
@@ -83,13 +83,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     struct TrustlineAgreement {
 
-        uint64 creditlineGiven;        //  creditline given by A to B, always positive
-        uint64 creditlineReceived;     //  creditline given by B to A, always positive
+        uint64 creditlineGiven;       //  creditline given by A to B, always positive
+        uint64 creditlineReceived;    //  creditline given by B to A, always positive
 
         int16 interestRateGiven;      //  interest rate set by A for creditline given by A to B in 0.01% per year
         int16 interestRateReceived;   //  interest rate set by B for creditline given from B to A in 0.01% per year
 
-        int96 padding;                //  fill up to 256bit
+        bool isFrozen;                //  8 bits
+        int88 padding;                //  fill up to 256bit
     }
 
     struct TrustlineBalances {
@@ -118,6 +119,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function() external {}
+
+    modifier networkNotFrozen() {
+        require(!isNetworkFrozen, "The currency network is frozen and cannot be interacted with in this manner.");
+        _;
+    }
 
     /**
      * @notice Initialize the currency Network
@@ -186,6 +192,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
+        networkNotFrozen
         returns (bool _success)
     {
         _success = _mediatedTransferSenderPays(
@@ -223,6 +230,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
+        networkNotFrozen
         returns (bool success)
     {
         require(authorized[msg.sender], "The sender of the message is not authorized.");
@@ -260,8 +268,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address[] calldata _path,
         bytes calldata _extraData
     )
-    external
-    returns (bool _success)
+        external
+        networkNotFrozen
+        returns (bool _success)
     {
         _success = _mediatedTransferReceiverPays(
             msg.sender,
@@ -299,6 +308,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         int16 _interestRateReceived
     )
         external
+        networkNotFrozen
         returns (bool _success)
     {
 
@@ -329,6 +339,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived
     )
         external
+        networkNotFrozen
         returns (bool _success)
     {
         address _creditor = msg.sender;
@@ -356,6 +367,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived
     )
         external
+        networkNotFrozen
         returns (bool _success)
     {
         address _creditor = msg.sender;
@@ -380,6 +392,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _otherParty
     )
         external
+        networkNotFrozen
         returns (bool _success)
     {
 
@@ -391,6 +404,26 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
 
         return true;
+    }
+
+    /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
+        @param _otherParty Address of the other party to close the trustline with
+        @param _maxFee maximum fees the sender is willing to pay
+        @param _path The path along, which to do the triangulation
+     */
+    function closeTrustlineByTriangularTransfer(
+        address _otherParty,
+        uint32 _maxFee,
+        address[] calldata _path
+    )
+        external
+        networkNotFrozen
+    {
+        _closeTrustlineByTriangularTransfer(
+            msg.sender,
+            _otherParty,
+            _maxFee,
+            _path);
     }
 
     /**
@@ -418,7 +451,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     * Query the trustline between two users.
     * Can be removed once structs are supported in the ABI
     */
-    function getAccount(address _a, address _b) external view returns (int, int, int, int, int, int, int, int) {
+    function getAccount(address _a, address _b) external view returns (int, int, int, int, bool, int, int, int, int) {
         Trustline memory trustline = _loadTrustline(_a, _b);
 
         return (
@@ -426,34 +459,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             trustline.agreement.creditlineReceived,
             trustline.agreement.interestRateGiven,
             trustline.agreement.interestRateReceived,
+            trustline.agreement.isFrozen || isNetworkFrozen,
             trustline.balances.feesOutstandingA,
             trustline.balances.feesOutstandingB,
             trustline.balances.mtime,
             trustline.balances.balance);
     }
 
-    /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
-        @param _otherParty Address of the other party to close the trustline with
-        @param _maxFee maximum fees the sender is willing to pay
-        @param _path The path along, which to do the triangulation
-     */
-    function closeTrustlineByTriangularTransfer(
-        address _otherParty,
-        uint32 _maxFee,
-        address[] calldata _path
-    )
-        external
-    {
-        _closeTrustlineByTriangularTransfer(
-            msg.sender,
-            _otherParty,
-            _maxFee,
-            _path);
-    }
-
     function freezeNetwork() external {
         require(expirationTime <= now, "The currency network cannot be frozen yet.");
-        isFrozen = true;
+        isNetworkFrozen = true;
     }
 
     /**
@@ -516,6 +531,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     function getUsers() public view returns (address[] memory) {
         return users.list;
+    }
+
+    function isTrustlineFrozen(address a, address b) public view returns (bool) {
+        if (isNetworkFrozen) {
+            return true;
+        }
+        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(a, b);
+        return trustlineAgreement.isFrozen;
     }
 
     // This function transfers value over this trustline

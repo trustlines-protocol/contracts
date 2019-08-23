@@ -71,6 +71,7 @@ def ensure_trustline_closed(contract, address1, address2):
         0,
         0,
         0,
+        False,
         0,
         0,
         0,
