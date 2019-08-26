@@ -804,8 +804,8 @@ def test_disabled_set_account(currency_network_contract, accounts):
     """
     network = currency_network_contract
 
-    network.functions.disableSetAccount().transact()
-    assert network.functions.setAccountEnabled().call() is False
+    network.functions.disableAccountManagement().transact()
+    assert network.functions.accountManagementEnabled().call() is False
 
     account = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0, 0, 0)
     account_no_interest = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0)
@@ -822,7 +822,7 @@ def test_enabled_set_account(currency_network_contract, accounts):
     """
     network = currency_network_contract
 
-    assert network.functions.setAccountEnabled().call() is True
+    assert network.functions.accountManagementEnabled().call() is True
 
     account = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0, 0, 0)
     account_no_interest = (accounts[0], accounts[1], 200, 200, 0, 0, 0, 0)

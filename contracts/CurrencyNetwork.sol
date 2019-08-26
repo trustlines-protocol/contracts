@@ -34,7 +34,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     ItSet.AddressSet internal users;
 
     bool public isInitialized;
-    bool public setAccountEnabled = true;
+    bool public accountManagementEnabled = true;  // Whether the functions for setting up accounts by the owner are enable or not
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
@@ -387,8 +387,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return true;
     }
 
-    function disableSetAccount() external onlyOwner {
-        setAccountEnabled = false;
+    /**
+    * Remove the ability for the owner of the currency network to set accounts with `setAccount` and related
+    */
+    function disableAccountManagement() external onlyOwner {
+        accountManagementEnabled = false;
     }
 
     /**
@@ -410,7 +413,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         onlyOwner
     {
-        require(setAccountEnabled, "This function has been disabled and cannot be used anymore.");
+        require(accountManagementEnabled, "This function has been disabled and cannot be used anymore.");
         require(
             customInterests ||
             (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
@@ -455,7 +458,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         external
         onlyOwner
     {
-        require(setAccountEnabled, "This function has been disabled and cannot be used anymore.");
+        require(accountManagementEnabled, "This function has been disabled and cannot be used anymore.");
         _setAccount(
             _a,
             _b,
