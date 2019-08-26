@@ -44,6 +44,7 @@ def test_deploy_network(web3):
         default_interest_rate=100,
         custom_interests=False,
         prevent_mediator_interests=False,
+        set_account_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -52,4 +53,5 @@ def test_deploy_network(web3):
     assert network.functions.decimals().call() == 2
     assert network.functions.customInterests().call() is False
     assert network.functions.defaultInterestRate().call() == 100
+    assert network.functions.accountManagementEnabled().call() is True
     assert network.functions.expirationTime().call() == EXPIRATION_TIME

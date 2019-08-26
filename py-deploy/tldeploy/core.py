@@ -71,6 +71,7 @@ def deploy_network(
     prevent_mediator_interests=False,
     exchange_address=None,
     currency_network_contract_name=None,
+    set_account_enabled=False,
 ):
     # CurrencyNetwork is the standard contract to deploy, If we're running
     # tests or trying to export data for testing the python implementation of
@@ -95,6 +96,11 @@ def deploy_network(
         txid = currency_network.functions.addAuthorizedAddress(
             exchange_address
         ).transact({"from": web3.eth.accounts[0]})
+        wait_for_successful_transaction_receipt(web3, txid)
+    if set_account_enabled is False:
+        txid = currency_network.functions.disableAccountManagement().transact(
+            {"from": web3.eth.accounts[0]}
+        )
         wait_for_successful_transaction_receipt(web3, txid)
 
     return currency_network

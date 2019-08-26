@@ -19,6 +19,7 @@ NETWORK_SETTING = {
     "custom_interests": True,
     "prevent_mediator_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
+    "set_account_enabled": True,
     "expiration_time": EXPIRATION_TIME,
 }
 

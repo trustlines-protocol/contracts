@@ -96,7 +96,7 @@ currency_network_contract_name_option = click.option(
 @click.option(
     "--expiration-time",
     help="Expiration time of the currency network after which it will be frozen",
-    requirde=False,
+    required=False,
     type=int,
     show_default=True,
 )

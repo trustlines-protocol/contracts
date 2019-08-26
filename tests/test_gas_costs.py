@@ -51,6 +51,7 @@ def currency_network_contract(web3):
         decimals=2,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
+        set_account_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -64,6 +65,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
         decimals=2,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
+        set_account_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:
