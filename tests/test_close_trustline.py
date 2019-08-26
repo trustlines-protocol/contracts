@@ -6,7 +6,7 @@ import pytest
 import eth_tester.exceptions
 
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
@@ -20,6 +20,7 @@ NETWORK_SETTING = {
     "prevent_mediator_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
     "set_account_enabled": True,
+    "expiration_time": EXPIRATION_TIME,
 }
 
 
@@ -71,6 +72,7 @@ def ensure_trustline_closed(contract, address1, address2):
         0,
         0,
         0,
+        False,
         0,
         0,
         0,

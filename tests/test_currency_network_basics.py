@@ -6,7 +6,7 @@ from web3.exceptions import BadFunctionCallOutput
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-from .conftest import EXTRA_DATA
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 trustlines = [
     (0, 1, 100, 150),
@@ -25,6 +25,7 @@ NETWORK_SETTING = {
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
     "set_account_enabled": True,
+    "expiration_time": EXPIRATION_TIME,
 }
 
 
@@ -56,6 +57,7 @@ def currency_network_contract_custom_interest(web3):
         custom_interests=True,
         prevent_mediator_interests=False,
         set_account_enabled=True,
+        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -74,7 +76,7 @@ def test_meta_decimal(currency_network_contract):
 def test_init_only_once(currency_network_contract):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.init(
-            "TestCoin", "T", 6, 0, 0, False, False
+            "TestCoin", "T", 6, 0, 0, False, False, EXPIRATION_TIME
         ).transact()
 
 
@@ -102,6 +104,7 @@ def test_set_get_Account(currency_network_contract_custom_interest, accounts):
         20,
         2,
         3,
+        False,
         100,
         200,
         0,
@@ -112,6 +115,7 @@ def test_set_get_Account(currency_network_contract_custom_interest, accounts):
         10,
         3,
         2,
+        False,
         200,
         100,
         0,
@@ -125,6 +129,7 @@ def test_set_get_Account(currency_network_contract_custom_interest, accounts):
         20,
         2,
         3,
+        False,
         100,
         200,
         0,
@@ -135,6 +140,7 @@ def test_set_get_Account(currency_network_contract_custom_interest, accounts):
         10,
         3,
         2,
+        False,
         200,
         100,
         0,
@@ -161,6 +167,7 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
         20,
         0,
         0,
+        False,
         100,
         200,
         0,
@@ -171,6 +178,7 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
         10,
         0,
         0,
+        False,
         200,
         100,
         0,
@@ -184,6 +192,7 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
         20,
         0,
         0,
+        False,
         100,
         200,
         0,
@@ -194,6 +203,7 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
         10,
         0,
         0,
+        False,
         200,
         100,
         0,

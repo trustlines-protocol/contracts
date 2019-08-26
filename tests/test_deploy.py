@@ -2,6 +2,8 @@
 
 from tldeploy.core import deploy_networks, deploy_network
 
+from .conftest import EXPIRATION_TIME
+
 
 def test_deploy_networks(web3):
     example_settings = [
@@ -12,6 +14,7 @@ def test_deploy_networks(web3):
             "fee_divisor": 1000,
             "default_interest_rate": 0,
             "custom_interests": True,
+            "expiration_time": EXPIRATION_TIME,
         },
         {
             "name": "Test Coin",
@@ -20,6 +23,7 @@ def test_deploy_networks(web3):
             "fee_divisor": 0,
             "default_interest_rate": 1000,
             "custom_interests": False,
+            "expiration_time": EXPIRATION_TIME,
         },
     ]
     networks, exchange, unw_eth = deploy_networks(web3, example_settings)
@@ -41,6 +45,7 @@ def test_deploy_network(web3):
         custom_interests=False,
         prevent_mediator_interests=False,
         set_account_enabled=True,
+        expiration_time=EXPIRATION_TIME,
     )
 
     assert network.functions.name().call() == "Testcoin"
@@ -49,3 +54,4 @@ def test_deploy_network(web3):
     assert network.functions.customInterests().call() is False
     assert network.functions.defaultInterestRate().call() == 100
     assert network.functions.accountManagementEnabled().call() is True
+    assert network.functions.expirationTime().call() == EXPIRATION_TIME
