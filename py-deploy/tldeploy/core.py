@@ -96,7 +96,7 @@ def deploy_network(
         ).transact({"from": web3.eth.accounts[0]})
         wait_for_successful_transaction_receipt(web3, txid)
     if set_account_enabled is False:
-        txid = currency_network.functions.disableSetAccount().transact(
+        txid = currency_network.functions.disableAccountManagement().transact(
             {"from": web3.eth.accounts[0]}
         )
         wait_for_successful_transaction_receipt(web3, txid)
