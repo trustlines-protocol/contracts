@@ -1,5 +1,6 @@
 import click
 import json
+import pendulum
 import pkg_resources
 from web3 import Web3
 
@@ -12,6 +13,17 @@ def report_version():
     for dist in ["trustlines-contracts-deploy", "trustlines-contracts-bin"]:
         msg = "{} {}".format(dist, pkg_resources.get_distribution(dist).version)
         click.echo(msg)
+
+
+def validate_date(ctx, param, value):
+    if value is None:
+        return None
+    try:
+        return pendulum.parse(value)
+    except pendulum.parsing.exceptions.ParserError as e:
+        raise click.BadParameter(
+            f'The parameter "{value}" cannot be parsed as a date. (Try e.g. "2020-09-28", "2020-09-28T13:56")'
+        ) from e
 
 
 @click.group(invoke_without_command=True)
@@ -84,8 +96,18 @@ currency_network_contract_name_option = click.option(
 @click.option(
     "--expiration-time",
     help="Expiration time of the currency network after which it will be frozen",
-    default=4102444800,  # 01/01/2100
+    requirde=False,
+    type=int,
     show_default=True,
+)
+@click.option(
+    "--expiration-date",
+    help="Expiration date of the currency network after which it will be frozen, "
+    "(e.g. '2020-09-28', '2020-09-28T13:56')",
+    type=str,
+    required=False,
+    metavar="DATE",
+    callback=validate_date,
 )
 @jsonrpc_option
 def currencynetwork(
@@ -100,6 +122,7 @@ def currencynetwork(
     exchange_contract: str,
     currency_network_contract_name: str,
     expiration_time: int,
+    expiration_date: pendulum.DateTime,
 ):
     """Deploy a currency network contract with custom settings and optionally connect it to an exchange contract"""
     if exchange_contract is not None and not is_checksum_address(exchange_contract):
@@ -115,6 +138,17 @@ def currencynetwork(
         raise click.BadParameter(
             "Prevent mediator interests is not necessary if custom interests are disabled."
         )
+
+    if expiration_date is not None and expiration_time is not None:
+        raise click.BadParameter(
+            f"Both --expiration-date and --expiration-times have been specified."
+        )
+    if expiration_date is None and expiration_time is None:
+        raise click.BadParameter(
+            f"Please specify an expiration limit with --expiration-date or --expiration-time."
+        )
+    if expiration_date is not None:
+        expiration_time = int(expiration_date.timestamp())
 
     fee_divisor = 1 / fee_rate * 100 if fee_rate != 0 else 0
     if int(fee_divisor) != fee_divisor:
