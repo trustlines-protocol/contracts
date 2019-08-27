@@ -30,8 +30,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     // friends, users address has a trustline with
     mapping (address => ItSet.AddressSet) internal friends;
-    //list of all users of the system
+    // list of all users of the system
     ItSet.AddressSet internal users;
+    // map each user to its onBoarder
+    mapping (address => address) public onBoarder;
+    // value in the mapping for users that do not have an onboarder
+    address constant NO_ONBOARDER = address(1);
 
     bool public isInitialized;
     uint public expirationTime;
@@ -73,6 +77,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     );
 
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
+
+    event OnBoarding(address indexed _onBoarder, address indexed _onBoardee);
 
     // for accounting balance and trustline agreement between two users introducing fees and interests
     // currently uses 160 + 136 bits, 216 remaining to make two structs
@@ -174,6 +180,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         customInterests = _customInterests;
         preventMediatorInterests = _preventMediatorInterests;
         expirationTime = _expirationTime;
+
+        onBoarder[owner] = NO_ONBOARDER;
     }
 
     /**
@@ -943,6 +951,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         _storeTrustlineBalances(_a, _b, trustlineBalances);
 
         addToUsersAndFriends(_a, _b);
+        _applyOnboardingRules(_a, owner);
+        _applyOnboardingRules(_b, owner);
     }
 
     function addToUsersAndFriends(address _a, address _b) internal {
@@ -1117,6 +1127,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                     _interestRateReceived,
                     _interestRateGiven
                 );
+                _applyOnboardingRules(_creditor, _debtor);
 
                 return true;
 
@@ -1209,6 +1220,26 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _interestRateGiven,
             _interestRateReceived
         );
+    }
+
+    function _applyOnboardingRules(address a, address b) internal {
+        if (onBoarder[a] == address(0)) {
+            if (onBoarder[b] == address(0)) {
+                onBoarder[a] = NO_ONBOARDER;
+                onBoarder[b] = NO_ONBOARDER;
+                emit OnBoarding(NO_ONBOARDER, a);
+                emit OnBoarding(NO_ONBOARDER, b);
+                return;
+            } else {
+                onBoarder[a] = b;
+                emit OnBoarding(b, a);
+            }
+        } else {
+            if (onBoarder[b] == address(0)) {
+                onBoarder[b] = a;
+                emit OnBoarding(a, b);
+            }
+        }
     }
 
     function _requestTrustlineUpdate(
