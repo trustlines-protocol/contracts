@@ -46,6 +46,26 @@ def currency_network_contract_with_trustlines(web3, accounts, chain):
 
 
 @pytest.fixture()
+def currency_network_contract_with_frozen_trustline(
+    currency_network_contract_with_trustlines, chain, accounts
+):
+    currency_network_contract_with_trustlines.functions.updateTrustline(
+        accounts[0], 100, 150, 0, 0, True
+    ).transact({"from": accounts[1]})
+    currency_network_contract_with_trustlines.functions.updateTrustline(
+        accounts[1], 150, 100, 0, 0, True
+    ).transact({"from": accounts[0]})
+
+    assert (
+        currency_network_contract_with_trustlines.functions.isTrustlineFrozen(
+            accounts[0], accounts[1]
+        ).call()
+        is True
+    )
+    return currency_network_contract_with_trustlines
+
+
+@pytest.fixture()
 def frozen_currency_network_contract_with_trustlines(
     currency_network_contract_with_trustlines, chain
 ):
@@ -124,3 +144,143 @@ def test_interaction_fails_if_network_frozen(
             getattr(network.functions, function_name)(*arguments).transact(
                 {"from": accounts[0]}
             )
+
+
+def test_freezing_trustline(currency_network_contract_with_trustlines, accounts):
+    network = currency_network_contract_with_trustlines
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is False
+
+    network.functions.updateTrustline(accounts[0], 100, 150, 0, 0, True).transact(
+        {"from": accounts[1]}
+    )
+    network.functions.updateTrustline(accounts[1], 150, 100, 0, 0, True).transact(
+        {"from": accounts[0]}
+    )
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
+
+
+def test_freezeing_trustline_requires_counter_party_agreement(
+    currency_network_contract_with_trustlines, accounts
+):
+    network = currency_network_contract_with_trustlines
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is False
+
+    network.functions.updateTrustline(accounts[0], 100, 150, 0, 0, True).transact(
+        {"from": accounts[1]}
+    )
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is False
+
+
+def test_unfreezing_trustline(
+    currency_network_contract_with_frozen_trustline, accounts
+):
+
+    network = currency_network_contract_with_frozen_trustline
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
+
+    network.functions.updateTrustline(accounts[0], 100, 150, 0, 0, False).transact(
+        {"from": accounts[1]}
+    )
+    network.functions.updateTrustline(accounts[1], 150, 100, 0, 0, False).transact(
+        {"from": accounts[0]}
+    )
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is False
+
+
+def test_unfreezing_trustline_requires_counter_party_agreement(
+    currency_network_contract_with_frozen_trustline, accounts
+):
+
+    network = currency_network_contract_with_frozen_trustline
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
+
+    network.functions.updateTrustline(accounts[0], 100, 150, 0, 0, False).transact(
+        {"from": accounts[1]}
+    )
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
+
+
+def test_cannot_unfreeze_trustline_if_network_frozen(
+    frozen_currency_network_contract_with_trustlines, accounts
+):
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        frozen_currency_network_contract_with_trustlines.functions.updateTrustline(
+            accounts[0], 100, 150, 0, 0, True
+        ).transact({"from": accounts[1]})
+
+
+def test_freezing_trustline_via_set_account(
+    currency_network_contract_with_trustlines, accounts
+):
+    network = currency_network_contract_with_trustlines
+
+    network.functions.setAccount(
+        accounts[0], accounts[1], 100, 100, 0, 0, True, 0, 0, 0, 12
+    ).transact()
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
+
+
+def test_freezing_trustline_via_set_account_default_interests(
+    currency_network_contract_with_trustlines, accounts
+):
+    network = currency_network_contract_with_trustlines
+
+    network.functions.setAccountDefaultInterests(
+        accounts[0], accounts[1], 100, 100, True, 0, 0, 0, 12
+    ).transact()
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
+
+
+def test_updating_credit_limits_does_not_freeze(
+    currency_network_contract_with_trustlines, accounts
+):
+    network = currency_network_contract_with_trustlines
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is False
+
+    network.functions.updateCreditlimits(accounts[1], 10, 10).transact(
+        {"from": accounts[0]}
+    )
+
+    assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is False
+
+
+def test_freezing_trustline_event(
+    currency_network_contract_with_trustlines, web3, accounts
+):
+    network = currency_network_contract_with_trustlines
+
+    initial_block = web3.eth.blockNumber
+
+    network.functions.updateTrustline(accounts[0], 100, 150, 0, 0, True).transact(
+        {"from": accounts[1]}
+    )
+    network.functions.updateTrustline(accounts[1], 150, 100, 0, 0, True).transact(
+        {"from": accounts[0]}
+    )
+
+    trustline_update_request_event = network.events.TrustlineUpdateRequest.createFilter(
+        fromBlock=initial_block
+    ).get_all_entries()[0]
+    trustline_update_event = network.events.TrustlineUpdate.createFilter(
+        fromBlock=initial_block
+    ).get_all_entries()[0]
+
+    assert trustline_update_event["args"]["_debtor"] == accounts[0]
+    assert trustline_update_event["args"]["_creditor"] == accounts[1]
+    assert trustline_update_event["args"]["_isFrozen"] is True
+
+    assert trustline_update_request_event["args"]["_debtor"] == accounts[0]
+    assert trustline_update_request_event["args"]["_creditor"] == accounts[1]
+    assert trustline_update_request_event["args"]["_isFrozen"] is True
