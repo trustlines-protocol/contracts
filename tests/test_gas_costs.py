@@ -70,7 +70,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 1, 1
+            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 1, 1
         ).transact()
     return contract
 
@@ -128,7 +128,7 @@ def test_cost_first_trustline_request(web3, currency_network_contract, accounts,
     A, B, *rest = accounts
     tx_hash = contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=77500)
+    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=78500)
 
 
 def test_cost_second_trustline_request(

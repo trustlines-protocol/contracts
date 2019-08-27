@@ -47,14 +47,15 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
             currency_network_contract.functions.setAccount(
                 a,
                 b,
-                1000000,  # creditline given
-                1000000,  # creditline received
-                interest_rate,  # interest rate given
-                interest_rate,  # interest rate received
-                0,  # fees outstanding a
-                0,  # fees outstanding b
+                1000000,
+                1000000,
+                interest_rate,
+                interest_rate,
+                False,
+                0,
+                0,
                 current_time,
-                0,  # balance
+                0,
             ).transact()
 
     currency_network_contract.functions.transfer(
@@ -86,10 +87,10 @@ def ensure_trustline_closed(contract, address1, address2):
 def test_close_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
 
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact(
+    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0, False).transact(
         {"from": accounts[0]}
     )
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact(
+    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0, False).transact(
         {"from": accounts[1]}
     )
 
@@ -100,10 +101,10 @@ def test_close_trustline(currency_network_contract, accounts):
 def test_cannot_close_with_balance(currency_network_contract, accounts):
     contract = currency_network_contract
 
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact(
+    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0, False).transact(
         {"from": accounts[0]}
     )
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact(
+    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0, False).transact(
         {"from": accounts[1]}
     )
 
@@ -116,11 +117,11 @@ def test_cannot_close_with_balance(currency_network_contract, accounts):
 
 def test_cannot_reopen_closed_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0).transact(
+    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0, False).transact(
         {"from": accounts[0]}
     )
     contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0).transact(
+    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0, False).transact(
         {"from": accounts[1]}
     )
     ensure_trustline_closed(contract, accounts[0], accounts[1])

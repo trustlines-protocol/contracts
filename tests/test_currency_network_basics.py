@@ -39,7 +39,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
     contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0
+            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 0, 0
         ).transact()
     return contract
 
@@ -97,7 +97,7 @@ def test_friends(currency_network_contract_with_trustlines, accounts):
 def test_set_get_Account(currency_network_contract_custom_interest, accounts):
     contract = currency_network_contract_custom_interest
     contract.functions.setAccount(
-        accounts[0], accounts[1], 10, 20, 2, 3, 100, 200, 0, 4
+        accounts[0], accounts[1], 10, 20, 2, 3, False, 100, 200, 0, 4
     ).transact()
     assert contract.functions.getAccount(accounts[0], accounts[1]).call() == [
         10,
@@ -122,7 +122,7 @@ def test_set_get_Account(currency_network_contract_custom_interest, accounts):
         -4,
     ]
     contract.functions.setAccount(
-        accounts[1], accounts[0], 10, 20, 2, 3, 100, 200, 0, 4
+        accounts[1], accounts[0], 10, 20, 2, 3, False, 100, 200, 0, 4
     ).transact()
     assert contract.functions.getAccount(accounts[1], accounts[0]).call() == [
         10,
@@ -159,7 +159,7 @@ def test_creditlines(currency_network_contract_with_trustlines, accounts):
 def test_set_get_Account_default_interests(currency_network_contract, accounts):
     contract = currency_network_contract
     contract.functions.setAccountDefaultInterests(
-        accounts[0], accounts[1], 10, 20, 100, 200, 0, 4
+        accounts[0], accounts[1], 10, 20, False, 100, 200, 0, 4
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
     assert contract.functions.getAccount(accounts[0], accounts[1]).call() == [
@@ -185,7 +185,7 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
         -4,
     ]
     contract.functions.setAccountDefaultInterests(
-        accounts[1], accounts[0], 10, 20, 100, 200, 0, 4
+        accounts[1], accounts[0], 10, 20, False, 100, 200, 0, 4
     ).transact()
     assert contract.functions.getAccount(accounts[1], accounts[0]).call() == [
         10,
@@ -214,7 +214,7 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
 def test_balance(currency_network_contract, accounts):
     contract = currency_network_contract
     contract.functions.setAccount(
-        accounts[0], accounts[1], 10, 20, 0, 0, 100, 200, 0, 4
+        accounts[0], accounts[1], 10, 20, 0, 0, False, 100, 200, 0, 4
     ).transact()
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 4
     assert contract.functions.balance(accounts[1], accounts[0]).call() == -4
@@ -465,7 +465,7 @@ def test_update_without_accept_trustline_interests(
     contract = currency_network_contract_custom_interest
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100, 1, 0).transact({"from": A})
+    contract.functions.updateTrustline(B, 50, 100, 1, 0, False).transact({"from": A})
 
     assert contract.functions.interestRate(A, B).call() == 0
     assert contract.functions.interestRate(B, A).call() == 0
@@ -487,8 +487,8 @@ def test_update_with_accept_trustline_interests(
     contract = currency_network_contract_custom_interest
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100, 1, 0).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50, 0, 1).transact({"from": B})
+    contract.functions.updateTrustline(B, 50, 100, 1, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 50, 0, 1, False).transact({"from": B})
 
     assert contract.functions.interestRate(A, B).call() == 1
     assert contract.functions.interestRate(B, A).call() == 0
@@ -512,8 +512,8 @@ def test_update_with_accept_different_trustline_interests(
     contract = currency_network_contract_custom_interest
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100, 1, 0).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50, 0, 2).transact({"from": B})
+    contract.functions.updateTrustline(B, 50, 100, 1, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 50, 0, 2, False).transact({"from": B})
     assert contract.functions.interestRate(A, B).call() == 0
     assert contract.functions.interestRate(B, A).call() == 0
     assert (
@@ -528,9 +528,9 @@ def test_update_with_accept_2nd_trustline_interests(
     contract = currency_network_contract_custom_interest
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100, 2, 0).transact({"from": A})
-    contract.functions.updateTrustline(B, 50, 100, 1, 0).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50, 0, 1).transact({"from": B})
+    contract.functions.updateTrustline(B, 50, 100, 2, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(B, 50, 100, 1, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 50, 0, 1, False).transact({"from": B})
     assert contract.functions.interestRate(A, B).call() == 1
     assert contract.functions.interestRate(B, A).call() == 0
     assert (
@@ -553,9 +553,9 @@ def test_cannot_accept_old_trustline_interests(
     contract = currency_network_contract_custom_interest
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100, 2, 0).transact({"from": A})
-    contract.functions.updateTrustline(B, 50, 100, 1, 0).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 50, 0, 2).transact({"from": B})
+    contract.functions.updateTrustline(B, 50, 100, 2, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(B, 50, 100, 1, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 50, 0, 2, False).transact({"from": B})
     assert contract.functions.interestRate(A, B).call() == 0
     assert contract.functions.interestRate(B, A).call() == 0
     assert (
@@ -570,16 +570,16 @@ def test_cannot_accept_trustline_request_after_reduce(
     contract = currency_network_contract_custom_interest
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 50, 100, 0, 0).transact(
+    contract.functions.updateTrustline(B, 50, 100, 0, 0, False).transact(
         {"from": A}
     )  # Propose trustline
-    contract.functions.updateTrustline(A, 100, 50, 0, 0).transact(
+    contract.functions.updateTrustline(A, 100, 50, 0, 0, False).transact(
         {"from": B}
     )  # Accept trustline
-    contract.functions.updateTrustline(B, 10, 20, 0, 0).transact(
+    contract.functions.updateTrustline(B, 10, 20, 0, 0, False).transact(
         {"from": A}
     )  # Lower trustline
-    contract.functions.updateTrustline(A, 100, 50, 0, 0).transact(
+    contract.functions.updateTrustline(A, 100, 50, 0, 0, False).transact(
         {"from": B}
     )  # Try to accept old trustline
     assert contract.functions.creditline(A, B).call() == 10
@@ -594,7 +594,9 @@ def test_update_trustline_with_custom_while_forbidden(
 
     A, B, *rest = accounts
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.updateTrustline(B, 50, 100, 2, 1).transact({"from": A})
+        contract.functions.updateTrustline(B, 50, 100, 2, 1, False).transact(
+            {"from": A}
+        )
 
 
 def test_update_trustline_with_custom_while_forbidden_lowering_interests(
@@ -607,10 +609,14 @@ def test_update_trustline_with_custom_while_forbidden_lowering_interests(
     ).transact()
 
     A, B, *rest = accounts
-    contract.functions.setAccountDefaultInterests(A, B, 200, 200, 0, 0, 0, 0).transact()
+    contract.functions.setAccountDefaultInterests(
+        A, B, 200, 200, False, 0, 0, 0, 0
+    ).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.updateTrustline(B, 50, 100, 1, 1).transact({"from": A})
+        contract.functions.updateTrustline(B, 50, 100, 1, 1, False).transact(
+            {"from": A}
+        )
 
 
 def test_update_trustline_lowering_interest_given(currency_network_contract, accounts):
@@ -621,8 +627,8 @@ def test_update_trustline_lowering_interest_given(currency_network_contract, acc
     ).transact()
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 100, 100, 0, 2).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 100, 1, 0).transact({"from": B})
+    contract.functions.updateTrustline(B, 100, 100, 0, 2, False).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 100, 1, 0, False).transact({"from": B})
 
     assert contract.functions.creditline(A, B).call() == 100
     assert contract.functions.interestRate(B, A).call() == 1
@@ -638,8 +644,8 @@ def test_update_trustline_lowering_interest_received(
     ).transact()
 
     A, B, *rest = accounts
-    contract.functions.updateTrustline(B, 100, 100, 2, 0).transact({"from": A})
-    contract.functions.updateTrustline(A, 100, 100, 0, 1).transact({"from": B})
+    contract.functions.updateTrustline(B, 100, 100, 2, 0, False).transact({"from": A})
+    contract.functions.updateTrustline(A, 100, 100, 0, 1, False).transact({"from": B})
 
     assert (
         contract.events.TrustlineUpdate.createFilter(fromBlock=0).get_all_entries()
@@ -665,6 +671,7 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
             2000000000,
             -1000,
             -1000,
+            False,
             0,
             0,
             1442509455,
@@ -674,7 +681,9 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
 
     A, B, *rest = accounts
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.updateTrustline(B, 100, 100, -2, 0).transact({"from": A})
+        contract.functions.updateTrustline(B, 100, 100, -2, 0, False).transact(
+            {"from": A}
+        )
 
 
 def test_spendable(currency_network_contract_with_trustlines, accounts):
@@ -753,7 +762,7 @@ def test_update_trustline_add_users(currency_network_contract, accounts):
 def test_update_set_account_add_users(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.setAccount(A, B, 50, 100, 0, 0, 0, 0, 0, 0).transact()
+    contract.functions.setAccount(A, B, 50, 100, 0, 0, False, 0, 0, 0, 0).transact()
     assert len(contract.functions.getUsers().call()) == 2
 
 
@@ -817,8 +826,8 @@ def test_disabled_set_account(currency_network_contract, accounts):
     network.functions.disableAccountManagement().transact()
     assert network.functions.accountManagementEnabled().call() is False
 
-    account = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0, 0, 0)
-    account_no_interest = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0)
+    account = (accounts[0], accounts[1], 100, 100, 0, 0, False, 0, 0, 0, 0)
+    account_no_interest = (accounts[0], accounts[1], 100, 100, False, 0, 0, 0, 0)
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         network.functions.setAccount(*account).transact()
@@ -834,8 +843,8 @@ def test_enabled_set_account(currency_network_contract, accounts):
 
     assert network.functions.accountManagementEnabled().call() is True
 
-    account = (accounts[0], accounts[1], 100, 100, 0, 0, 0, 0, 0, 0)
-    account_no_interest = (accounts[0], accounts[1], 200, 200, 0, 0, 0, 0)
+    account = (accounts[0], accounts[1], 100, 100, 0, 0, False, 0, 0, 0, 0)
+    account_no_interest = (accounts[0], accounts[1], 200, 200, False, 0, 0, 0, 0)
 
     network.functions.setAccount(*account).transact()
     assert network.functions.balanceOf(accounts[0]).call() == 100

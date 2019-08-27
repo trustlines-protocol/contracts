@@ -39,7 +39,7 @@ def currency_network_contract_with_trustlines(web3, accounts, chain):
     contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0
+            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 0, 0
         ).transact()
 
     return contract
@@ -65,9 +65,9 @@ def frozen_functions_and_args(accounts):
         ["transfer", (accounts[1], 1, 2, [accounts[1]], b"")],
         ["transferReceiverPays", (accounts[1], 1, 2, [accounts[1]], b"")],
         ["transferFrom", (accounts[0], accounts[1], 1, 2, [accounts[1]], b"")],
-        ["updateTrustline", (accounts[1], 101, 101, 101, 101)],
+        ["updateTrustline", (accounts[1], 101, 101, 101, 101, False)],
         ["updateCreditlimits", (accounts[1], 101, 101)],
-        ["updateTrustlineDefaultInterests", (accounts[1], 101, 101)],
+        ["updateTrustlineDefaultInterests", (accounts[1], 101, 101, False)],
         ["closeTrustline", [accounts[1]]],
         [
             "closeTrustlineByTriangularTransfer",
