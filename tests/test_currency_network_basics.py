@@ -24,7 +24,7 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
-    "set_account_enabled": True,
+    "account_management_enabled": True,
     "expiration_time": EXPIRATION_TIME,
 }
 
@@ -56,7 +56,7 @@ def currency_network_contract_custom_interest(web3):
         default_interest_rate=0,
         custom_interests=True,
         prevent_mediator_interests=False,
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -819,7 +819,7 @@ def test_overflow_max_transfer(currency_network_contract, accounts):
 
 def test_disabled_set_account(currency_network_contract, accounts):
     """
-    Tests that we cannot set an account when set_account_enabled is False.
+    Tests that we cannot set an account when account_management_enabled is False.
     """
     network = currency_network_contract
 
@@ -837,7 +837,7 @@ def test_disabled_set_account(currency_network_contract, accounts):
 
 def test_enabled_set_account(currency_network_contract, accounts):
     """
-    Tests that we can set an account when set_account_enabled is True.
+    Tests that we can set an account when account_management_enabled is True.
     """
     network = currency_network_contract
 

@@ -30,7 +30,7 @@ def currency_network_contract_no_interests(web3):
         custom_interests=False,
         prevent_mediator_interests=False,
         currency_network_contract_name="TestCurrencyNetwork",
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -47,7 +47,7 @@ def currency_network_contract_default_interests(web3):
         custom_interests=False,
         prevent_mediator_interests=False,
         currency_network_contract_name="TestCurrencyNetwork",
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -64,7 +64,7 @@ def currency_network_contract_negative_interests(web3):
         custom_interests=False,
         prevent_mediator_interests=False,
         currency_network_contract_name="TestCurrencyNetwork",
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -81,7 +81,7 @@ def currency_network_contract_custom_interests_safe_ripple(web3):
         custom_interests=True,
         prevent_mediator_interests=True,
         currency_network_contract_name="TestCurrencyNetwork",
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
