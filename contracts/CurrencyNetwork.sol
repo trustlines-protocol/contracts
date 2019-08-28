@@ -587,6 +587,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      */
     function spendableTo(address _spender, address _receiver) public view returns (uint remaining) {
         Trustline memory trustline = _loadTrustline(_spender, _receiver);
+        if (_isTrustlineFrozen(trustline.agreement)) {
+            return 0;
+        }
         int72 balance = trustline.balances.balance;
         uint64 creditline = trustline.agreement.creditlineReceived;
         remaining = uint(creditline + balance);
