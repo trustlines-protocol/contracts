@@ -45,17 +45,17 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
             if a is b:
                 continue
             currency_network_contract.functions.setAccount(
-                a,
-                b,
-                1000000,
-                1000000,
-                interest_rate,
-                interest_rate,
-                False,
-                0,
-                0,
-                current_time,
-                0,
+                _a=a,
+                _b=b,
+                _creditlineGiven=1000000,
+                _creditlineReceived=1000000,
+                _interestRateGiven=interest_rate,
+                _interestRateReceived=interest_rate,
+                _isFrozen=False,
+                _feesOutstandingA=0,
+                _feesOutstandingB=0,
+                _mtime=current_time,
+                _balance=0,
             ).transact()
 
     currency_network_contract.functions.transfer(

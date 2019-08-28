@@ -25,8 +25,12 @@ def currency_network_contract(web3):
 
 
 def open_trustline(network, a, b):
-    network.functions.updateTrustlineDefaultInterests(b, 1, 1).transact({"from": a})
-    network.functions.updateTrustlineDefaultInterests(a, 1, 1).transact({"from": b})
+    network.functions.updateTrustlineDefaultInterests(b, 1, 1, False).transact(
+        {"from": a}
+    )
+    network.functions.updateTrustlineDefaultInterests(a, 1, 1, False).transact(
+        {"from": b}
+    )
 
 
 def test_no_onboarder(currency_network_contract, accounts):
@@ -80,7 +84,7 @@ def test_cannot_change_onbaorder(currency_network_contract, accounts):
 
 def test_set_account_onboards(currency_network_contract, accounts):
     currency_network_contract.functions.setAccountDefaultInterests(
-        accounts[1], accounts[2], 1, 1, 1, 1, 1, 1
+        accounts[1], accounts[2], 1, 1, False, 1, 1, 1, 1
     ).transact()
 
     owner = accounts[0]
