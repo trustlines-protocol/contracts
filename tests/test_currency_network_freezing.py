@@ -284,3 +284,35 @@ def test_freezing_trustline_event(
     assert trustline_update_request_event["args"]["_debtor"] == accounts[0]
     assert trustline_update_request_event["args"]["_creditor"] == accounts[1]
     assert trustline_update_request_event["args"]["_isFrozen"] is True
+
+
+def test_interaction_fails_if_trustline_frozen(
+    currency_network_contract_with_frozen_trustline, frozen_functions_and_args, accounts
+):
+    network = currency_network_contract_with_frozen_trustline
+
+    # we need to authorize this address for testing transferFrom()
+    network.functions.addAuthorizedAddress(accounts[0]).transact()
+
+    for (function_name, arguments) in frozen_functions_and_args:
+        with pytest.raises(eth_tester.exceptions.TransactionFailed):
+            print(function_name)
+            getattr(network.functions, function_name)(*arguments).transact(
+                {"from": accounts[0]}
+            )
+
+
+def test_mediate_transfer_fails_if_intermediate_trustline_frozen(
+    currency_network_contract_with_frozen_trustline, accounts
+):
+    """
+    The trustline in between 0 and 1 is frozen, tests that it cannot be used in a mediate transfer
+    """
+    network = currency_network_contract_with_frozen_trustline
+
+    path = [accounts[0], accounts[1], accounts[2]]
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        network.functions.transfer(accounts[2], 10, 10, path, b"").transact(
+            {"from": accounts[4]}
+        )

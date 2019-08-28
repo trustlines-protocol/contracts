@@ -719,6 +719,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             }
             // Load trustline only once at the beginning
             Trustline memory trustline = _loadTrustline(sender, _path[i-1]);
+            require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
             if (i == _path.length) {
@@ -797,6 +798,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             }
             // Load trustline only once at the beginning
             Trustline memory trustline = _loadTrustline(sender, _path[i]);
+            require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
             int72 balanceBefore = trustline.balances.balance;
@@ -1447,6 +1449,13 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             // After the transfer: Sender owes to receiver balance;
             return - int(_balanceBefore) * _trustline.agreement.interestRateGiven + int(balance) * _trustline.agreement.interestRateReceived;
         }
+    }
+
+    function _isTrustlineFrozen(TrustlineAgreement memory agreement) internal view returns (bool) {
+        if (isNetworkFrozen) {
+            return true;
+        }
+        return agreement.isFrozen;
     }
 
     function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
