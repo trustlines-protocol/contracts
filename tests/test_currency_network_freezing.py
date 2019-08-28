@@ -46,6 +46,14 @@ def currency_network_contract_with_trustlines(web3, accounts, chain):
 
 
 @pytest.fixture()
+def frozen_currency_network_contract(currency_network_contract, chain):
+    chain.time_travel(EXPIRATION_TIME)
+    chain.mine_block()
+    currency_network_contract.functions.freezeNetwork().transact()
+    return currency_network_contract
+
+
+@pytest.fixture()
 def currency_network_contract_with_frozen_trustline(
     currency_network_contract_with_trustlines, chain, accounts
 ):
@@ -78,16 +86,16 @@ def frozen_currency_network_contract_with_trustlines(
 @pytest.fixture(scope="session")
 def frozen_functions_and_args(accounts):
     """
-    returns a list of functions that should fail when the network is frozen and their arguments
+    returns a list of functions that should fail when the network/trustline_0_1 is frozen and their arguments
     the functions are expected to be called from accounts[0]
     """
     return [
         ["transfer", (accounts[1], 1, 2, [accounts[1]], b"")],
         ["transferReceiverPays", (accounts[1], 1, 2, [accounts[1]], b"")],
         ["transferFrom", (accounts[0], accounts[1], 1, 2, [accounts[1]], b"")],
-        ["updateTrustline", (accounts[1], 101, 101, 101, 101, False)],
+        ["updateTrustline", (accounts[1], 101, 101, 101, 101, True)],
         ["updateCreditlimits", (accounts[1], 101, 101)],
-        ["updateTrustlineDefaultInterests", (accounts[1], 101, 101, False)],
+        ["updateTrustlineDefaultInterests", (accounts[1], 101, 101, True)],
         ["closeTrustline", [accounts[1]]],
         [
             "closeTrustlineByTriangularTransfer",
@@ -144,6 +152,17 @@ def test_interaction_fails_if_network_frozen(
             getattr(network.functions, function_name)(*arguments).transact(
                 {"from": accounts[0]}
             )
+
+
+def test_cannot_open_trustline_if_network_frozen(
+    frozen_currency_network_contract, accounts
+):
+    network = frozen_currency_network_contract
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        network.functions.updateTrustline(
+            accounts[1], 101, 101, 101, 101, True
+        ).transact({"from": accounts[0]})
 
 
 def test_freezing_trustline(currency_network_contract_with_trustlines, accounts):
@@ -296,7 +315,6 @@ def test_interaction_fails_if_trustline_frozen(
 
     for (function_name, arguments) in frozen_functions_and_args:
         with pytest.raises(eth_tester.exceptions.TransactionFailed):
-            print(function_name)
             getattr(network.functions, function_name)(*arguments).transact(
                 {"from": accounts[0]}
             )
