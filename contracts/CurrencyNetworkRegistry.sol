@@ -1,8 +1,10 @@
 pragma solidity ^0.5.8;
 
 import "./CurrencyNetworkInterface.sol";
+import "./lib/ERC165Query.sol";
 
-contract CurrencyNetworkRegistry {
+
+contract CurrencyNetworkRegistry is ERC165Query {
 
     struct CurrencyNetworkMetadata {
         address author;
@@ -14,7 +16,13 @@ contract CurrencyNetworkRegistry {
     mapping (address => CurrencyNetworkMetadata) internal currencyNetworks;
     address[] internal registeredCurrencyNetworks;
 
-    event CurrencyNetworkAdded(address indexed _address, address _author, string _name, string _symbol, uint8 _decimals);
+    event CurrencyNetworkAdded(
+        address indexed _address,
+        address _author,
+        string _name,
+        string _symbol,
+        uint8 _decimals
+    );
 
     function addCurrencyNetwork(address _address) external {
         CurrencyNetworkInterface network;
@@ -22,11 +30,22 @@ contract CurrencyNetworkRegistry {
         require(
             currencyNetworks[_address].author == address(0) &&
             bytes(currencyNetworks[_address].name).length == 0 &&
-            bytes(currencyNetworks[_address].symbol).length == 0
-            , "CurrencyNetworks can only be registered once."
+            bytes(currencyNetworks[_address].symbol).length == 0,
+            "CurrencyNetworks can only be registered once."
         );
 
         network = CurrencyNetworkInterface(_address);
+
+        require(
+            this.doesContractImplementInterface(
+                _address,
+                network.transfer.selector ^
+                network.transferFrom.selector ^
+                network.balance.selector ^
+                network.creditline.selector
+            ),
+            "CurrencyNetworks need to implement ERC165 and CurrencyNetworkInterface"
+        );
 
         currencyNetworks[_address] = CurrencyNetworkMetadata({
             author: msg.sender,
@@ -54,7 +73,18 @@ contract CurrencyNetworkRegistry {
         return registeredCurrencyNetworks[_index];
     }
 
-    function getCurrencyNetworkMetadata(address _address) external view returns (address _author, string memory _name, string memory _symbol, uint8 _decimals) {
+    function getCurrencyNetworkMetadata(
+        address _address
+    )
+        external
+        view
+        returns (
+            address _author,
+            string memory _name,
+            string memory _symbol,
+            uint8 _decimals
+        )
+    {
         return (
             currencyNetworks[_address].author,
             currencyNetworks[_address].name,

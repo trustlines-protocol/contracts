@@ -40,11 +40,17 @@ def initialized_currency_network_registry_contract(
 
 
 def test_add_network(currency_network_registry_contract, currency_network_contract):
-    assert currency_network_registry_contract.functions.getCurrencyNetworkCount().call() == 0
+    assert (
+        currency_network_registry_contract.functions.getCurrencyNetworkCount().call()
+        == 0
+    )
     currency_network_registry_contract.functions.addCurrencyNetwork(
         currency_network_contract.address
     ).transact()
-    assert currency_network_registry_contract.functions.getCurrencyNetworkCount().call() == 1
+    assert (
+        currency_network_registry_contract.functions.getCurrencyNetworkCount().call()
+        == 1
+    )
 
 
 def test_add_network_once(

@@ -6,6 +6,7 @@ import "./tokens/Receiver_Interface.sol";
 import "./lib/Ownable.sol";
 import "./lib/Destructable.sol";
 import "./lib/Authorizable.sol";
+import "./lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
 
 
@@ -16,7 +17,7 @@ import "./CurrencyNetworkInterface.sol";
  * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable {
+contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**71 - 1;
@@ -551,6 +552,24 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function freezeNetwork() external {
         require(expirationTime <= now, "The currency network cannot be frozen yet.");
         isNetworkFrozen = true;
+    }
+
+    function supportsInterface(
+        bytes4 interfaceID
+    )
+        external
+        view
+        returns (bool)
+    {
+        return (
+            interfaceID == this.supportsInterface.selector || // ERC165
+            (   // This needs to be in sync with CurrencyNetworkInterface.sol
+                interfaceID == this.transfer.selector ^
+                this.transferFrom.selector ^
+                this.balance.selector ^
+                this.creditline.selector
+            )
+        );
     }
 
     /**
