@@ -33,25 +33,25 @@ def currency_network_registry_contract(deploy_contract):
 def initialized_currency_network_registry_contract(
     currency_network_registry_contract, currency_network_contract
 ):
-    currency_network_registry_contract.functions.addNetwork(
+    currency_network_registry_contract.functions.addCurrencyNetwork(
         currency_network_contract.address
     ).transact()
     return currency_network_registry_contract
 
 
 def test_add_network(currency_network_registry_contract, currency_network_contract):
-    assert currency_network_registry_contract.functions.getNetworkCount().call() == 0
-    currency_network_registry_contract.functions.addNetwork(
+    assert currency_network_registry_contract.functions.getCurrencyNetworkCount().call() == 0
+    currency_network_registry_contract.functions.addCurrencyNetwork(
         currency_network_contract.address
     ).transact()
-    assert currency_network_registry_contract.functions.getNetworkCount().call() == 1
+    assert currency_network_registry_contract.functions.getCurrencyNetworkCount().call() == 1
 
 
 def test_add_network_once(
     initialized_currency_network_registry_contract, currency_network_contract
 ):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        initialized_currency_network_registry_contract.functions.addNetwork(
+        initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
             currency_network_contract.address
         ).transact()
 
@@ -60,7 +60,7 @@ def test_get_address(
     initialized_currency_network_registry_contract, currency_network_contract
 ):
     assert (
-        initialized_currency_network_registry_contract.functions.getNetworkAddress(
+        initialized_currency_network_registry_contract.functions.getCurrencyNetworkAddress(
             0
         ).call()
         == currency_network_contract.address
@@ -72,7 +72,7 @@ def test_get_metadata(
     currency_network_contract,
     default_account,
 ):
-    metadata = initialized_currency_network_registry_contract.functions.getNetworkMetadata(
+    metadata = initialized_currency_network_registry_contract.functions.getCurrencyNetworkMetadata(
         currency_network_contract.address
     ).call()
     assert metadata[0] == default_account
@@ -82,18 +82,18 @@ def test_get_metadata(
 
 
 def test_no_events(currency_network_registry_contract):
-    events = currency_network_registry_contract.events.NetworkAdded.createFilter(
+    events = currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
         fromBlock=0
     ).get_all_entries()
     assert len(events) == 0
 
 
 def test_add_event(initialized_currency_network_registry_contract, default_account):
-    events = initialized_currency_network_registry_contract.events.NetworkAdded.createFilter(
+    events = initialized_currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
         fromBlock=0
     ).get_all_entries()
     assert len(events) == 1
-    assert events[0]["event"] == "NetworkAdded"
+    assert events[0]["event"] == "CurrencyNetworkAdded"
     assert events[0]["args"]["_author"] == default_account
     assert events[0]["args"]["_name"] == NETWORK_SETTING["name"]
     assert events[0]["args"]["_symbol"] == NETWORK_SETTING["symbol"]
