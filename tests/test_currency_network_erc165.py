@@ -31,11 +31,11 @@ def test_supports_interface(currency_network_contract):
         currency_network_contract.functions.supportsInterface(
             ERC165_INTERFACE_ID
         ).call()
-        == True
+        is True
     )
     assert (
         currency_network_contract.functions.supportsInterface(
             CURRENCY_NETWORK_INTERFACE_ID
         ).call()
-        == True
+        is True
     )
