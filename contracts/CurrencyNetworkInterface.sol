@@ -3,6 +3,11 @@ pragma solidity ^0.5.8;
 
 contract CurrencyNetworkInterface {
 
+    // meta data for token part
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+
     function transfer(
         address _to,
         uint64 _value,

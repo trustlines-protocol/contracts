@@ -41,11 +41,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
 
-    // meta data for token part
-    string public name;
-    string public symbol;
-    uint8 public decimals;
-
     // interests settings, interests are expressed in 0.01% per year
     int16 public defaultInterestRate;
     bool public customInterests;
