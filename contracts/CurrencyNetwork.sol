@@ -64,7 +64,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint _creditlineGiven,
         uint _creditlineReceived,
         int _interestRateGiven,
-        int _interestRateReceived
+        int _interestRateReceived,
+        bool _isFrozen
     );
 
     event TrustlineUpdate(
@@ -73,7 +74,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint _creditlineGiven,
         uint _creditlineReceived,
         int _interestRateGiven,
-        int _interestRateReceived
+        int _interestRateReceived,
+        bool _isFrozen
     );
 
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
@@ -117,6 +119,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 creditlineReceived;
         int16 interestRateGiven;
         int16 interestRateReceived;
+        bool isFrozen;
         address initiator;
     }
 
@@ -126,11 +129,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function() external {}
-
-    modifier networkNotFrozen() {
-        require(!isNetworkFrozen, "The currency network is frozen and cannot be interacted with in this manner.");
-        _;
-    }
 
     /**
      * @notice Initialize the currency Network
@@ -201,7 +199,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
-        networkNotFrozen
         returns (bool _success)
     {
         _success = _mediatedTransferSenderPays(
@@ -239,7 +236,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
-        networkNotFrozen
         returns (bool success)
     {
         require(authorized[msg.sender], "The sender of the message is not authorized.");
@@ -278,7 +274,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
-        networkNotFrozen
         returns (bool _success)
     {
         _success = _mediatedTransferReceiverPays(
@@ -307,6 +302,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _creditlineReceived The creditline limit given _debtor
      * @param _interestRateGiven The interest given by msg.sender
      * @param _interestRateReceived The interest given by _debtor
+     * @param _isFrozen Whether the initiator asks for freezing the trustline
      * @return true, if the credit was successful
      */
     function updateTrustline(
@@ -314,10 +310,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineGiven,
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
-        int16 _interestRateReceived
+        int16 _interestRateReceived,
+        bool _isFrozen
     )
         external
-        networkNotFrozen
         returns (bool _success)
     {
 
@@ -329,7 +325,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineGiven,
             _creditlineReceived,
             _interestRateGiven,
-            _interestRateReceived
+            _interestRateReceived,
+            _isFrozen
         );
     }
 
@@ -348,7 +345,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived
     )
         external
-        networkNotFrozen
         returns (bool _success)
     {
         address _creditor = msg.sender;
@@ -368,15 +364,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _debtor The other party of the trustline agreement
      * @param _creditlineGiven The creditline limit given by msg.sender
      * @param _creditlineReceived The creditline limit given _debtor
+     * @param _isFrozen Whether the initiator asks for freezing the trustline
      * @return true, if the credit was successful
      */
     function updateTrustlineDefaultInterests(
         address _debtor,
         uint64 _creditlineGiven,
-        uint64 _creditlineReceived
+        uint64 _creditlineReceived,
+        bool _isFrozen
     )
         external
-        networkNotFrozen
         returns (bool _success)
     {
         address _creditor = msg.sender;
@@ -387,7 +384,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineGiven,
             _creditlineReceived,
             defaultInterestRate,
-            defaultInterestRate
+            defaultInterestRate,
+            _isFrozen
         );
     }
 
@@ -401,7 +399,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _otherParty
     )
         external
-        networkNotFrozen
         returns (bool _success)
     {
 
@@ -426,7 +423,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address[] calldata _path
     )
         external
-        networkNotFrozen
     {
         _closeTrustlineByTriangularTransfer(
             msg.sender,
@@ -453,6 +449,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
+        bool _isFrozen,
         uint16 _feesOutstandingA,
         uint16 _feesOutstandingB,
         uint32 _mtime,
@@ -482,6 +479,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineReceived,
             _interestRateGiven,
             _interestRateReceived,
+            _isFrozen,
             _feesOutstandingA,
             _feesOutstandingB,
             _mtime,
@@ -498,6 +496,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _b,
         uint64 _creditlineGiven,
         uint64 _creditlineReceived,
+        bool _isFrozen,
         uint16 _feesOutstandingA,
         uint16 _feesOutstandingB,
         uint32 _mtime,
@@ -514,6 +513,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineReceived,
             defaultInterestRate,
             defaultInterestRate,
+            _isFrozen,
             _feesOutstandingA,
             _feesOutstandingB,
             _mtime,
@@ -587,6 +587,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      */
     function spendableTo(address _spender, address _receiver) public view returns (uint remaining) {
         Trustline memory trustline = _loadTrustline(_spender, _receiver);
+        if (_isTrustlineFrozen(trustline.agreement)) {
+            return 0;
+        }
         int72 balance = trustline.balances.balance;
         uint64 creditline = trustline.agreement.creditlineReceived;
         remaining = uint(creditline + balance);
@@ -706,6 +709,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             }
             // Load trustline only once at the beginning
             Trustline memory trustline = _loadTrustline(sender, _path[i-1]);
+            require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
             if (i == _path.length) {
@@ -784,6 +788,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             }
             // Load trustline only once at the beginning
             Trustline memory trustline = _loadTrustline(sender, _path[i]);
+            require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
             int72 balanceBefore = trustline.balances.balance;
@@ -835,6 +840,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         TrustlineBalances memory balances = _loadTrustlineBalances(_from, _otherParty);
         require(balances.balance == 0, "A trustline can only be closed if its balance is zero.");
+        require(!isTrustlineFrozen(_from, _otherParty), "The trustline is frozen and cannot be closed.");
 
         bytes32 uniqueId = uniqueIdentifier(_from, _otherParty);
         delete requestedTrustlineUpdates[uniqueId];
@@ -847,7 +853,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             0,
             0,
             0,
-            0);
+            0,
+            false);
     }
 
     /* close a trustline by doing a triangular transfer
@@ -869,6 +876,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal
     {
         Trustline memory trustline = _loadTrustline(_from, _otherParty);
+        require(!_isTrustlineFrozen(trustline.agreement), "The trustline is frozen and cannot be closed.");
         _applyInterests(trustline);
         /* we could as well call _storeTrustlineBalances here. It doesn't matter for the
            _mediatedTransfer/_mediatedTransferReceiverPays calls below since the
@@ -928,6 +936,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
+        bool _isFrozen,
         uint16 _feesOutstandingA,
         uint16 _feesOutstandingB,
         uint32 _mtime,
@@ -940,6 +949,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         trustlineAgreement.creditlineReceived = _creditlineReceived;
         trustlineAgreement.interestRateGiven = _interestRateGiven;
         trustlineAgreement.interestRateReceived = _interestRateReceived;
+        trustlineAgreement.isFrozen = _isFrozen;
 
         TrustlineBalances memory trustlineBalances;
         trustlineBalances.feesOutstandingA = _feesOutstandingA;
@@ -979,6 +989,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             result.creditlineGiven = trustlineAgreement.creditlineReceived;
             result.interestRateReceived = trustlineAgreement.interestRateGiven;
             result.interestRateGiven = trustlineAgreement.interestRateReceived;
+            result.isFrozen = trustlineAgreement.isFrozen;
         }
         return result;
     }
@@ -1013,12 +1024,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineReceived;
             storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateGiven;
             storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateReceived;
+            storedTrustlineAgreement.isFrozen = trustlineAgreement.isFrozen;
             storedTrustlineAgreement.padding = trustlineAgreement.padding;
         } else {
             storedTrustlineAgreement.creditlineGiven = trustlineAgreement.creditlineReceived;
             storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineGiven;
             storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateReceived;
             storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateGiven;
+            storedTrustlineAgreement.isFrozen = trustlineAgreement.isFrozen;
             storedTrustlineAgreement.padding = trustlineAgreement.padding;
         }
     }
@@ -1067,6 +1080,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
         trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
         trustlineRequest.initiator = _trustlineRequest.initiator;
+        trustlineRequest.isFrozen = _trustlineRequest.isFrozen;
     }
 
     // in this function, it is assumed _creditor is the initator of the trustline update (see _requestTrustlineUpdate())
@@ -1076,11 +1090,17 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineGiven,
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
-        int16 _interestRateReceived
+        int16 _interestRateReceived,
+        bool _isFrozen
     )
         internal
         returns (bool success)
     {
+        require(! isNetworkFrozen, "The network is frozen and trustlines cannot be updated.");
+        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        if (_isTrustlineFrozen(trustlineAgreement)) {
+            require(! _isFrozen, "Trustline is frozen, it cannot be updated unless unfrozen.");
+        }
         require(
             customInterests ||
             (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
@@ -1092,13 +1112,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 "Only positive interest rates are supported."
             );
         }
-        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
 
-        // reduction of creditlines and interests given is always possible
+        // reduction of creditlines and interests given is always possible if trustline is not frozen
         if (_creditlineGiven <= trustlineAgreement.creditlineGiven &&
             _creditlineReceived <= trustlineAgreement.creditlineReceived &&
             _interestRateGiven <= trustlineAgreement.interestRateGiven &&
-            _interestRateReceived == trustlineAgreement.interestRateReceived) {
+            _interestRateReceived == trustlineAgreement.interestRateReceived &&
+            _isFrozen == trustlineAgreement.isFrozen &&
+            ! trustlineAgreement.isFrozen
+        ) {
             _deleteTrustlineRequest(_creditor, _debtor);
             _setTrustline(
                 _creditor,
@@ -1106,7 +1128,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _creditlineGiven,
                 _creditlineReceived,
                 _interestRateGiven,
-                _interestRateReceived
+                _interestRateReceived,
+                _isFrozen
             );
             return true;
         }
@@ -1115,7 +1138,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         // if original initiator is debtor, try to accept request
         if (trustlineRequest.initiator == _debtor) {
-            if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateGiven <= trustlineRequest.interestRateReceived && _interestRateReceived == trustlineRequest.interestRateGiven) {
+            if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateGiven <= trustlineRequest.interestRateReceived && _interestRateReceived == trustlineRequest.interestRateGiven && _isFrozen == trustlineRequest.isFrozen) {
                 _deleteTrustlineRequest(_creditor, _debtor);
                 // _debtor and _creditor is switched because we want the initiator of the trustline to be _debtor.
                 // So every Given / Received has to be switched.
@@ -1125,7 +1148,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                     _creditlineReceived,
                     _creditlineGiven,
                     _interestRateReceived,
-                    _interestRateGiven
+                    _interestRateGiven,
+                    _isFrozen
                 );
                 _applyOnboardingRules(_creditor, _debtor);
 
@@ -1138,7 +1162,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                     _creditlineGiven,
                     _creditlineReceived,
                     _interestRateGiven,
-                    _interestRateReceived
+                    _interestRateReceived,
+                    _isFrozen
                 );
 
                 return true;
@@ -1151,7 +1176,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _creditlineGiven,
                 _creditlineReceived,
                 _interestRateGiven,
-                _interestRateReceived
+                _interestRateReceived,
+                _isFrozen
             );
 
             return true;
@@ -1169,8 +1195,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         int16 interestRateGiven = defaultInterestRate;
         int16 interestRateReceived = defaultInterestRate;
+        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        bool isFrozen = trustlineAgreement.isFrozen;
         if (customInterests) {
-            TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
             interestRateGiven = trustlineAgreement.interestRateGiven;
             interestRateReceived = trustlineAgreement.interestRateReceived;
         }
@@ -1180,7 +1207,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineGiven,
             _creditlineReceived,
             interestRateGiven,
-            interestRateReceived);
+            interestRateReceived,
+            isFrozen
+        );
     }
 
     // Actually change the trustline
@@ -1190,7 +1219,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineGiven,
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
-        int16 _interestRateReceived
+        int16 _interestRateReceived,
+        bool _isFrozen
     )
         internal
     {
@@ -1209,6 +1239,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         _trustline.agreement.creditlineReceived = _creditlineReceived;
         _trustline.agreement.interestRateGiven = _interestRateGiven;
         _trustline.agreement.interestRateReceived = _interestRateReceived;
+        _trustline.agreement.isFrozen = _isFrozen;
         _storeTrustlineBalances(_creditor, _debtor, _trustline.balances);
         _storeTrustlineAgreement(_creditor, _debtor, _trustline.agreement);
 
@@ -1218,7 +1249,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineGiven,
             _creditlineReceived,
             _interestRateGiven,
-            _interestRateReceived
+            _interestRateReceived,
+            _isFrozen
         );
     }
 
@@ -1248,7 +1280,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineGiven,
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
-        int16 _interestRateReceived
+        int16 _interestRateReceived,
+        bool _isFrozen
     )
         internal
     {
@@ -1260,7 +1293,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _creditlineReceived,
                 _interestRateGiven,
                 _interestRateReceived,
-                _creditor)
+                _isFrozen,
+                _creditor
+                )
         );
 
         emit TrustlineUpdateRequest(
@@ -1269,7 +1304,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _creditlineGiven,
             _creditlineReceived,
             _interestRateGiven,
-            _interestRateReceived
+            _interestRateReceived,
+            _isFrozen
         );
     }
 
@@ -1411,6 +1447,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             // After the transfer: Sender owes to receiver balance;
             return - int(_balanceBefore) * _trustline.agreement.interestRateGiven + int(balance) * _trustline.agreement.interestRateReceived;
         }
+    }
+
+    // Returns whether a trustline is frozen
+    // Should be more gas efficient than public isTrustlineFrozen() if agreement already loaded in memory
+    function _isTrustlineFrozen(TrustlineAgreement memory agreement) internal view returns (bool) {
+        if (isNetworkFrozen) {
+            return true;
+        }
+        return agreement.isFrozen;
     }
 
     function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {

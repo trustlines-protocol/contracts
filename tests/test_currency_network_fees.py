@@ -26,12 +26,12 @@ def currency_network_contract_with_trustlines(web3, accounts):
         symbol="T",
         decimals=6,
         fee_divisor=100,
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0, 0, 0
+            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 0, 0
         ).transact()
     return contract
 
