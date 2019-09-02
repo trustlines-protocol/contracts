@@ -39,6 +39,9 @@ contract CurrencyNetworkRegistry is ERC165Query {
         require(
             this.doesContractImplementInterface(
                 _address,
+                network.name.selector ^
+                network.symbol.selector ^
+                network.decimals.selector ^
                 network.transfer.selector ^
                 network.transferFrom.selector ^
                 network.balance.selector ^

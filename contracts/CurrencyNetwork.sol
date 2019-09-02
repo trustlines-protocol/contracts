@@ -34,6 +34,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     //list of all users of the system
     ItSet.AddressSet internal users;
 
+    // meta data for token part
+    // underscores internal variables, because otherwise the names clash with the functions
+    string internal _name;
+    string internal _symbol;
+    uint8 internal _decimals;
+
     bool public isInitialized;
     uint public expirationTime;
     bool public isNetworkFrozen;
@@ -124,9 +130,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     /**
      * @notice Initialize the currency Network
-     * @param _name The name of the currency
-     * @param _symbol The symbol of the currency
-     * @param _decimals Number of decimals of the currency
+     * @param _paramName The name of the currency
+     * @param _paramSymbol The symbol of the currency
+     * @param _paramDecimals Number of decimals of the currency
      * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
      * @param _defaultInterestRate The default interests for every trustlines in 0.001% per year
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
@@ -135,9 +141,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore
      */
     function init(
-        string calldata _name,
-        string calldata _symbol,
-        uint8 _decimals,
+        string calldata _paramName, // _name is blocked by the internal variable and name is the external function
+        string calldata _paramSymbol,
+        uint8 _paramDecimals,
         uint16 _capacityImbalanceFeeDivisor,
         int16 _defaultInterestRate,
         bool _customInterests,
@@ -162,9 +168,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         require(_expirationTime > now, "Expiration time must be in the future.");
 
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
+        _name = _paramName;
+        _symbol = _paramSymbol;
+        _decimals = _paramDecimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
@@ -247,6 +253,18 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _extraData
             );
         }
+    }
+
+    function name() external view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() external view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() external view returns (uint8) {
+        return _decimals;
     }
 
     /**
@@ -564,10 +582,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return (
             interfaceID == this.supportsInterface.selector || // ERC165
             (   // This needs to be in sync with CurrencyNetworkInterface.sol
-                interfaceID == this.transfer.selector ^
-                this.transferFrom.selector ^
-                this.balance.selector ^
-                this.creditline.selector
+                interfaceID == (
+                    this.name.selector ^
+                    this.symbol.selector ^
+                    this.decimals.selector ^
+                    this.transfer.selector ^
+                    this.transferFrom.selector ^
+                    this.balance.selector ^
+                    this.creditline.selector
+                )
             )
         );
     }
