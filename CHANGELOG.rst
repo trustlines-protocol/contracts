@@ -1,6 +1,15 @@
 ==========
 Change Log
 ==========
+`0.8.0`_ (2019-09-02)
+-----------------------
+* Currency networks are only initializable once
+* Currency networks have an expiry date, after which all trustlines are frozen
+* Trustlines agreements can be updated by users to be frozen
+* Frozen trustlines can not be used for transfers or updated until unfrozen
+* Add rules and accounting for user onboarding
+* Trustlines cannot be set by owner of currency network unless `accountManagementEnabled` is set to true
+
 `0.7.0`_ (2019-08-06)
 -----------------------
 * Add missing BalanceUpdate on trustlines changes
@@ -141,3 +150,4 @@ The rest of the changes are only interesting for developers:
 .. _0.6.2: https://github.com/trustlines-protocol/contracts/compare/0.6.1...0.6.2
 .. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.2...0.6.3
 .. _0.7.0: https://github.com/trustlines-protocol/contracts/compare/0.6.3...0.7.0
+.. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.7.0...0.8.0
