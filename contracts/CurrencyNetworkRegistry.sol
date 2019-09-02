@@ -15,6 +15,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
 
     mapping (address => CurrencyNetworkMetadata) internal currencyNetworks;
     address[] internal registeredCurrencyNetworks;
+    mapping (address => address[]) internal currencyNetworksRegisteredBy;
 
     event CurrencyNetworkAdded(
         address indexed _address,
@@ -26,13 +27,6 @@ contract CurrencyNetworkRegistry is ERC165Query {
 
     function addCurrencyNetwork(address _address) external {
         CurrencyNetworkInterface network;
-
-        require(
-            currencyNetworks[_address].registeredBy == address(0) &&
-            bytes(currencyNetworks[_address].name).length == 0 &&
-            bytes(currencyNetworks[_address].symbol).length == 0,
-            "CurrencyNetworks can only be registered once."
-        );
 
         network = CurrencyNetworkInterface(_address);
 
@@ -51,29 +45,37 @@ contract CurrencyNetworkRegistry is ERC165Query {
             "CurrencyNetworks need to implement ERC165 and CurrencyNetworkInterface"
         );
 
-        currencyNetworks[_address] = CurrencyNetworkMetadata({
-            registeredBy: msg.sender,
-            name: network.name(),
-            symbol: network.symbol(),
-            decimals: network.decimals()
-        });
+        if (
+            currencyNetworks[_address].registeredBy == address(0) &&
+            bytes(currencyNetworks[_address].name).length == 0 &&
+            bytes(currencyNetworks[_address].symbol).length == 0
+        ) {
+            currencyNetworks[_address] = CurrencyNetworkMetadata({
+                registeredBy: msg.sender,
+                name: network.name(),
+                symbol: network.symbol(),
+                decimals: network.decimals()
+            });
 
-        registeredCurrencyNetworks.push(_address);
+            registeredCurrencyNetworks.push(_address);
 
-        emit CurrencyNetworkAdded(
-            _address,
-            currencyNetworks[_address].registeredBy,
-            currencyNetworks[_address].name,
-            currencyNetworks[_address].symbol,
-            currencyNetworks[_address].decimals
-        );
+            emit CurrencyNetworkAdded(
+                _address,
+                currencyNetworks[_address].registeredBy,
+                currencyNetworks[_address].name,
+                currencyNetworks[_address].symbol,
+                currencyNetworks[_address].decimals
+            );
+        }
+
+        currencyNetworksRegisteredBy[msg.sender].push(_address);
     }
 
-    function getCurrencyNetworkCount() external view returns (uint256 _count) {
+    function getCurrencyNetworkCount() external view returns (uint256) {
         return registeredCurrencyNetworks.length;
     }
 
-    function getCurrencyNetworkAddress(uint256 _index) external view returns (address _network) {
+    function getCurrencyNetworkAddress(uint256 _index) external view returns (address) {
         return registeredCurrencyNetworks[_index];
     }
 
@@ -95,5 +97,9 @@ contract CurrencyNetworkRegistry is ERC165Query {
             currencyNetworks[_address].symbol,
             currencyNetworks[_address].decimals
         );
+    }
+
+    function getCurrencyNetworksRegisteredBy(address _address) external view returns (address[] memory) {
+        return currencyNetworksRegisteredBy[_address];
     }
 }

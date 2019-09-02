@@ -53,12 +53,50 @@ def test_add_network(currency_network_registry_contract, currency_network_contra
     )
 
 
-def test_add_network_once(
-    initialized_currency_network_registry_contract, currency_network_contract
+def test_add_network_multiple(
+    initialized_currency_network_registry_contract, currency_network_contract, accounts
 ):
+    initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
+        currency_network_contract.address
+    ).transact({"from": accounts[1]})
+
+    # Sadly there is no cost-efficient way to check if the contract address has already been registered with this
+    # address, so it's possible to add the network twice. Which we also check here is possible.
+    initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
+        currency_network_contract.address
+    ).transact({"from": accounts[1]})
+
+    # The number of actual networks should remain 1 as there is only one address
+    assert (
+        initialized_currency_network_registry_contract.functions.getCurrencyNetworkCount().call()
+        == 1
+    )
+
+    # The first account registered the network once
+    assert (
+        len(
+            initialized_currency_network_registry_contract.functions.getCurrencyNetworksRegisteredBy(
+                accounts[0]
+            ).call()
+        )
+        == 1
+    )
+
+    # The second account registered the network twice
+    assert (
+        len(
+            initialized_currency_network_registry_contract.functions.getCurrencyNetworksRegisteredBy(
+                accounts[1]
+            ).call()
+        )
+        == 2
+    )
+
+
+def test_add_invalid_network(initialized_currency_network_registry_contract, accounts):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
-            currency_network_contract.address
+            accounts[2]
         ).transact()
 
 
