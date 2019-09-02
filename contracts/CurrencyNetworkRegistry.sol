@@ -18,7 +18,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
 
     event CurrencyNetworkAdded(
         address indexed _address,
-        address _registeredBy,
+        address indexed _registeredBy,
         string _name,
         string _symbol,
         uint8 _decimals
