@@ -100,7 +100,7 @@ def test_add_event(initialized_currency_network_registry_contract, default_accou
     ).get_all_entries()
     assert len(events) == 1
     assert events[0]["event"] == "CurrencyNetworkAdded"
-    assert events[0]["args"]["_author"] == default_account
+    assert events[0]["args"]["_registeredBy"] == default_account
     assert events[0]["args"]["_name"] == NETWORK_SETTING["name"]
     assert events[0]["args"]["_symbol"] == NETWORK_SETTING["symbol"]
     assert events[0]["args"]["_decimals"] == NETWORK_SETTING["decimals"]

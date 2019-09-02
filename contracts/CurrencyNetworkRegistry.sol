@@ -7,7 +7,7 @@ import "./lib/ERC165Query.sol";
 contract CurrencyNetworkRegistry is ERC165Query {
 
     struct CurrencyNetworkMetadata {
-        address author;
+        address registeredBy;
         string name;
         string symbol;
         uint8 decimals;
@@ -18,7 +18,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
 
     event CurrencyNetworkAdded(
         address indexed _address,
-        address _author,
+        address _registeredBy,
         string _name,
         string _symbol,
         uint8 _decimals
@@ -28,7 +28,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
         CurrencyNetworkInterface network;
 
         require(
-            currencyNetworks[_address].author == address(0) &&
+            currencyNetworks[_address].registeredBy == address(0) &&
             bytes(currencyNetworks[_address].name).length == 0 &&
             bytes(currencyNetworks[_address].symbol).length == 0,
             "CurrencyNetworks can only be registered once."
@@ -48,7 +48,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
         );
 
         currencyNetworks[_address] = CurrencyNetworkMetadata({
-            author: msg.sender,
+            registeredBy: msg.sender,
             name: network.name(),
             symbol: network.symbol(),
             decimals: network.decimals()
@@ -58,7 +58,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
 
         emit CurrencyNetworkAdded(
             _address,
-            currencyNetworks[_address].author,
+            currencyNetworks[_address].registeredBy,
             currencyNetworks[_address].name,
             currencyNetworks[_address].symbol,
             currencyNetworks[_address].decimals
@@ -79,14 +79,14 @@ contract CurrencyNetworkRegistry is ERC165Query {
         external
         view
         returns (
-            address _author,
+            address _registeredBy,
             string memory _name,
             string memory _symbol,
             uint8 _decimals
         )
     {
         return (
-            currencyNetworks[_address].author,
+            currencyNetworks[_address].registeredBy,
             currencyNetworks[_address].name,
             currencyNetworks[_address].symbol,
             currencyNetworks[_address].decimals
