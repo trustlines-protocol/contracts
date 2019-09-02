@@ -44,7 +44,7 @@ def test_deploy_network(web3):
         default_interest_rate=100,
         custom_interests=False,
         prevent_mediator_interests=False,
-        set_account_enabled=True,
+        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
