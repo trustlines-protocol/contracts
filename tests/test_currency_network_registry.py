@@ -14,7 +14,7 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
-    "set_account_enabled": True,
+    "account_management_enabled": True,
     "expiration_time": EXPIRATION_TIME,
 }
 
