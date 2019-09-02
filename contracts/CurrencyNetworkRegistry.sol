@@ -37,6 +37,7 @@ contract CurrencyNetworkRegistry is ERC165Query {
         network = CurrencyNetworkInterface(_address);
 
         require(
+            // ERC-165 check is always done implicitly
             this.doesContractImplementInterface(
                 _address,
                 network.name.selector ^
