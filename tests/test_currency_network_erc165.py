@@ -17,22 +17,32 @@ NETWORK_SETTING = {
     "expiration_time": EXPIRATION_TIME,
 }
 
-ERC165_INTERFACE_ID = "0x01ffc9a7"
-CURRENCY_NETWORK_INTERFACE_ID = "0xdcd45f8a"
-
 
 @pytest.fixture
 def currency_network_contract(web3):
     return deploy_network(web3, **NETWORK_SETTING)
 
 
-def test_supports_interface(currency_network_contract):
+def test_supports_interface(currency_network_contract, web3):
+
+    # Calculate interface id from function signatures
+    ERC165_INTERFACE_ID = web3.sha3(text='supportsInterface(bytes4)')[:4].hex()
+
     assert (
         currency_network_contract.functions.supportsInterface(
             ERC165_INTERFACE_ID
         ).call()
         is True
     )
+
+    # Calculate interface id from function signatures
+    CURRENCY_NETWORK_INTERFACE_ID = hex(
+        int.from_bytes(web3.sha3(text='transfer(address,uint64,uint64,address[],bytes)')[:4], 'big') ^
+        int.from_bytes(web3.sha3(text='transferFrom(address,address,uint64,uint64,address[],bytes)')[:4], 'big') ^
+        int.from_bytes(web3.sha3(text='balance(address,address)')[:4], 'big') ^
+        int.from_bytes(web3.sha3(text='creditline(address,address)')[:4], 'big')
+    )
+
     assert (
         currency_network_contract.functions.supportsInterface(
             CURRENCY_NETWORK_INTERFACE_ID
