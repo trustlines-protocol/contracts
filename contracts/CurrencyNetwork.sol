@@ -33,6 +33,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     mapping (address => ItSet.AddressSet) internal friends;
     // list of all users of the system
     ItSet.AddressSet internal users;
+    // mapping of a pair of user to the signed debt in the point of view of the lowest address
+    mapping (bytes32 => int) public debt;
     // map each user to its onboarder
     mapping (address => address) public onboarder;
     // value in the mapping for users that do not have an onboarder
@@ -521,6 +523,23 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _mtime,
             _balance
         );
+    }
+
+    function increaseDebt(address creditor, int value) external {
+        address debtor = msg.sender;
+        if (debtor < creditor) {
+            debt[uniqueIdentifier(debtor, creditor)] += value;
+        } else {
+            debt[uniqueIdentifier(debtor, creditor)] -= value;
+        }
+    }
+
+    function getDebt(address debtor, address creditor) external view returns (int256) {
+        if (debtor < creditor) {
+            return debt[uniqueIdentifier(debtor, creditor)];
+        } else {
+            return - debt[uniqueIdentifier(debtor, creditor)];
+        }
     }
 
     /**

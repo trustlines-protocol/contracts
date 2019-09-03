@@ -850,3 +850,22 @@ def test_enabled_set_account(currency_network_contract, accounts):
     assert network.functions.balanceOf(accounts[0]).call() == 100
     network.functions.setAccountDefaultInterests(*account_no_interest).transact()
     assert network.functions.balanceOf(accounts[0]).call() == 200
+
+
+@pytest.mark.parametrize("creditor, debtor", [(0, 1), (1, 0)])
+def test_increasing_debt(currency_network_contract, accounts, creditor, debtor):
+    debt_value = 123
+
+    currency_network_contract.functions.increaseDebt(
+        accounts[debtor], debt_value
+    ).transact({"from": accounts[creditor]})
+
+    debt = currency_network_contract.functions.getDebt(
+        accounts[creditor], accounts[debtor]
+    ).call()
+    reverse_debt = currency_network_contract.functions.getDebt(
+        accounts[debtor], accounts[creditor]
+    ).call()
+
+    assert debt == debt_value
+    assert reverse_debt == -debt_value
