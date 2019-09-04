@@ -857,15 +857,36 @@ def test_increasing_debt(currency_network_contract, accounts, creditor, debtor):
     debt_value = 123
 
     currency_network_contract.functions.increaseDebt(
-        accounts[debtor], debt_value
-    ).transact({"from": accounts[creditor]})
+        accounts[creditor], debt_value
+    ).transact({"from": accounts[debtor]})
 
     debt = currency_network_contract.functions.getDebt(
-        accounts[creditor], accounts[debtor]
+        accounts[debtor], accounts[creditor]
     ).call()
     reverse_debt = currency_network_contract.functions.getDebt(
-        accounts[debtor], accounts[creditor]
+        accounts[creditor], accounts[debtor]
     ).call()
 
     assert debt == debt_value
     assert reverse_debt == -debt_value
+
+
+@pytest.mark.parametrize("creditor, debtor", [(0, 1), (1, 0)])
+def test_increasing_debt_event(
+    currency_network_contract, accounts, creditor, debtor, web3
+):
+    debt_value = 123
+
+    initial_block = web3.eth.blockNumber
+
+    currency_network_contract.functions.increaseDebt(
+        accounts[creditor], debt_value
+    ).transact({"from": accounts[debtor]})
+
+    event = currency_network_contract.events.DebtUpdate.createFilter(
+        fromBlock=initial_block
+    ).get_all_entries()[0]["args"]
+
+    assert event["_debtor"] == accounts[debtor]
+    assert event["_creditor"] == accounts[creditor]
+    assert event["_newDebt"] == debt_value
