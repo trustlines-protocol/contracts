@@ -8,6 +8,7 @@ import "./lib/Destructable.sol";
 import "./lib/Authorizable.sol";
 import "./lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
+import "./debtTrackingInterface.sol";
 
 
 /**
@@ -17,7 +18,7 @@ import "./CurrencyNetworkInterface.sol";
  * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable, ERC165 {
+contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable, debtTrackingInterface, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**71 - 1;
@@ -85,6 +86,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
     event Onboard(address indexed _onboarder, address indexed _onboardee);
+
+    event DebtUpdate(address _debtor, address _creditor, int72 _newDebt);
 
     // for accounting balance and trustline agreement between two users introducing fees and interests
     // currently uses 160 + 136 bits, 216 remaining to make two structs
@@ -537,10 +540,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             int72 newDebt = oldDebt + value;
             assert(newDebt > oldDebt);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
+            emit DebtUpdate(debtor, creditor, newDebt);
         } else {
             int72 newDebt = oldDebt - value;
             assert(newDebt < oldDebt);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
+            emit DebtUpdate(debtor, creditor, -newDebt);
         }
     }
 
