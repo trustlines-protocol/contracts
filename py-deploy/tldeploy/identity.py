@@ -15,22 +15,47 @@ class MetaTransaction:
     to: str
     value: int = 0
     data: bytes = bytes()
+    fees: int = 0
+    currency_network_of_fees: str = attr.ib()
     nonce: Optional[int] = None
     extra_data: bytes = bytes()
     signature: Optional[bytes] = None
 
+    @currency_network_of_fees.default
+    def default_for_currency_network_of_fees(self):
+        return self.to
+
     @classmethod
     def from_function_call(
-        cls, function_call, *, from_: str = None, to: str, nonce: int = None
+        cls,
+        function_call,
+        *,
+        from_: str = None,
+        to: str,
+        nonce: int = None,
+        fees: int = 0,
+        currency_network_of_fees: str = None,
     ):
         """Construct a meta transaction from a web3 function call
 
         Usage:
-        `from_function_call(contract.functions.function()`
+        `from_function_call(contract.functions.function())`
         """
         data = function_call.buildTransaction(transaction={"gas": MAX_GAS})["data"]
 
-        return cls(from_=from_, to=to, value=0, data=data, nonce=nonce)
+        if currency_network_of_fees is None:
+            # Use default value for currency_network_of_fees
+            return cls(from_=from_, to=to, value=0, data=data, fees=fees, nonce=nonce)
+        else:
+            return cls(
+                from_=from_,
+                to=to,
+                value=0,
+                data=data,
+                fees=fees,
+                currency_network_of_fees=currency_network_of_fees,
+                nonce=nonce,
+            )
 
     @property
     def hash(self) -> bytes:
@@ -42,6 +67,8 @@ class MetaTransaction:
                 "address",
                 "uint256",
                 "bytes32",
+                "uint64",
+                "address",
                 "uint256",
                 "bytes",
             ],
@@ -52,6 +79,8 @@ class MetaTransaction:
                 self.to,
                 self.value,
                 solidity_keccak(["bytes"], [self.data]),
+                self.fees,
+                self.currency_network_of_fees,
                 self.nonce,
                 self.extra_data,
             ],
@@ -65,9 +94,9 @@ class UnexpectedIdentityContractException(Exception):
     pass
 
 
-class Delegator:
-    def __init__(self, delegator_address: str, *, web3, identity_contract_abi):
-        self.delegator_address = delegator_address
+class Delegate:
+    def __init__(self, delegate_address: str, *, web3, identity_contract_abi):
+        self.delegate_address = delegate_address
         self._web3 = web3
         self._identity_contract_abi = identity_contract_abi
 
@@ -76,18 +105,18 @@ class Delegator:
     ):
         return self._meta_transaction_function_call(
             signed_meta_transaction
-        ).estimateGas({"from": self.delegator_address})
+        ).estimateGas({"from": self.delegate_address})
 
     def send_signed_meta_transaction(
         self, signed_meta_transaction: MetaTransaction, gas: int = MAX_GAS
     ) -> str:
         """
-        Sends the meta transaction out inside of a ethereum transaction
+        Sends the meta transaction out inside of an ethereum transaction
         Returns: the hash of the envelop ethereum transaction
-
         """
+
         return self._meta_transaction_function_call(signed_meta_transaction).transact(
-            {"from": self.delegator_address, "gas": gas}
+            {"from": self.delegate_address, "gas": gas}
         )
 
     def validate_meta_transaction(
@@ -178,6 +207,8 @@ class Delegator:
             signed_meta_transaction.to,
             signed_meta_transaction.value,
             signed_meta_transaction.data,
+            signed_meta_transaction.fees,
+            signed_meta_transaction.currency_network_of_fees,
             signed_meta_transaction.nonce,
             signed_meta_transaction.extra_data,
             signed_meta_transaction.signature,

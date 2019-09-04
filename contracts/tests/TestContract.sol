@@ -1,7 +1,10 @@
 pragma solidity ^0.5.8;
 
+import "../debtTrackingInterface.sol";
 
-contract TestContract {
+
+// Test contract used for testing identity contract meta transaction features
+contract TestContract is debtTrackingInterface {
 
     event TestEvent(
         address from,
@@ -9,6 +12,15 @@ contract TestContract {
         bytes data,
         int argument
     );
+
+    event DebtIncrease(int72 value, address debtor, address creditor);
+
+    function increaseDebt(address creditor, uint64 value) external {
+    }
+
+    function getDebt(address debtor, address creditor) external view returns (int256) {
+        return 0;
+    }
 
     function testFunction(int argument) public payable {
         address from = msg.sender;

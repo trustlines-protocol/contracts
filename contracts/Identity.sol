@@ -1,6 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "./lib/ECDSA.sol";
+import "./debtTrackingInterface.sol";
 
 
 contract Identity {
@@ -12,6 +13,7 @@ contract Identity {
     uint public lastNonce = 0;
 
     event TransactionExecution(bytes32 hash, bool status);
+    event FeesPaid(uint64 value, address currencyNetwork);
 
     constructor() public {
         // solium-disable-previous-line no-empty-blocks
@@ -32,6 +34,8 @@ contract Identity {
         address payable to,
         uint256 value,
         bytes memory data,
+        uint64 fees,
+        address currencyNetworkOfFees,
         uint256 nonce,
         bytes memory extraData,
         bytes memory signature
@@ -46,6 +50,8 @@ contract Identity {
             to,
             value,
             data,
+            fees,
+            currencyNetworkOfFees,
             nonce,
             extraData
         );
@@ -60,8 +66,13 @@ contract Identity {
         }
 
         (bool status, bytes memory returnedData) = to.call.value(value)(data); // solium-disable-line
-
         emit TransactionExecution(hash, status);
+
+        if (fees != 0 && status != false) {
+            debtTrackingInterface debtNetwork = debtTrackingInterface(currencyNetworkOfFees);
+            debtNetwork.increaseDebt(msg.sender, fees);
+            emit FeesPaid(fees, currencyNetworkOfFees);
+        }
 
         _success = true;
     }
@@ -85,6 +96,8 @@ contract Identity {
         address to,
         uint256 value,
         bytes memory data,
+        uint64 fees,
+        address currencyNetworkOfFees,
         uint256 nonce,
         bytes memory extraData
     )
@@ -102,6 +115,8 @@ contract Identity {
                 to,
                 value,
                 dataHash,
+                fees,
+                currencyNetworkOfFees,
                 nonce,
                 extraData
             ));
