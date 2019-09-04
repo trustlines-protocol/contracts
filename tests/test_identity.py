@@ -6,7 +6,7 @@ from tldeploy.core import deploy_network, deploy_identity
 from tldeploy.identity import (
     MetaTransaction,
     Identity,
-    Delegator,
+    Delegate,
     UnexpectedIdentityContractException,
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
@@ -60,7 +60,7 @@ def identity(identity_contract, owner_key):
 
 @pytest.fixture(scope="session")
 def delegate(identity_contract, delegate_address, web3):
-    return Delegator(
+    return Delegate(
         delegate_address, web3=web3, identity_contract_abi=identity_contract.abi
     )
 
@@ -83,6 +83,11 @@ NETWORK_SETTING = {
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
+    return deploy_network(web3, **NETWORK_SETTING)
+
+
+@pytest.fixture(scope="session")
+def second_currency_network_contract(web3):
     return deploy_network(web3, **NETWORK_SETTING)
 
 
@@ -141,6 +146,8 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
         meta_transaction.to,
         meta_transaction.value,
         meta_transaction.data,
+        meta_transaction.fees,
+        meta_transaction.currency_network_of_fees,
         meta_transaction.nonce,
         meta_transaction.extra_data,
     ).call()
@@ -214,6 +221,8 @@ def test_delegated_transaction_wrong_from(
             meta_transaction.to,
             meta_transaction.value,
             meta_transaction.data,
+            meta_transaction.fees,
+            meta_transaction.currency_network_of_fees,
             meta_transaction.nonce,
             meta_transaction.extra_data,
             meta_transaction.signature,
@@ -514,7 +523,7 @@ def test_deploy_identity(web3, delegate, owner, owner_key, test_contract):
     )
 
 
-def test_next_nonce(identity, delegate, web3, accounts):
+def test_next_nonce(identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
@@ -529,3 +538,70 @@ def test_next_nonce(identity, delegate, web3, accounts):
     delegate.send_signed_meta_transaction(meta_transaction2)
 
     assert delegate.get_next_nonce(identity.address) == 3
+
+
+def test_meta_transaction_with_fees_increases_debt(
+    currency_network_contract, identity, delegate, delegate_address, accounts
+):
+    A = identity.address
+    B = accounts[3]
+    to = currency_network_contract.address
+    fees = 123
+
+    function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to, fees=fees)
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert (
+        currency_network_contract.functions.getDebt(A, delegate_address).call() == fees
+    )
+
+
+def test_failing_meta_transaction_with_fees_does_not_increases_debt(
+    currency_network_contract, identity, delegate, delegate_address, accounts
+):
+    A = identity.address
+    B = accounts[3]
+    to = currency_network_contract.address
+    fees = 123
+
+    function_call = currency_network_contract.functions.transfer(B, 100, 100, [B], b"")
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to, fees=fees)
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert currency_network_contract.functions.getDebt(A, delegate_address).call() == 0
+
+
+def test_tracking_delegation_fee_in_different_network(
+    currency_network_contract,
+    second_currency_network_contract,
+    identity,
+    delegate,
+    delegate_address,
+    accounts,
+):
+    A = identity.address
+    B = accounts[3]
+    to = currency_network_contract.address
+    fees = 123
+
+    function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(
+            function_call,
+            to=to,
+            fees=fees,
+            currency_network_of_fees=second_currency_network_contract.address,
+        )
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert currency_network_contract.functions.getDebt(A, delegate_address).call() == 0
+    assert (
+        second_currency_network_contract.functions.getDebt(A, delegate_address).call()
+        == fees
+    )

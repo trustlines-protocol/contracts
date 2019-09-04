@@ -15,6 +15,8 @@ contract TestIdentity is Identity {
         address to,
         uint256 value,
         bytes memory data,
+        uint64 fees,
+        address currencyNetworkOfFees,
         uint256 nonce,
         bytes memory extraHash
     )
@@ -27,6 +29,8 @@ contract TestIdentity is Identity {
             to,
             value,
             data,
+            fees,
+            currencyNetworkOfFees,
             nonce,
             extraHash
         );
