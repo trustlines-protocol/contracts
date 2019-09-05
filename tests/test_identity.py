@@ -119,7 +119,7 @@ def test_signature_not_owner(test_identity_contract, account_keys):
     ).call()
 
 
-def test_wrong_signature_from_owner(test_identity_contract, owner_key, accounts):
+def test_wrong_signature_from_owner(test_identity_contract, owner_key):
 
     data = (1234).to_bytes(10, byteorder="big")
     wrong_data = (12345678).to_bytes(10, byteorder="big")
@@ -129,6 +129,45 @@ def test_wrong_signature_from_owner(test_identity_contract, owner_key, accounts)
     assert not test_identity_contract.functions.validateSignature(
         wrong_data, signature
     ).call()
+
+
+def test_meta_transaction_signature_corresponds_to_clientlib_signature(
+    identity, owner_key
+):
+    # Tests that the signature obtained from the contracts and the clientlib implementation match,
+    # If this test needs to be changed, the corresponding test in the clientlib should also be changed
+    # See: clientlib/tests/unit/IdentityWallet.test.ts: 'should sign meta-transaction'
+    from_ = "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
+    to = "0x51a240271AB8AB9f9a21C82d9a85396b704E164d"
+    value = 0
+    data = "0x46432830000000000000000000000000000000000000000000000000000000000000000a"
+    fees = 1
+    currency_network_of_fees = "0x51a240271AB8AB9f9a21C82d9a85396b704E164d"
+    extra_data = "0x"
+    nonce = 1
+
+    meta_transaction = MetaTransaction(
+        from_=from_,
+        to=to,
+        value=value,
+        data=data,
+        fees=fees,
+        currency_network_of_fees=currency_network_of_fees,
+        extra_data=extra_data,
+        nonce=nonce,
+    )
+
+    signature = identity.signed_meta_transaction(meta_transaction).signature
+
+    assert (
+        str(owner_key)
+        == "0x0000000000000000000000000000000000000000000000000000000000000001"
+    )
+    assert (
+        signature.hex()
+        == "02a3c9abd0de925653c188b7f2e6e79ca032037371ef12a560116595508a"
+        "51b65c1e4692878a87b491ef28e9ee560f7de0f2cb3f0981215134522750d42edce501"
+    )
 
 
 def test_delegated_transaction_hash(test_identity_contract, test_contract, accounts):
