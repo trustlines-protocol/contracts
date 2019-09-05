@@ -13,7 +13,7 @@ contract TestContract is debtTrackingInterface {
         int argument
     );
 
-    event DebtIncrease(int72 value, address debtor, address creditor);
+    event DebtUpdate(address _debtor, address _creditor, int72 _newDebt);
 
     function increaseDebt(address creditor, uint64 value) external {
     }
