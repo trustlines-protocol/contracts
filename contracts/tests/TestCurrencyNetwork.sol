@@ -19,17 +19,17 @@ contract TestCurrencyNetwork is CurrencyNetwork {
     }
 
     function setNetworkSettings(
-        string calldata _paramName,
-        string calldata _paramSymbol,
-        uint8 _paramDecimals,
+        string calldata _name,
+        string calldata _symbol,
+        uint8 _decimals,
         uint16 _capacityImbalanceFeeDivisor,
         int16 _defaultInterestRate,
         bool _customInterests,
         bool _preventMediatorInterests) external
     {
-        _name = _paramName;
-        _symbol = _paramSymbol;
-        _decimals = _paramDecimals;
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
