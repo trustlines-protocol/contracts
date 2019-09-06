@@ -6,6 +6,7 @@ import "./tokens/Receiver_Interface.sol";
 import "./lib/Ownable.sol";
 import "./lib/Destructable.sol";
 import "./lib/Authorizable.sol";
+import "./lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
 
 
@@ -16,7 +17,7 @@ import "./CurrencyNetworkInterface.sol";
  * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable {
+contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**71 - 1;
@@ -37,6 +38,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     // value in the mapping for users that do not have an onboarder
     address constant NO_ONBOARDER = address(1);
 
+    // meta data for token part
+    // underscores internal variables, because otherwise the names clash with the functions
+    string internal _name;
+    string internal _symbol;
+    uint8 internal _decimals;
+
     bool public isInitialized;
     uint public expirationTime;
     bool public isNetworkFrozen;
@@ -44,11 +51,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
-
-    // meta data for token part
-    string public name;
-    string public symbol;
-    uint8 public decimals;
 
     // interests settings, interests are expressed in 0.01% per year
     int16 public defaultInterestRate;
@@ -132,9 +134,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     /**
      * @notice Initialize the currency Network
-     * @param _name The name of the currency
-     * @param _symbol The symbol of the currency
-     * @param _decimals Number of decimals of the currency
+     * @param _paramName The name of the currency
+     * @param _paramSymbol The symbol of the currency
+     * @param _paramDecimals Number of decimals of the currency
      * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
      * @param _defaultInterestRate The default interests for every trustlines in 0.001% per year
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
@@ -143,9 +145,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore
      */
     function init(
-        string calldata _name,
-        string calldata _symbol,
-        uint8 _decimals,
+        string calldata _paramName, // _name is blocked by the internal variable and name is the external function
+        string calldata _paramSymbol,
+        uint8 _paramDecimals,
         uint16 _capacityImbalanceFeeDivisor,
         int16 _defaultInterestRate,
         bool _customInterests,
@@ -170,9 +172,9 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         require(_expirationTime > now, "Expiration time must be in the future.");
 
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
+        _name = _paramName;
+        _symbol = _paramSymbol;
+        _decimals = _paramDecimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
@@ -255,6 +257,18 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _extraData
             );
         }
+    }
+
+    function name() external view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() external view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() external view returns (uint8) {
+        return _decimals;
     }
 
     /**
@@ -564,6 +578,29 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function freezeNetwork() external {
         require(expirationTime <= now, "The currency network cannot be frozen yet.");
         isNetworkFrozen = true;
+    }
+
+    function supportsInterface(
+        bytes4 interfaceID
+    )
+        external
+        view
+        returns (bool)
+    {
+        return (
+            interfaceID == this.supportsInterface.selector || // ERC165
+            (   // This needs to be in sync with CurrencyNetworkInterface.sol
+                interfaceID == (
+                    this.name.selector ^
+                    this.symbol.selector ^
+                    this.decimals.selector ^
+                    this.transfer.selector ^
+                    this.transferFrom.selector ^
+                    this.balance.selector ^
+                    this.creditline.selector
+                )
+            )
+        );
     }
 
     /**
