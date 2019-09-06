@@ -671,6 +671,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _value
     )
         internal
+        pure
     {
         int72 newBalance = _trustline.balances.balance - _value;
         require(
@@ -692,6 +693,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         Trustline memory _trustline
     )
         internal
+        view
     {
         _trustline.balances.balance = _calculateBalanceWithInterests(
             _trustline.balances.balance,
@@ -1454,7 +1456,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         Trustline memory _trustline,
         int72 _balanceBefore
     )
-        internal view
+        internal pure
         returns (int)
     {
         int72 balance = _trustline.balances.balance;
