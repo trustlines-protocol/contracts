@@ -22,7 +22,7 @@ contract TestContract {
         );
     }
 
-    function fails() public {
+    function fails() public pure {
         revert("This will just always fail");
     }
 }
