@@ -4,7 +4,7 @@ pragma solidity ^0.5.8;
 contract SafeMath {
     function safeMul(uint a, uint b)
         internal
-        view
+        pure
         returns (uint256)
     {
         uint c = a * b;
@@ -14,7 +14,7 @@ contract SafeMath {
 
     function safeDiv(uint a, uint b)
         internal
-        view
+        pure
         returns (uint256)
     {
         uint c = a / b;
@@ -23,7 +23,7 @@ contract SafeMath {
 
     function safeSub(uint a, uint b)
         internal
-        view
+        pure
         returns (uint256)
     {
         assert(b <= a);
@@ -32,7 +32,7 @@ contract SafeMath {
 
     function safeAdd(uint a, uint b)
         internal
-        view
+        pure
         returns (uint256)
     {
         uint c = a + b;
@@ -42,7 +42,7 @@ contract SafeMath {
 
     function max64(uint64 a, uint64 b)
         internal
-        view
+        pure
         returns (uint64)
     {
         return a >= b ? a : b;
@@ -50,7 +50,7 @@ contract SafeMath {
 
     function min64(uint64 a, uint64 b)
         internal
-        view
+        pure
         returns (uint64)
     {
         return a < b ? a : b;
@@ -58,7 +58,7 @@ contract SafeMath {
 
     function max256(uint256 a, uint256 b)
         internal
-        view
+        pure
         returns (uint256)
     {
         return a >= b ? a : b;
@@ -66,7 +66,7 @@ contract SafeMath {
 
     function min256(uint256 a, uint256 b)
         internal
-        view
+        pure
         returns (uint256)
     {
         return a < b ? a : b;
