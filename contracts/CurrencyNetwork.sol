@@ -523,6 +523,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
+    /**
+     * @notice Used to increase the debt tracked by the currency network of msg.sender towards creditor address
+     * @param creditor The address towards which msg.sender increases its debt
+     * @param value The value to increase the debt by
+     */
     function increaseDebt(address creditor, uint64 value) external {
         address debtor = msg.sender;
         int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
@@ -533,10 +538,16 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         } else {
             int72 newDebt = oldDebt - value;
             assert(newDebt < oldDebt);
-            debt[uniqueIdentifier(debtor, creditor)] -= value;
+            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
         }
     }
 
+    /**
+     * @notice Get the debt owed by debtor to creditor, may be negative if creditor owes debtor
+     * @param debtor The address of which we query the debt
+     * @param creditor The address towards which the debtor owes money
+     * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
+     */
     function getDebt(address debtor, address creditor) external view returns (int256) {
         if (debtor < creditor) {
             return debt[uniqueIdentifier(debtor, creditor)];
