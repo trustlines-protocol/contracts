@@ -37,11 +37,11 @@ def test_no_onboarder(currency_network_contract, accounts):
     open_trustline(currency_network_contract, accounts[1], accounts[2])
 
     assert (
-        currency_network_contract.functions.onBoarder(accounts[1]).call()
+        currency_network_contract.functions.onboarder(accounts[1]).call()
         == NO_ONBOARDER
     )
     assert (
-        currency_network_contract.functions.onBoarder(accounts[2]).call()
+        currency_network_contract.functions.onboarder(accounts[2]).call()
         == NO_ONBOARDER
     )
 
@@ -51,34 +51,34 @@ def test_onboarder_simple_trustline(currency_network_contract, accounts):
     open_trustline(currency_network_contract, accounts[2], accounts[3])
 
     assert (
-        currency_network_contract.functions.onBoarder(accounts[3]).call() == accounts[2]
+        currency_network_contract.functions.onboarder(accounts[3]).call() == accounts[2]
     )
 
 
-def test_cannot_change_no_onbaorder(currency_network_contract, accounts):
+def test_cannot_change_no_onboarder(currency_network_contract, accounts):
     open_trustline(currency_network_contract, accounts[1], accounts[2])
     assert (
-        currency_network_contract.functions.onBoarder(accounts[2]).call()
+        currency_network_contract.functions.onboarder(accounts[2]).call()
         == NO_ONBOARDER
     )
 
     open_trustline(currency_network_contract, accounts[2], accounts[3])
     assert (
-        currency_network_contract.functions.onBoarder(accounts[2]).call()
+        currency_network_contract.functions.onboarder(accounts[2]).call()
         == NO_ONBOARDER
     )
 
 
-def test_cannot_change_onbaorder(currency_network_contract, accounts):
+def test_cannot_change_onboarder(currency_network_contract, accounts):
     open_trustline(currency_network_contract, accounts[1], accounts[2])
     open_trustline(currency_network_contract, accounts[2], accounts[3])
     assert (
-        currency_network_contract.functions.onBoarder(accounts[3]).call() == accounts[2]
+        currency_network_contract.functions.onboarder(accounts[3]).call() == accounts[2]
     )
 
     open_trustline(currency_network_contract, accounts[3], accounts[4])
     assert (
-        currency_network_contract.functions.onBoarder(accounts[3]).call() == accounts[2]
+        currency_network_contract.functions.onboarder(accounts[3]).call() == accounts[2]
     )
 
 
@@ -88,8 +88,8 @@ def test_set_account_onboards(currency_network_contract, accounts):
     ).transact()
 
     owner = accounts[0]
-    assert currency_network_contract.functions.onBoarder(accounts[1]).call() == owner
-    assert currency_network_contract.functions.onBoarder(accounts[2]).call() == owner
+    assert currency_network_contract.functions.onboarder(accounts[1]).call() == owner
+    assert currency_network_contract.functions.onboarder(accounts[2]).call() == owner
 
 
 def test_onboarding_event_no_onboarder(currency_network_contract, web3, accounts):
@@ -97,15 +97,15 @@ def test_onboarding_event_no_onboarder(currency_network_contract, web3, accounts
 
     open_trustline(currency_network_contract, accounts[1], accounts[2])
 
-    all_events = currency_network_contract.events.OnBoarding.createFilter(
+    all_events = currency_network_contract.events.Onboard.createFilter(
         fromBlock=intial_block
     ).get_all_entries()
-    event_onboarding_1 = currency_network_contract.events.OnBoarding.createFilter(
-        fromBlock=intial_block, argument_filters={"_onBoardee": accounts[1]}
+    event_onboarding_1 = currency_network_contract.events.Onboard.createFilter(
+        fromBlock=intial_block, argument_filters={"_onboardee": accounts[1]}
     ).get_all_entries()
 
     assert len(all_events) == 2
-    assert event_onboarding_1[0]["args"]["_onBoarder"] == NO_ONBOARDER
+    assert event_onboarding_1[0]["args"]["_onboarder"] == NO_ONBOARDER
 
 
 def test_onboarding_event_with_onboarder(currency_network_contract, web3, accounts):
@@ -114,12 +114,12 @@ def test_onboarding_event_with_onboarder(currency_network_contract, web3, accoun
     open_trustline(currency_network_contract, accounts[1], accounts[2])
     open_trustline(currency_network_contract, accounts[2], accounts[3])
 
-    all_events = currency_network_contract.events.OnBoarding.createFilter(
+    all_events = currency_network_contract.events.Onboard.createFilter(
         fromBlock=intial_block
     ).get_all_entries()
-    event_onboarding_3 = currency_network_contract.events.OnBoarding.createFilter(
-        fromBlock=intial_block, argument_filters={"_onBoardee": accounts[3]}
+    event_onboarding_3 = currency_network_contract.events.Onboard.createFilter(
+        fromBlock=intial_block, argument_filters={"_onboardee": accounts[3]}
     ).get_all_entries()
 
     assert len(all_events) == 3
-    assert event_onboarding_3[0]["args"]["_onBoarder"] == accounts[2]
+    assert event_onboarding_3[0]["args"]["_onboarder"] == accounts[2]
