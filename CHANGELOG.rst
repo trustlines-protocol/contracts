@@ -1,6 +1,13 @@
 ==========
 Change Log
 ==========
+`0.9.0`_ (2019-09-11)
+-----------------------
+* Add currency network registry that can be used to register curency networks and list registered networks
+* Change CurrencyNetworkInterface into an actual interface implementing ERC-165
+* Add function to track debt within currency networks, this can be used to represent a payment when there is no path in between two addresses
+* Change function for executing meta-transaction in identity contracts: Add fields to meta-transaction to pay for transaction(BREAKING)
+
 `0.8.0`_ (2019-09-02)
 -----------------------
 * Currency networks are only initializable once
@@ -151,3 +158,4 @@ The rest of the changes are only interesting for developers:
 .. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.2...0.6.3
 .. _0.7.0: https://github.com/trustlines-protocol/contracts/compare/0.6.3...0.7.0
 .. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.7.0...0.8.0
+.. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.8.0...0.9.0
