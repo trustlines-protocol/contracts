@@ -608,7 +608,7 @@ contract Exchange is SafeMath, Destructable {
         bytes32 r,
         bytes32 s)
         public
-        view
+        pure
         returns (bool)
     {
         return signer == ecrecover(
@@ -626,7 +626,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Rounding error is present.
     function isRoundingError(uint numerator, uint denominator, uint target)
         public
-        view
+        pure
         returns (bool)
     {
         uint remainder = mulmod(target, numerator, denominator);
@@ -648,7 +648,7 @@ contract Exchange is SafeMath, Destructable {
     /// @return Partial value of target.
     function getPartialAmount(uint numerator, uint denominator, uint target)
         public
-        view
+        pure
         returns (uint)
     {
         return safeDiv(safeMul(numerator, target), denominator);

@@ -19,7 +19,7 @@ contract TestIdentity is Identity {
         bytes memory extraHash
     )
         public
-        view
+        pure
         returns (bytes32)
     {
         return transactionHash(
