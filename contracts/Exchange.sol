@@ -672,7 +672,6 @@ contract Exchange is SafeMath, Destructable {
     /// @return Token balance of owner.
     function getBalance(address token, address owner)
         internal
-        view
         returns (uint)
     {
         return Token(token).balanceOf.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner); // Limit gas to prevent reentrancy
@@ -685,7 +684,6 @@ contract Exchange is SafeMath, Destructable {
     /// @return Allowance of token given to TokenTransferProxy by owner.
     function getAllowance(address token, address owner)
         internal
-        view
         returns (uint)
     {
         return Token(token).allowance.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner, address(this)); // Limit gas to prevent reentrancy
