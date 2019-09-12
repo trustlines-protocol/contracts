@@ -6,9 +6,11 @@ from tldeploy.core import deploy_network
 from .conftest import EXPIRATION_TIME
 
 """
-This file showcases how to get relevant information related to trustlines update
+This file showcases how to get relevant information related to trustlines transfer
 only using events (and events timestamps)
 see https://github.com/trustlines-network/project/issues/545 for motive
+These tests shall ensure that the information stays available, but also work as an example of how to implement it.
+Of course there might be optimizations possible in the specific case.
 """
 
 trustlines = [
@@ -26,14 +28,9 @@ NETWORK_SETTING = {
     "default_interest_rate": 1000,
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
-    "set_account_enabled": True,
+    "account_management_enabled": True,
     "expiration_time": EXPIRATION_TIME,
 }
-
-
-@pytest.fixture(scope="session")
-def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")
@@ -41,7 +38,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
     contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccountDefaultInterests(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, 0, 0
+            accounts[A], accounts[B], clAB, clBA, False, 0, 0, 0, 0
         ).transact()
     return contract
 
@@ -52,7 +49,7 @@ def currency_network_with_pending_interests(
 ):
     """
     returns a currency network with updated balance accruing interests over one year
-    the interests are not collected yet
+    the interests are not collected yet.
     """
     for (A, B, clAB, clBA) in trustlines:
         currency_network_contract_with_trustlines.functions.transfer(
@@ -61,6 +58,27 @@ def currency_network_with_pending_interests(
 
     timestamp = web3.eth.getBlock("latest").timestamp
     timestamp += 3600 * 24 * 365
+
+    chain.time_travel(timestamp)
+    chain.mine_block()
+    return currency_network_contract_with_trustlines
+
+
+@pytest.fixture()
+def currency_network_with_different_interests(
+    web3, currency_network_contract_with_trustlines, accounts, chain
+):
+    """
+    returns a currency network with updated balance accruing interests over one year
+    the interests are not collected yet
+    """
+    for (A, B, clAB, clBA) in trustlines:
+        currency_network_contract_with_trustlines.functions.transfer(
+            accounts[B], clAB // 10, 0, [accounts[B]], b""
+        ).transact({"from": accounts[A]})
+
+    timestamp = web3.eth.getBlock("latest").timestamp
+    timestamp += (3600 * 24 * 365) * 3
 
     chain.time_travel(timestamp)
     chain.mine_block()
@@ -96,129 +114,351 @@ def calculate_interests(
     return interests
 
 
-def get_last_interest_update(web3, network, block_number, a, b):
-    balance_update_events_from_a_to_b = network.events.BalanceUpdate.createFilter(
-        fromBlock=0, toBlock=block_number, argument_filters={"_from": a, "_to": b}
-    ).get_all_entries()
+def get_interests_for_trustline(currency_network_contract, a, b):
+    """Get all balance changes of a trustline because of interests"""
+    balance_updates = get_balance_updates_for_trustline(currency_network_contract, a, b)
 
-    # We want the second to last event to get the balance before interests are applied
-    balance_update_events_from_a_to_b = sorted(
-        balance_update_events_from_a_to_b, key=lambda x: x["blockNumber"], reverse=True
+    timestamps = [
+        currency_network_contract.web3.eth.getBlock(balance_update[0][0])["timestamp"]
+        for balance_update in balance_updates
+    ]
+
+    return [
+        calculate_interests(balance_update[1], post_time - pre_time)
+        for (balance_update, pre_time, post_time) in zip(
+            balance_updates[:-1], timestamps[:-1], timestamps[1:]
+        )
+    ]
+
+
+def get_balance_updates_for_trustline(currency_network_contract, a, b):
+    """Get all balance changes of a trustline. Returns a list of (event_key, balance_change)"""
+    balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
+        fromBlock=0, argument_filters={"_from": a, "_to": b}
     )
-    # TODO: Should consider log index in case there are multiple BalanceUpdate events for a and b in the block
-    balance_before_interests_and_transfer = balance_update_events_from_a_to_b[1][
-        "args"
-    ]["_value"]
+    reverse_balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
+        fromBlock=0, argument_filters={"_from": b, "_to": a}
+    )
+    balance_updates = [
+        (
+            (event["blockNumber"], event["logIndex"], event["transactionHash"]),
+            event["args"]["_value"],
+        )
+        for event in balance_update_events
+    ]
+    balance_updates.extend(
+        (
+            (event["blockNumber"], event["logIndex"], event["transactionHash"]),
+            -event["args"]["_value"],
+        )
+        for event in reverse_balance_update_events
+    )
+    balance_updates.sort()
+    return balance_updates
 
-    # The timestamp is not actually in the event. We need to get it from elsewhere (ethindex db)
-    timestamp_before_interest = web3.eth.getBlock(
-        balance_update_events_from_a_to_b[1]["blockNumber"]
-    )["timestamp"]
-    timestamp_at_interest = web3.eth.getBlock(
-        balance_update_events_from_a_to_b[0]["blockNumber"]
-    )["timestamp"]
-    delta_time = timestamp_at_interest - timestamp_before_interest
 
-    interests = calculate_interests(balance_before_interests_and_transfer, delta_time)
+def get_transfer_balance_update_events(currency_network_contract, transfer_event):
+    """Returns all balance update events in the correct order that belongs to the transfer event"""
+    log_index = transfer_event["logIndex"]
+    tx_hash = transfer_event["transactionHash"]
 
-    return interests
+    receipt = currency_network_contract.web3.eth.getTransactionReceipt(tx_hash)
+    balance_update_events = currency_network_contract.events.BalanceUpdate().processReceipt(
+        receipt
+    )
+
+    sender = transfer_event["args"]["_from"]
+    receiver = transfer_event["args"]["_to"]
+
+    balance_events = []
+    saw_sender_event = False
+    saw_receiver_event = False
+
+    # Search backwards for releated BalanceUpdate events
+    for i in range(log_index - 1, -1, -1):
+        for event in balance_update_events:
+            if event["logIndex"] == i:
+                balance_events.append(event)
+                if event["args"]["_to"] == receiver:
+                    saw_receiver_event = True
+                if event["args"]["_from"] == sender:
+                    saw_sender_event = True
+                break
+        if saw_sender_event and saw_receiver_event:
+            break
+    else:
+        assert False, "Could not find all BalanceUpdate events"
+
+    if balance_events[0]["args"]["_from"] != sender:
+        # For the sender pays case, they are reverse
+        balance_events.reverse()
+
+    assert balance_events[0]["args"]["_from"] == sender
+    assert balance_events[-1]["args"]["_to"] == receiver
+    return balance_events
 
 
-def test_on_sent_transfer_path_information(
-    currency_network_contract_with_trustlines, accounts, web3
+def get_transfer_path(currency_network_contract, transfer_event):
+    """Returns the transfer path of the given transfer without the sender"""
+    path_from_events = []
+    for event in get_transfer_balance_update_events(
+        currency_network_contract, transfer_event
+    ):
+        path_from_events.append(event["args"]["_to"])
+
+    return path_from_events
+
+
+def get_previous_balance(balance_updates, balance_update_event):
+    """Returns the balance before a given balance update event"""
+    index = 0
+    # find the corresponding event
+    for i, (key, value) in enumerate(balance_updates):
+        if key == (
+            balance_update_event["blockNumber"],
+            balance_update_event["logIndex"],
+            balance_update_event["transactionHash"],
+        ):
+            index = i
+            break
+    else:
+        raise RuntimeError("Could not find balance update")
+    index -= 1
+
+    if index < 0:
+        return 0
+
+    return balance_updates[index][1]
+
+
+def get_interest_at(currency_network_contract, balance_update_event):
+    """Returns the occurred interests at a given balance event"""
+    from_ = balance_update_event["args"]["_from"]
+    to = balance_update_event["args"]["_to"]
+    interests = get_interests_for_trustline(currency_network_contract, from_, to)
+    balance_updates = get_balance_updates_for_trustline(
+        currency_network_contract, from_, to
+    )
+    index = 0
+    for i, (key, value) in enumerate(balance_updates):
+        if key == (
+            balance_update_event["blockNumber"],
+            balance_update_event["logIndex"],
+            balance_update_event["transactionHash"],
+        ):
+            index = i
+            break
+    else:
+        raise RuntimeError("Could not find balance update")
+
+    index -= 1
+    if index < 0:
+        return 0
+
+    return interests[index]
+
+
+def get_delta_balances_of_transfer(currency_network_contract, transfer_event):
+    """Returns the balance changes along the path because of a given transfer"""
+    balance_update_events = get_transfer_balance_update_events(
+        currency_network_contract, transfer_event
+    )
+
+    post_balances = []
+    for event in balance_update_events:
+        post_balances.append(event["args"]["_value"])
+
+    pre_balances = []
+    for event in balance_update_events:
+        from_ = event["args"]["_from"]
+        to = event["args"]["_to"]
+        pre_balance = get_previous_balance(
+            get_balance_updates_for_trustline(currency_network_contract, from_, to),
+            event,
+        )
+        pre_balances.append(pre_balance)
+
+    interests = []
+    for event in balance_update_events:
+        interest = get_interest_at(currency_network_contract, event)
+        interests.append(interest)
+
+    # sender balance change
+    delta_balances = [post_balances[0] - pre_balances[0] - interests[0]]
+
+    # mediator balance changes
+    for i in range(len(balance_update_events) - 1):
+        delta_balances.append(
+            (post_balances[i + 1] - pre_balances[i + 1] - interests[i + 1])
+            - (post_balances[i] - pre_balances[i] - interests[i])
+        )
+
+    # receiver balance change
+    delta_balances.append(-(post_balances[-1] - pre_balances[-1] - interests[-1]))
+
+    return delta_balances
+
+
+@pytest.mark.parametrize(
+    "path, fee_payer",
+    [
+        ([0, 1], "sender"),
+        ([0, 1, 2, 3], "sender"),
+        ([3, 2, 1, 0], "sender"),
+        ([0, 1], "receiver"),
+        ([0, 1, 2, 3], "receiver"),
+        ([3, 2, 1, 0], "receiver"),
+    ],
+)
+def test_get_transfer_path_information(
+    currency_network_contract_with_trustlines, accounts, path, fee_payer
 ):
     """
     test that we can get the path of a sent transfer from the transfer event
     """
     network = currency_network_contract_with_trustlines
-    initial_block_number = web3.eth.blockNumber
+    account_path = [accounts[i] for i in path[1:]]
 
-    path = [accounts[1], accounts[2], accounts[3]]
-    network.functions.transfer(accounts[3], 75, 50, path, b"").transact(
-        {"from": accounts[0]}
-    )
+    if fee_payer == "sender":
+        network.functions.transfer(
+            accounts[path[-1]], 10, 100, account_path, b""
+        ).transact({"from": accounts[path[0]]})
+    elif fee_payer == "receiver":
+        network.functions.transferReceiverPays(
+            accounts[path[-1]], 10, 100, account_path, b""
+        ).transact({"from": accounts[path[0]]})
+    else:
+        assert False, "Invalid fee payer"
 
-    transfer_events = network.events.Transfer.createFilter(
-        fromBlock=initial_block_number
-    ).get_all_entries()
+    transfer_event = network.events.Transfer().getLogs()[0]
 
-    transfer_event = transfer_events[0]
-    transfer_event_log_index = transfer_event["logIndex"]
-    transfer_block_number = transfer_event["blockNumber"]
-
-    balance_update_events = network.events.BalanceUpdate.createFilter(
-        fromBlock=transfer_block_number, toBlock=transfer_block_number
-    ).get_all_entries()
-
-    path_from_events = []
-    reached_receiver_event = False
-    for i in range(transfer_event_log_index - 1, -1, -1):
-        for event in balance_update_events:
-            if event["logIndex"] == i:
-                path_from_events.append(event["args"]["_to"])
-                if event["args"]["_to"] == accounts[3]:
-                    reached_receiver_event = True
-                break
-        if reached_receiver_event:
-            break
-
-    print(path_from_events)
-    assert path_from_events == path
+    path_from_events = get_transfer_path(network, transfer_event)
+    assert path_from_events == account_path
 
 
-def test_on_sent_transfer_value_paid_information_with_interests(
-    currency_network_with_pending_interests, accounts, web3
+@pytest.mark.parametrize(
+    "path, value, fee_payer, delta_values",
+    [
+        ([0, 1], 1, "sender", [-1, 1]),
+        ([0, 1, 2, 3], 1, "sender", [-3, 1, 1, 1]),
+        ([1, 2, 3, 4], 99, "sender", [-102, 2, 1, 99]),
+        ([4, 3, 2, 1], 180, "sender", [-184, 2, 2, 180]),
+        ([0, 1], 1, "receiver", [-1, 1]),
+        ([0, 1, 2, 3], 3, "receiver", [-3, 1, 1, 1]),
+        ([1, 2, 3, 4], 102, "receiver", [-102, 2, 1, 99]),
+        ([4, 3, 2, 1], 184, "receiver", [-184, 2, 2, 180]),
+    ],
+)
+def test_get_value_information(
+    currency_network_with_pending_interests,
+    accounts,
+    path,
+    value,
+    fee_payer,
+    delta_values,
 ):
     """
-    Shows that we can get the information of what value I sent via a transfer from event (including fees)
-    we assume we already know the path as it was demonstrated we can retrieve it
-
-    This also shows we can find out the interests, since they are calculated as an intermediary
-    This also shows we can find out the fees as they are `delta_balance - interests`
+    test that we can get the values for sent, received and the fees from a transfer event
     """
     network = currency_network_with_pending_interests
-    initial_block_number = web3.eth.blockNumber
+    account_path = [accounts[i] for i in path[1:]]
 
-    # the balance without interest in between account_0 and account_1
-    initial_balance = network.functions.balance(accounts[0], accounts[1]).call()
+    if fee_payer == "sender":
+        network.functions.transfer(
+            accounts[path[-1]], value, 1000, account_path, b""
+        ).transact({"from": accounts[path[0]]})
+    elif fee_payer == "receiver":
+        network.functions.transferReceiverPays(
+            accounts[path[-1]], value, 1000, account_path, b""
+        ).transact({"from": accounts[path[0]]})
+    else:
+        assert False, "Invalid fee payer"
 
-    transfer_value = 75
+    transfer_event = network.events.Transfer().getLogs()[0]
+
+    delta_balances = get_delta_balances_of_transfer(network, transfer_event)
+
+    assert delta_balances == delta_values
+
+
+@pytest.mark.parametrize(
+    "path, fee_payer",
+    [
+        ([0, 1], "sender"),
+        ([0, 1, 2, 3], "sender"),
+        ([3, 2, 1, 0], "sender"),
+        ([0, 1], "receiver"),
+        ([0, 1, 2, 3], "receiver"),
+        ([3, 2, 1, 0], "receiver"),
+    ],
+)
+def test_get_balance_update_events(
+    currency_network_contract_with_trustlines, accounts, path, fee_payer
+):
+    """Test that the found BalanceUpdateEvents are in the correct order"""
+    path = [accounts[i] for i in path]
+    network = currency_network_contract_with_trustlines
+
+    if fee_payer == "sender":
+        network.functions.transfer(path[-1], 10, 1000, path[1:], b"").transact(
+            {"from": path[0]}
+        )
+    elif fee_payer == "receiver":
+        network.functions.transferReceiverPays(
+            path[-1], 10, 1000, path[1:], b""
+        ).transact({"from": path[0]})
+    else:
+        assert False, "Invalid fee payer"
+
+    transfer_event = network.events.Transfer().getLogs()[0]
+
+    balance_events = get_transfer_balance_update_events(network, transfer_event)
+
+    sender = transfer_event["args"]["_from"]
+    receiver = transfer_event["args"]["_to"]
+    assert balance_events[0]["args"]["_from"] == sender
+    assert balance_events[-1]["args"]["_to"] == receiver
+
+    old_to = sender
+    for event in balance_events:
+        assert event["args"]["_from"] == old_to
+        old_to = event["args"]["_to"]
+
+
+@pytest.mark.parametrize(
+    "years, interests", [([0, 1], [0, 2]), ([1, 4, 2, 3], [1, 9, 8, 19])]
+)
+def test_get_interests_for_trustline(
+    currency_network_contract_with_trustlines, web3, chain, accounts, years, interests
+):
+    """Sending 10 with a time difference of x years where the interest rate is 10%
+    """
+    currency_network = currency_network_contract_with_trustlines
+    currency_network.functions.transfer(
+        accounts[2], 10, 1000, [accounts[2]], b""
+    ).transact({"from": accounts[1]})
     path = [accounts[1], accounts[2], accounts[3]]
-    network.functions.transfer(accounts[3], transfer_value, 50, path, b"").transact(
-        {"from": accounts[0]}
+
+    for year in years:
+        timestamp = web3.eth.getBlock("latest").timestamp
+        timestamp += (3600 * 24 * 365) * year + 1
+
+        chain.time_travel(timestamp)
+        chain.mine_block()
+        currency_network.functions.transfer(accounts[3], 9, 1000, path, b"").transact(
+            {"from": accounts[0]}
+        )
+    balances = [
+        balance_update[1]
+        for balance_update in get_balance_updates_for_trustline(
+            currency_network, accounts[2], accounts[1]
+        )
+    ]
+
+    assert (
+        get_interests_for_trustline(currency_network, accounts[2], accounts[1])
+        == interests
     )
-
-    transfer_events = network.events.Transfer.createFilter(
-        fromBlock=initial_block_number
-    ).get_all_entries()
-
-    transfer_event = transfer_events[0]
-    transfer_event_log_index = transfer_event["logIndex"]
-    transfer_block_number = transfer_event["blockNumber"]
-
-    balance_update_events = network.events.BalanceUpdate.createFilter(
-        fromBlock=transfer_block_number, toBlock=transfer_block_number
-    ).get_all_entries()
-
-    # We get the balance from the event that was emitted right before the Transfer event,
-    # corresponding to the first TL in the path
-    new_balance = 0
-    for event in balance_update_events:
-        if event["logIndex"] == transfer_event_log_index - 1:
-            assert event["args"]["_from"] == accounts[0]
-            assert event["args"]["_to"] == accounts[1]
-            new_balance = event["args"]["_value"]
-    assert new_balance == network.functions.balance(accounts[0], accounts[1]).call()
-
-    # We have the new_balance, we need to calculate the interests in between the two last BalanceUpdate events
-    interests = get_last_interest_update(
-        web3, network, transfer_block_number, accounts[0], accounts[1]
-    )
-    delta_balance_due_to_transfer = new_balance - initial_balance - interests
-    sent_value = -delta_balance_due_to_transfer
-    # we should have sent 75 plus 2 fees in two intermediaries
-    assert sent_value == transfer_value + 2
-
-    # show we can also calculate the fees
-    fees = sent_value - transfer_value
-    assert fees == 2
+    assert [
+        ((i + 1) * 10 + sum(interests[:i])) for i, _ in enumerate(balances)
+    ] == balances
