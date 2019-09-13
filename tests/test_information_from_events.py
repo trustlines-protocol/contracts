@@ -114,50 +114,74 @@ def calculate_interests(
     return interests
 
 
+def event_id(event):
+    return event["transactionHash"], event["logIndex"], event["blockHash"]
+
+
 def get_interests_for_trustline(currency_network_contract, a, b):
     """Get all balance changes of a trustline because of interests"""
-    balance_updates = get_balance_updates_for_trustline(currency_network_contract, a, b)
+    balance_update_events = get_all_balance_update_events_for_trustline(
+        currency_network_contract, a, b
+    )
 
     timestamps = [
-        currency_network_contract.web3.eth.getBlock(balance_update[0][0])["timestamp"]
-        for balance_update in balance_updates
+        currency_network_contract.web3.eth.getBlock(
+            balance_update_event["blockNumber"]
+        )["timestamp"]
+        for balance_update_event in balance_update_events
     ]
 
+    balances = get_all_balances_for_trustline(currency_network_contract, a, b)
+
     return [
-        calculate_interests(balance_update[1], post_time - pre_time)
-        for (balance_update, pre_time, post_time) in zip(
-            balance_updates[:-1], timestamps[:-1], timestamps[1:]
+        calculate_interests(balance, post_time - pre_time)
+        for (balance, pre_time, post_time) in zip(
+            balances[:-1], timestamps[:-1], timestamps[1:]
         )
     ]
 
 
-def get_balance_updates_for_trustline(currency_network_contract, a, b):
-    """Get all balance changes of a trustline. Returns a list of (event_key, balance_change)"""
-    balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
+def get_all_balance_update_events_for_trustline(currency_network_contract, a, b):
+    """Get all balance update events of a trustline in sorted order"""
+    forward_balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
         fromBlock=0, argument_filters={"_from": a, "_to": b}
     )
     reverse_balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
         fromBlock=0, argument_filters={"_from": b, "_to": a}
     )
-    balance_updates = [
-        (
-            (event["blockNumber"], event["logIndex"], event["transactionHash"]),
-            event["args"]["_value"],
-        )
-        for event in balance_update_events
-    ]
-    balance_updates.extend(
-        (
-            (event["blockNumber"], event["logIndex"], event["transactionHash"]),
-            -event["args"]["_value"],
-        )
-        for event in reverse_balance_update_events
+    balance_update_events = []
+    balance_update_events.extend(forward_balance_update_events)
+    balance_update_events.extend(reverse_balance_update_events)
+    balance_update_events.sort(
+        key=lambda event: (event["blockNumber"], event["logIndex"])
     )
-    balance_updates.sort()
-    return balance_updates
+    return balance_update_events
 
 
-def get_transfer_balance_update_events(currency_network_contract, transfer_event):
+def get_all_balances_for_trustline(currency_network_contract, a, b):
+    """Get all balances of a trustline in sorted order from the view of a"""
+    balance_update_events = get_all_balance_update_events_for_trustline(
+        currency_network_contract, a, b
+    )
+
+    def balance(balance_update_event):
+        if (
+            balance_update_event["args"]["_from"] == a
+            and balance_update_event["args"]["_to"] == b
+        ):
+            return balance_update_event["args"]["_value"]
+        elif (
+            balance_update_event["args"]["_from"] == b
+            and balance_update_event["args"]["_to"] == a
+        ):
+            return -balance_update_event["args"]["_value"]
+        else:
+            RuntimeError("Unexpected balance update event")
+
+    return [balance(event) for event in balance_update_events]
+
+
+def get_balance_update_events_for_transfer(currency_network_contract, transfer_event):
     """Returns all balance update events in the correct order that belongs to the transfer event"""
     log_index = transfer_event["logIndex"]
     tx_hash = transfer_event["transactionHash"]
@@ -201,7 +225,7 @@ def get_transfer_balance_update_events(currency_network_contract, transfer_event
 def get_transfer_path(currency_network_contract, transfer_event):
     """Returns the transfer path of the given transfer without the sender"""
     path_from_events = []
-    for event in get_transfer_balance_update_events(
+    for event in get_balance_update_events_for_transfer(
         currency_network_contract, transfer_event
     ):
         path_from_events.append(event["args"]["_to"])
@@ -209,16 +233,15 @@ def get_transfer_path(currency_network_contract, transfer_event):
     return path_from_events
 
 
-def get_previous_balance(balance_updates, balance_update_event):
+def get_previous_balance(currency_network, a, b, balance_update_event):
     """Returns the balance before a given balance update event"""
+    balance_update_events = get_all_balance_update_events_for_trustline(
+        currency_network, a, b
+    )
     index = 0
     # find the corresponding event
-    for i, (key, value) in enumerate(balance_updates):
-        if key == (
-            balance_update_event["blockNumber"],
-            balance_update_event["logIndex"],
-            balance_update_event["transactionHash"],
-        ):
+    for i, event in enumerate(balance_update_events):
+        if event_id(balance_update_event) == event_id(event):
             index = i
             break
     else:
@@ -228,7 +251,7 @@ def get_previous_balance(balance_updates, balance_update_event):
     if index < 0:
         return 0
 
-    return balance_updates[index][1]
+    return get_all_balances_for_trustline(currency_network, a, b)[index]
 
 
 def get_interest_at(currency_network_contract, balance_update_event):
@@ -236,16 +259,12 @@ def get_interest_at(currency_network_contract, balance_update_event):
     from_ = balance_update_event["args"]["_from"]
     to = balance_update_event["args"]["_to"]
     interests = get_interests_for_trustline(currency_network_contract, from_, to)
-    balance_updates = get_balance_updates_for_trustline(
+    balance_update_events = get_all_balance_update_events_for_trustline(
         currency_network_contract, from_, to
     )
     index = 0
-    for i, (key, value) in enumerate(balance_updates):
-        if key == (
-            balance_update_event["blockNumber"],
-            balance_update_event["logIndex"],
-            balance_update_event["transactionHash"],
-        ):
+    for i, event in enumerate(balance_update_events):
+        if event_id(event) == event_id(balance_update_event):
             index = i
             break
     else:
@@ -260,7 +279,7 @@ def get_interest_at(currency_network_contract, balance_update_event):
 
 def get_delta_balances_of_transfer(currency_network_contract, transfer_event):
     """Returns the balance changes along the path because of a given transfer"""
-    balance_update_events = get_transfer_balance_update_events(
+    balance_update_events = get_balance_update_events_for_transfer(
         currency_network_contract, transfer_event
     )
 
@@ -272,10 +291,7 @@ def get_delta_balances_of_transfer(currency_network_contract, transfer_event):
     for event in balance_update_events:
         from_ = event["args"]["_from"]
         to = event["args"]["_to"]
-        pre_balance = get_previous_balance(
-            get_balance_updates_for_trustline(currency_network_contract, from_, to),
-            event,
-        )
+        pre_balance = get_previous_balance(currency_network_contract, from_, to, event)
         pre_balances.append(pre_balance)
 
     interests = []
@@ -288,10 +304,11 @@ def get_delta_balances_of_transfer(currency_network_contract, transfer_event):
 
     # mediator balance changes
     for i in range(len(balance_update_events) - 1):
-        delta_balances.append(
-            (post_balances[i + 1] - pre_balances[i + 1] - interests[i + 1])
-            - (post_balances[i] - pre_balances[i] - interests[i])
+        next_tl_balance_change = (
+            post_balances[i + 1] - pre_balances[i + 1] - interests[i + 1]
         )
+        previous_tl_balance_change = post_balances[i] - pre_balances[i] - interests[i]
+        delta_balances.append(next_tl_balance_change - previous_tl_balance_change)
 
     # receiver balance change
     delta_balances.append(-(post_balances[-1] - pre_balances[-1] - interests[-1]))
@@ -412,7 +429,7 @@ def test_get_balance_update_events(
 
     transfer_event = network.events.Transfer().getLogs()[0]
 
-    balance_events = get_transfer_balance_update_events(network, transfer_event)
+    balance_events = get_balance_update_events_for_transfer(network, transfer_event)
 
     sender = transfer_event["args"]["_from"]
     receiver = transfer_event["args"]["_to"]
@@ -448,12 +465,9 @@ def test_get_interests_for_trustline(
         currency_network.functions.transfer(accounts[3], 9, 1000, path, b"").transact(
             {"from": accounts[0]}
         )
-    balances = [
-        balance_update[1]
-        for balance_update in get_balance_updates_for_trustline(
-            currency_network, accounts[2], accounts[1]
-        )
-    ]
+    balances = get_all_balances_for_trustline(
+        currency_network, accounts[2], accounts[1]
+    )
 
     assert (
         get_interests_for_trustline(currency_network, accounts[2], accounts[1])
