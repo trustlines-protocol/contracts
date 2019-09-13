@@ -30,8 +30,11 @@ repos:
     hooks:
     - id: ethlint
       exclude: ^(contracts/lib/|contracts/tokens)
-- repo: https://github.com/luismayta/pre-commit-mypy
-  rev: 0.1.1
+
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: 977b5b383e7b3f65f21b94300f4d7
   hooks:
   - id: mypy
-    args: ["--scripts-are-modules", "--ignore-missing-imports"]
+    args: []
+    entry: mypy .
+    pass_filenames: false
