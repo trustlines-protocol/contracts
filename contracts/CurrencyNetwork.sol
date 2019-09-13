@@ -814,7 +814,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
             // store only balance because trustline agreement did not change
             _storeTrustlineBalances(sender, _path[i-1], trustline.balances);
-            // Should be removed later
+            // The BalanceUpdate always has to be in the transfer direction
             emit BalanceUpdate(sender, _path[i-1], trustline.balances.balance);
         }
 
@@ -878,7 +878,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
             // store only balance because trustline agreement did not change
             _storeTrustlineBalances(sender, _path[i], trustline.balances);
-            // Should be removed later
+            // The BalanceUpdate always has to be in the transfer direction
             emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
 
             if (i == _path.length - 1) {
