@@ -1,13 +1,14 @@
 pragma solidity ^0.5.8;
 
-import "./lib/ECDSA.sol";
-import "./debtTrackingInterface.sol";
+import "../lib/ECDSA.sol";
+import "../debtTrackingInterface.sol";
+import "./ProxyStorage.sol";
 
 
-contract Identity {
+contract Identity is ProxyStorage {
 
-    address private owner;
-    bool private initialised;
+    address public owner;
+    bool public initialised;
 
     mapping(bytes32 => bool) private hashUsed;
     uint public lastNonce = 0;
