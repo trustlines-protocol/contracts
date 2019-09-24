@@ -91,7 +91,7 @@ jobs:
       - run:
           name: Install ethlint (=solium)
           command: |
-            npm install -g 'ethlint@>=1.0.9'
+            npm install -g 'ethlint@1.2.5'
       - run:
           name: Run solium
           command: |
