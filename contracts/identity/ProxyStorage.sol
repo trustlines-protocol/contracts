@@ -6,6 +6,5 @@ pragma solidity ^0.5.8;
 contract ProxyStorage {
 
     address public identityImplementation;
-    uint public implementationVersion = 1;
 
 }

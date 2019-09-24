@@ -38,6 +38,19 @@ def owner(accounts):
     return accounts[0]
 
 
+@pytest.fixture(scope="session")
+def owner_key(account_keys):
+    return account_keys[0]
+
+
+@pytest.fixture(scope="session")
+def signature_of_owner_on_implementation(owner_key, identity_implementation):
+    abi_types = ["bytes1", "bytes1", "address"]
+    to_hash = ["0x19", "0x00", identity_implementation.address]
+    to_sign = Web3.solidityKeccak(abi_types, to_hash)
+    return owner_key.sign_msg_hash(to_sign).to_bytes()
+
+
 def test_build_create2_address_conform_to_EIP1014():
     """
     Tests out two examples given in https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
@@ -75,36 +88,49 @@ def build_initcode(contract_assets):
 
 
 def test_deploy_identity_proxy_at_precomputed_address(
-    identity_factory, identity_implementation, build_initcode, owner
+    identity_factory,
+    identity_implementation,
+    build_initcode,
+    owner,
+    signature_of_owner_on_implementation,
 ):
     """Test that we can deploy the proxy at a pre-computed address"""
-    constructor_args = [identity_implementation.address, owner]
+    constructor_args = [owner]
     identity_proxy_initcode = build_initcode("IdentityProxy", constructor_args)
 
     pre_computed_address = build_create2_address(
         identity_factory.address, identity_proxy_initcode
     )
 
-    identity_factory.functions.deployProxy(identity_proxy_initcode).transact()
+    identity_factory.functions.deployProxy(
+        identity_proxy_initcode,
+        identity_implementation.address,
+        signature_of_owner_on_implementation,
+    ).transact()
     deployed_event = identity_factory.events.DeployedProxy.getLogs()[0]
     identity_proxy_address = deployed_event["args"]["proxyAddress"]
 
     assert HexBytes(identity_proxy_address) == pre_computed_address
 
 
-def test_proxy_constructor_arguments(
+def test_proxy_deployment_arguments(
     identity_factory,
     web3,
     contract_assets,
     identity_implementation,
     build_initcode,
     owner,
+    signature_of_owner_on_implementation,
 ):
     """Test that the proxy has proper value for IdentityImplementation and owner address"""
-    constructor_args = [identity_implementation.address, owner]
+    constructor_args = [owner]
     identity_proxy_initcode = build_initcode("IdentityProxy", constructor_args)
 
-    identity_factory.functions.deployProxy(identity_proxy_initcode).transact()
+    identity_factory.functions.deployProxy(
+        identity_proxy_initcode,
+        identity_implementation.address,
+        signature_of_owner_on_implementation,
+    ).transact()
 
     deployed_event = identity_factory.events.DeployedProxy.getLogs()[0]
     identity_proxy_address = deployed_event["args"]["proxyAddress"]
