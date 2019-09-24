@@ -5,10 +5,10 @@ import "./ProxyStorage.sol";
 
 contract IdentityProxy is ProxyStorage {
 
-    constructor(address _identityImplementation, address owner) public {
-        identityImplementation = _identityImplementation;
-        (bool status,) = identityImplementation.delegatecall(abi.encodeWithSignature("init(address)", owner));
-        require(status, "Deployment failed.");
+    constructor(address owner) public {
+        // solium-disable-previous-line no-empty-blocks
+        // we have the owner in the constructor so that it is part of the initcode
+        // and the deployment address depends on the owner
     }
 
     function() external payable {
@@ -30,6 +30,15 @@ contract IdentityProxy is ProxyStorage {
             // delegatecall returns 0 on error.
             case 0 { revert(ptr, returndatasize) }
             default { return(ptr, returndatasize) }
+        }
+    }
+
+    function setImplementation(address _identityImplementation) public {
+        if (identityImplementation == address(0)) {
+            identityImplementation = _identityImplementation;
+        } else {
+            require(msg.sender == address(this), "The implementation can only be changed by the contract itself");
+            identityImplementation = _identityImplementation;
         }
     }
 }
