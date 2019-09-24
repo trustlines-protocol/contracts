@@ -5,11 +5,10 @@ import "./ProxyStorage.sol";
 
 contract IdentityProxy is ProxyStorage {
 
-    constructor(address _identityImplementation) public {
+    constructor(address _identityImplementation, address owner) public {
         identityImplementation = _identityImplementation;
-        // bytes4 initSignature = bytes4(keccak256("init(address)"));
-        // (bool status, bytes memory returnedData) = identityImplementation.delegatecall(abi.encodePacked(initSignature, owner));
-        // require(status, "Deployment failed.");
+        (bool status,) = identityImplementation.delegatecall(abi.encodeWithSignature("init(address)", owner));
+        require(status, "Deployment failed.");
     }
 
     function() external payable {

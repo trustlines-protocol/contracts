@@ -14,9 +14,6 @@ contract IdentityFactory {
     }
 
     function deployProxy(bytes memory initcode) public {
-        // TODO: add salt as owner for example, since initcode is the same for every identities
-        // We could probably make the constructor of the proxy set the owner of the identity contract and avoid salt
-        // But I could not make it work and it started to annoy me quite a bunch
         address proxyAddress;
 
         // solium-disable-next-line security/no-inline-assembly
