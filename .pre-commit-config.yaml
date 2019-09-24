@@ -26,7 +26,7 @@ repos:
     - id: no-commit-to-branch
       args: [--branch, develop, --branch, master]
 -   repo: https://github.com/schmir/ethlint-pre-commit.git
-    rev: ceedc72aa232b9391840256c7781226a3e238b1a
+    rev: 0.3.0
     hooks:
     - id: ethlint
       exclude: ^(contracts/lib/|contracts/tokens)
