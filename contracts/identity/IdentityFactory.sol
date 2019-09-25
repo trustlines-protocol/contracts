@@ -51,6 +51,7 @@ contract IdentityFactory {
             abi.encodePacked(
                 byte(0x19),
                 byte(0),
+                address(this),
                 implementationAddress
             ));
         address signer = ECDSA.recover(hash, signature);
