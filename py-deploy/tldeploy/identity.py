@@ -4,8 +4,17 @@ import attr
 from eth_keys.datatypes import PrivateKey
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 from web3.exceptions import BadFunctionCallOutput
+from web3 import Web3
 
 MAX_GAS = 1_000_000
+
+
+def validate_and_normalize_addresses(addresses):
+    formated_addresses = []
+    for address in addresses:
+        if Web3.isAddress(address):
+            formated_addresses.append(Web3.toChecksumAddress(address))
+    return formated_addresses
 
 
 @attr.s(auto_attribs=True, kw_only=True, frozen=True)
@@ -59,6 +68,9 @@ class MetaTransaction:
 
     @property
     def hash(self) -> bytes:
+        (from_, to, currency_network_of_fees) = validate_and_normalize_addresses(
+            [self.from_, self.to, self.currency_network_of_fees]
+        )
         return solidity_keccak(
             [
                 "bytes1",
@@ -75,12 +87,12 @@ class MetaTransaction:
             [
                 "0x19",
                 "0x00",
-                self.from_,
-                self.to,
+                from_,
+                to,
                 self.value,
                 solidity_keccak(["bytes"], [self.data]),
                 self.fees,
-                self.currency_network_of_fees,
+                currency_network_of_fees,
                 self.nonce,
                 self.extra_data,
             ],
