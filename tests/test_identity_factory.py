@@ -272,7 +272,6 @@ def test_deploy_proxy_wrong_signature(
 
 
 def test_change_identity_implementation(
-    web3,
     proxied_contract_with_owner,
     identity_implementation,
     identity_implementation_different_address,
@@ -285,7 +284,6 @@ def test_change_identity_implementation(
         == identity_implementation.address
     )
 
-    # TODO: check why identity does not like addresses as hexbytes
     to = proxied_contract_with_owner.address
     function_call = proxied_contract_with_owner.functions.setImplementation(
         identity_implementation_different_address.address
@@ -304,4 +302,21 @@ def test_change_identity_implementation(
     assert (
         proxied_contract_with_owner.functions.identityImplementation().call()
         != identity_implementation.address
+    )
+
+
+def test_clientlib_calculate_proxy_address(identity_factory, build_initcode, owner):
+    """Give out some tests values for pre calculating the proxy address in the clientlib tests"""
+    identity_proxy_initcode = build_initcode("IdentityProxy", [owner])
+
+    pre_computed_address = build_create2_address(
+        identity_factory.address, identity_proxy_initcode
+    )
+
+    assert pre_computed_address.hex() == "0x08209bb6de441fa36e21b4c02bac9b1dd2918506"
+    assert identity_factory.address == "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
+    assert owner == "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"
+    assert (
+        identity_proxy_initcode
+        == "0x608060405234801561001057600080fd5b5060405160208061023c8339810180604052602081101561003057600080fd5b50506101fb806100416000396000f3fe6080604052600436106100295760003560e01c80636d7203cb1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d815260200180610193603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b5056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a723058207cd2968997410c5053b2fe83b3875cbaca17001f398f7eb6871746a38a8970e900290000000000000000000000007e5f4552091a69125d5dfcb7b8c2659029395bdf"  # noqa: E501
     )
