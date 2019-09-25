@@ -7,14 +7,6 @@ contract IdentityFactory {
 
     event DeployedProxy(address proxyAddress);
 
-    // bytes public identityProxyInitcode;
-
-    constructor() public {
-        // solium-disable-previous-line no-empty-blocks
-        // We could potentially make deployment cheaper by storing the bytecode on chain
-        // and sending only the constructor args to be appended to bytecode to make initcode.
-    }
-
     function deployProxy(bytes memory initcode, address implementationAddress, bytes memory signature) public {
         // we need to  check a signature there to make sure the owner authorized this implementationAddress
         address owner;

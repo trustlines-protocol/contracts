@@ -8,6 +8,9 @@ from web3._utils.contracts import encode_abi
 from tldeploy.identity import MetaTransaction, Identity, Delegate
 from eth_tester.exceptions import TransactionFailed
 
+from .conftest import EXTRA_DATA, EXPIRATION_TIME
+from tldeploy.core import deploy_network
+
 
 def build_create2_address(
     deployer_address,
@@ -19,6 +22,20 @@ def build_create2_address(
     abi_types = ["bytes1", "address", "bytes32", "bytes32"]
 
     return Web3.solidityKeccak(abi_types, to_hash)[12:]
+
+
+@pytest.fixture(scope="session")
+def currency_network_contract(web3):
+    NETWORK_SETTING = {
+        "name": "TestCoin",
+        "symbol": "T",
+        "decimals": 6,
+        "fee_divisor": 0,
+        "default_interest_rate": 0,
+        "custom_interests": False,
+        "expiration_time": EXPIRATION_TIME,
+    }
+    return deploy_network(web3, **NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")
@@ -36,10 +53,16 @@ def identity_implementation(deploy_contract, web3):
 
 
 @pytest.fixture(scope="session")
-def identity_implementation_different_address(deploy_contract, web3):
+def identity_implementation_different_address(
+    identity_implementation, deploy_contract, web3
+):
 
-    identity_implementation = deploy_contract("Identity")
-    return identity_implementation
+    identity_implementation_different_address = deploy_contract("Identity")
+    assert (
+        identity_implementation_different_address.address
+        != identity_implementation.address
+    )
+    return identity_implementation_different_address
 
 
 @pytest.fixture(scope="session")
@@ -137,7 +160,7 @@ def proxied_identity_contract_with_owner(
 
 
 @pytest.fixture()
-def proxied_contract_with_owner(
+def proxy_contract_with_owner(
     proxied_identity_contract_with_owner, web3, contract_assets
 ):
 
@@ -193,8 +216,7 @@ def test_deploy_identity_proxy_at_precomputed_address(
     signature_of_owner_on_implementation,
 ):
     """Test that we can deploy the proxy at a pre-computed address"""
-    constructor_args = [owner]
-    identity_proxy_initcode = build_initcode("IdentityProxy", constructor_args)
+    identity_proxy_initcode = build_initcode("IdentityProxy", [owner])
 
     pre_computed_address = build_create2_address(
         identity_factory.address, identity_proxy_initcode
@@ -221,8 +243,7 @@ def test_proxy_deployment_arguments(
     signature_of_owner_on_implementation,
 ):
     """Test that the proxy has proper value for IdentityImplementation and owner address"""
-    constructor_args = [owner]
-    identity_proxy_initcode = build_initcode("IdentityProxy", constructor_args)
+    identity_proxy_initcode = build_initcode("IdentityProxy", [owner])
 
     identity_factory.functions.deployProxy(
         identity_proxy_initcode,
@@ -272,7 +293,7 @@ def test_deploy_proxy_wrong_signature(
 
 
 def test_change_identity_implementation(
-    proxied_contract_with_owner,
+    proxy_contract_with_owner,
     identity_implementation,
     identity_implementation_different_address,
     proxied_identity,
@@ -280,12 +301,12 @@ def test_change_identity_implementation(
 ):
 
     assert (
-        proxied_contract_with_owner.functions.identityImplementation().call()
+        proxy_contract_with_owner.functions.identityImplementation().call()
         == identity_implementation.address
     )
 
-    to = proxied_contract_with_owner.address
-    function_call = proxied_contract_with_owner.functions.setImplementation(
+    to = proxy_contract_with_owner.address
+    function_call = proxy_contract_with_owner.functions.setImplementation(
         identity_implementation_different_address.address
     )
 
@@ -296,12 +317,8 @@ def test_change_identity_implementation(
     delegate.send_signed_meta_transaction(meta_transaction)
 
     assert (
-        proxied_contract_with_owner.functions.identityImplementation().call()
+        proxy_contract_with_owner.functions.identityImplementation().call()
         == identity_implementation_different_address.address
-    )
-    assert (
-        proxied_contract_with_owner.functions.identityImplementation().call()
-        != identity_implementation.address
     )
 
 
@@ -320,3 +337,32 @@ def test_clientlib_calculate_proxy_address(identity_factory, build_initcode, own
         identity_proxy_initcode
         == "0x608060405234801561001057600080fd5b5060405160208061023c8339810180604052602081101561003057600080fd5b50506101fb806100416000396000f3fe6080604052600436106100295760003560e01c80636d7203cb1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d815260200180610193603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b5056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a723058207cd2968997410c5053b2fe83b3875cbaca17001f398f7eb6871746a38a8970e900290000000000000000000000007e5f4552091a69125d5dfcb7b8c2659029395bdf"  # noqa: E501
     )
+
+
+def test_delegated_transaction_trustlines_flow_via_proxy(
+    currency_network_contract, proxied_identity, delegate, accounts
+):
+    A = proxied_identity.address
+    B = accounts[3]
+    to = currency_network_contract.address
+
+    function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
+    meta_transaction = proxied_identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to)
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    currency_network_contract.functions.updateCreditlimits(A, 100, 100).transact(
+        {"from": B}
+    )
+
+    function_call = currency_network_contract.functions.transfer(
+        B, 100, 0, [B], EXTRA_DATA
+    )
+    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
+    meta_transaction = proxied_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert currency_network_contract.functions.balance(A, B).call() == -100
