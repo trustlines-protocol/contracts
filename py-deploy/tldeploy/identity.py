@@ -14,6 +14,8 @@ def validate_and_normalize_addresses(addresses):
     for address in addresses:
         if Web3.isAddress(address):
             formated_addresses.append(Web3.toChecksumAddress(address))
+        else:
+            raise ValueError(f"Given input {address} is not a valid address.")
     return formated_addresses
 
 
