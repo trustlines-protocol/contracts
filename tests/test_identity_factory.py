@@ -8,17 +8,10 @@ from eth_tester.exceptions import TransactionFailed
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
 from tldeploy.core import deploy_network
+from tldeploy.identity import deploy_proxied_identity, build_create2_address
 
 from deploy_tools.compile import build_initcode
 from deploy_tools.deploy import deploy_compiled_contract
-
-
-def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
-    hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
-    to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
-    abi_types = ["bytes1", "address", "bytes32", "bytes32"]
-
-    return Web3.solidityKeccak(abi_types, to_hash)[12:]
 
 
 @pytest.fixture(scope="session")
@@ -217,6 +210,7 @@ def test_deploy_identity_proxy_at_precomputed_address(
         identity_implementation.address,
         signature_of_owner_on_implementation,
     ).transact()
+
     deployement_event = proxy_factory.events.ProxyDeployment.getLogs()[0]
     identity_proxy_address = deployement_event["args"]["proxyAddress"]
 
@@ -363,3 +357,27 @@ def test_delegated_transaction_trustlines_flow_via_proxy(
     delegate.send_signed_meta_transaction(meta_transaction)
 
     assert currency_network_contract.functions.balance(A, B).call() == -100
+
+
+def test_deploy_identity_proxy(
+    web3,
+    proxy_factory,
+    identity_implementation,
+    signature_of_owner_on_implementation,
+    owner,
+    get_initcode,
+):
+    proxy = deploy_proxied_identity(
+        web3,
+        proxy_factory.address,
+        identity_implementation.address,
+        signature_of_owner_on_implementation,
+    )
+
+    identity_proxy_initcode = get_initcode("Proxy", [owner])
+    pre_computed_address = build_create2_address(
+        proxy_factory.address, identity_proxy_initcode
+    )
+
+    assert proxy.address == pre_computed_address
+    assert proxy.functions.implementation().call() == identity_implementation.address
