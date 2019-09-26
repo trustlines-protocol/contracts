@@ -3,8 +3,6 @@ import pytest
 from web3 import Web3
 from hexbytes import HexBytes
 
-from web3._utils.abi import get_constructor_abi
-from web3._utils.contracts import encode_abi
 from tldeploy.identity import MetaTransaction, Identity, Delegate
 from eth_tester.exceptions import TransactionFailed
 
@@ -95,25 +93,12 @@ def signature_of_not_owner_on_implementation(
 
 @pytest.fixture(scope="session")
 def get_initcode(contract_assets):
-    # should be imported from deploy-tools in the long run, actually cannot import from cli.py, need to refactor
-
     def initcode(contract_name, args):
         return build_initcode(
             contract_abi=contract_assets[contract_name]["abi"],
             contract_bytecode=contract_assets[contract_name]["bytecode"],
             constructor_args=args,
         )
-        abi = contract_assets[contract_name]["abi"]
-        bytecode = contract_assets[contract_name]["bytecode"]
-        constructor_abi = get_constructor_abi(abi)
-
-        # The initcode is the bytecode with the encoded arguments appended
-        if constructor_abi:
-            return encode_abi(
-                web3=None, abi=constructor_abi, arguments=args, data=bytecode
-            )
-        else:
-            return bytecode
 
     return initcode
 
