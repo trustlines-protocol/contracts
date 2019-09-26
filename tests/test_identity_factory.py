@@ -3,8 +3,6 @@ import pytest
 from web3 import Web3
 from hexbytes import HexBytes
 
-from web3._utils.abi import get_constructor_abi
-from web3._utils.contracts import encode_abi
 from tldeploy.identity import MetaTransaction, Identity, Delegate
 from eth_tester.exceptions import TransactionFailed
 
@@ -12,6 +10,7 @@ from .conftest import EXTRA_DATA, EXPIRATION_TIME
 from tldeploy.core import deploy_network
 
 from deploy_tools.compile import build_initcode
+from deploy_tools.deploy import deploy_compiled_contract
 
 
 def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
@@ -37,9 +36,22 @@ def currency_network_contract(web3):
 
 
 @pytest.fixture(scope="session")
-def proxy_factory(deploy_contract, web3):
+def proxy_factory(deploy_contract, contract_assets, web3):
+    """Returns a proxy factory deployed at a deterministic address"""
+    # We need to create a new account that never sent a transaction
+    # to make sure the create1 address of the factory does not depend on other tests or fixtures
+    aribtrary_key = f"0x{'12345678'*8}"
+    new_account = web3.eth.account.from_key(aribtrary_key)
+    assert web3.eth.getTransactionCount(new_account.address) == 0
+    web3.eth.sendTransaction({"to": new_account.address, "value": 1 * 10 ** 18})
 
-    proxy_factory = deploy_contract("IdentityProxyFactory")
+    proxy_factory = deploy_compiled_contract(
+        abi=contract_assets["IdentityProxyFactory"]["abi"],
+        bytecode=contract_assets["IdentityProxyFactory"]["bytecode"],
+        web3=web3,
+        private_key=new_account.key,
+    )
+
     return proxy_factory
 
 
@@ -95,25 +107,12 @@ def signature_of_not_owner_on_implementation(
 
 @pytest.fixture(scope="session")
 def get_initcode(contract_assets):
-    # should be imported from deploy-tools in the long run, actually cannot import from cli.py, need to refactor
-
     def initcode(contract_name, args):
         return build_initcode(
             contract_abi=contract_assets[contract_name]["abi"],
             contract_bytecode=contract_assets[contract_name]["bytecode"],
             constructor_args=args,
         )
-        abi = contract_assets[contract_name]["abi"]
-        bytecode = contract_assets[contract_name]["bytecode"]
-        constructor_abi = get_constructor_abi(abi)
-
-        # The initcode is the bytecode with the encoded arguments appended
-        if constructor_abi:
-            return encode_abi(
-                web3=None, abi=constructor_abi, arguments=args, data=bytecode
-            )
-        else:
-            return bytecode
 
     return initcode
 
@@ -321,13 +320,13 @@ def test_clientlib_calculate_proxy_address(proxy_factory, get_initcode, owner):
         proxy_factory.address, identity_proxy_initcode
     )
 
-    assert pre_computed_address.hex() == "0xdc7249221e3a7e973a34f667bcdad301c6c667d7"
-    assert proxy_factory.address == "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
     assert owner == "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"
+    assert proxy_factory.address == "0x8688966AE53807c273D8B9fCcf667F0A0a91b1d3"
     assert (
         identity_proxy_initcode
         == "0x608060405234801561001057600080fd5b506040516020806102788339810180604052602081101561003057600080fd5b5050610237806100416000396000f3fe6080604052600436106100295760003560e01c80635c60da1b1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d8152602001806101cf603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b604080516001600160a01b038316815290517f11135eea714a7c1c3b9aebf3d31bbd295f7e7262960215e086849c191d45bddc9181900360200190a15056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a723058204f03c65132b7f67ed08ea73c5c83a4345aadcd408a5247bd471e03b5701f8ee500290000000000000000000000007e5f4552091a69125d5dfcb7b8c2659029395bdf"  # noqa: E501
     )
+    assert pre_computed_address.hex() == "0x414df14144eabf11811c385e59d8ea9ef767bdbb"
 
 
 def test_delegated_transaction_trustlines_flow_via_proxy(
