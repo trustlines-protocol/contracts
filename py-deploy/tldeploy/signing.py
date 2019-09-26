@@ -47,7 +47,7 @@ def priv_to_pubkey(key: bytes):
 
 
 def solidity_keccak(abi_types: List, values: List) -> bytes:
-    return Web3.soliditySha3(abi_types, values)
+    return Web3.solidityKeccak(abi_types, values)
 
 
 def sign_msg_hash(hash: bytes, key: keys.PrivateKey) -> bytes:

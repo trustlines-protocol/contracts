@@ -6,6 +6,12 @@ from tldeploy.signing import solidity_keccak, sign_msg_hash
 from web3.exceptions import BadFunctionCallOutput
 from web3 import Web3
 
+from tldeploy.core import get_contract_interface
+from deploy_tools.compile import build_initcode
+from deploy_tools.deploy import wait_for_successful_transaction_receipt
+
+from hexbytes import HexBytes
+
 MAX_GAS = 1_000_000
 
 
@@ -267,3 +273,62 @@ class Identity:
 
     def get_next_nonce(self):
         return self.contract.functions.lastNonce().call() + 1
+
+
+def deploy_proxied_identity(web3, factory_address, implementation_address, signature):
+    owner = recover_proxy_deployment_signature_owner(
+        web3, factory_address, implementation_address, signature
+    )
+
+    proxy_interface = get_contract_interface("Proxy")
+    initcode = build_initcode(
+        contract_abi=proxy_interface["abi"],
+        contract_bytecode=proxy_interface["bytecode"],
+        constructor_args=[owner],
+    )
+
+    factory_interface = get_contract_interface("IdentityProxyFactory")
+    factory = web3.eth.contract(
+        address=factory_address,
+        abi=factory_interface["abi"],
+        bytecode=factory_interface["bytecode"],
+    )
+
+    tx_id = factory.functions.deployProxy(
+        initcode, implementation_address, signature
+    ).transact({"from": web3.eth.accounts[0]})
+    wait_for_successful_transaction_receipt(web3, tx_id)
+
+    deployment_event = factory.events.ProxyDeployment.getLogs(
+        argument_filters={
+            "owner": owner,
+            "implementationAddress": implementation_address,
+        }
+    )
+    proxy_address = HexBytes(deployment_event[0]["args"]["proxyAddress"])
+
+    identity_interface = get_contract_interface("Identity")
+    proxied_identity = web3.eth.contract(
+        address=proxy_address,
+        abi=identity_interface["abi"],
+        bytecode=identity_interface["bytecode"],
+    )
+    return proxied_identity
+
+
+def recover_proxy_deployment_signature_owner(
+    web3, factory_address, implementation_address, signature
+):
+    abi_types = ["bytes1", "bytes1", "address", "address"]
+    signed_values = ["0x19", "0x00", factory_address, implementation_address]
+    signed_hash = Web3.solidityKeccak(abi_types, signed_values)
+    owner = web3.eth.account.recoverHash(signed_hash, signature=signature)
+    return owner
+
+
+def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
+    hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
+    to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
+    abi_types = ["bytes1", "address", "bytes32", "bytes32"]
+
+    return Web3.solidityKeccak(abi_types, to_hash)[12:]

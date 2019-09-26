@@ -33,6 +33,10 @@ class LazyContractsLoader(collections.UserDict):
 contracts = LazyContractsLoader()
 
 
+def get_contract_interface(contract_name):
+    return contracts[contract_name]
+
+
 def deploy(contract_name, web3, *args):
     contract_interface = contracts[contract_name]
     return deploy_compiled_contract(
