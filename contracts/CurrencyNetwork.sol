@@ -172,7 +172,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
         require(
             !_preventMediatorInterests || (_preventMediatorInterests && _customInterests),
-            "The prevent mediator interest strategy cannot be set without using custom interests."
+            "Prevent mediator interest cannot be set without using custom interests."
         );
 
         require(_expirationTime > now, "Expiration time must be in the future.");
@@ -982,7 +982,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             );
             require(
                 _path[_path.length - 2] == _otherParty,
-                "The second to last element of the path does not match with the _otherParty address."
+                "The second to last element of the path has to be _otherParty address."
             );
             _mediatedTransferSenderPays(
                 _from,

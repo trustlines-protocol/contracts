@@ -131,13 +131,13 @@ contract Exchange is SafeMath, Destructable {
 
         require(
             order.taker == address(0) || order.taker == msg.sender,
-            "The taker of the order must be either the message sender or the zero address."
+            "Taker of order must be message sender or zero address."
         );
         require(
             order.makerTokenAmount > 0 &&
             order.takerTokenAmount > 0 &&
             fillTakerTokenAmount > 0,
-            "The token amount of order maker, order taker, and fill taker must be positive."
+            "Token amount of order maker, order taker, and fill taker must be positive."
         );
         require(
             isValidSignature(
@@ -249,7 +249,7 @@ contract Exchange is SafeMath, Destructable {
             order.makerTokenAmount > 0 &&
             order.takerTokenAmount > 0 &&
             fillTakerTokenAmount > 0,
-            "The token amount of order maker, order taker, and fill taker must be positive."
+            "Token amount of order maker, order taker, and fill taker must be positive."
         );
         require(
             isValidSignature(
@@ -377,7 +377,7 @@ contract Exchange is SafeMath, Destructable {
             order.makerTokenAmount > 0 &&
             order.takerTokenAmount > 0 &&
             cancelTakerTokenAmount > 0,
-            "The token amount of order maker, order taker, and cancel taker must be positive."
+            "Token amount of order maker, order taker, and cancel taker must be positive."
         );
 
         if (block.timestamp >= order.expirationTimestampInSec) {
