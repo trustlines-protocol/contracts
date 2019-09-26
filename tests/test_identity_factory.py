@@ -11,12 +11,10 @@ from eth_tester.exceptions import TransactionFailed
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
 from tldeploy.core import deploy_network
 
+from deploy_tools.compile import build_initcode
 
-def build_create2_address(
-    deployer_address,
-    bytecode,
-    salt="0x0000000000000000000000000000000000000000000000000000000000000000",
-):
+
+def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
     hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
     to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
     abi_types = ["bytes1", "address", "bytes32", "bytes32"]
@@ -39,10 +37,10 @@ def currency_network_contract(web3):
 
 
 @pytest.fixture(scope="session")
-def identity_factory(deploy_contract, web3):
+def proxy_factory(deploy_contract, web3):
 
-    identity_factory = deploy_contract("IdentityFactory")
-    return identity_factory
+    proxy_factory = deploy_contract("IdentityProxyFactory")
+    return proxy_factory
 
 
 @pytest.fixture(scope="session")
@@ -77,41 +75,34 @@ def owner_key(account_keys):
 
 @pytest.fixture(scope="session")
 def signature_of_owner_on_implementation(
-    owner_key, identity_implementation, identity_factory
+    owner_key, identity_implementation, proxy_factory
 ):
     abi_types = ["bytes1", "bytes1", "address", "address"]
-    to_hash = [
-        "0x19",
-        "0x00",
-        identity_factory.address,
-        identity_implementation.address,
-    ]
+    to_hash = ["0x19", "0x00", proxy_factory.address, identity_implementation.address]
     to_sign = Web3.solidityKeccak(abi_types, to_hash)
     return owner_key.sign_msg_hash(to_sign).to_bytes()
 
 
 @pytest.fixture(scope="session")
 def signature_of_not_owner_on_implementation(
-    account_keys, identity_implementation, identity_factory
+    account_keys, identity_implementation, proxy_factory
 ):
     abi_types = ["bytes1", "bytes1", "address", "address"]
-    to_hash = [
-        "0x19",
-        "0x00",
-        identity_factory.address,
-        identity_implementation.address,
-    ]
+    to_hash = ["0x19", "0x00", proxy_factory.address, identity_implementation.address]
     to_sign = Web3.solidityKeccak(abi_types, to_hash)
     return account_keys[2].sign_msg_hash(to_sign).to_bytes()
 
 
 @pytest.fixture(scope="session")
-def build_initcode(contract_assets):
-    """
-    should be imported from deploy-tools in the long run, actually cannot import from cli.py, need to refactor
-    """
+def get_initcode(contract_assets):
+    # should be imported from deploy-tools in the long run, actually cannot import from cli.py, need to refactor
 
     def initcode(contract_name, args):
+        return build_initcode(
+            contract_abi=contract_assets[contract_name]["abi"],
+            contract_bytecode=contract_assets[contract_name]["bytecode"],
+            constructor_args=args,
+        )
         abi = contract_assets[contract_name]["abi"]
         bytecode = contract_assets[contract_name]["bytecode"]
         constructor_abi = get_constructor_abi(abi)
@@ -129,22 +120,22 @@ def build_initcode(contract_assets):
 
 @pytest.fixture()
 def proxied_identity_contract_with_owner(
-    identity_factory,
+    proxy_factory,
     identity_implementation,
-    build_initcode,
+    get_initcode,
     owner,
     signature_of_owner_on_implementation,
     web3,
     contract_assets,
 ):
     constructor_args = [owner]
-    identity_proxy_initcode = build_initcode("IdentityProxy", constructor_args)
+    identity_proxy_initcode = get_initcode("Proxy", constructor_args)
 
     proxy_address = build_create2_address(
-        identity_factory.address, identity_proxy_initcode
+        proxy_factory.address, identity_proxy_initcode
     )
 
-    identity_factory.functions.deployProxy(
+    proxy_factory.functions.deployProxy(
         identity_proxy_initcode,
         identity_implementation.address,
         signature_of_owner_on_implementation,
@@ -166,8 +157,8 @@ def proxy_contract_with_owner(
 
     contract = web3.eth.contract(
         address=proxied_identity_contract_with_owner.address,
-        abi=contract_assets["IdentityProxy"]["abi"],
-        bytecode=contract_assets["IdentityProxy"]["bytecode"],
+        abi=contract_assets["Proxy"]["abi"],
+        bytecode=contract_assets["Proxy"]["bytecode"],
     )
 
     return contract
@@ -209,55 +200,55 @@ def test_build_create2_address_conform_to_EIP1014():
 
 
 def test_deploy_identity_proxy_at_precomputed_address(
-    identity_factory,
+    proxy_factory,
     identity_implementation,
-    build_initcode,
+    get_initcode,
     owner,
     signature_of_owner_on_implementation,
 ):
     """Test that we can deploy the proxy at a pre-computed address"""
-    identity_proxy_initcode = build_initcode("IdentityProxy", [owner])
+    identity_proxy_initcode = get_initcode("Proxy", [owner])
 
     pre_computed_address = build_create2_address(
-        identity_factory.address, identity_proxy_initcode
+        proxy_factory.address, identity_proxy_initcode
     )
 
-    identity_factory.functions.deployProxy(
+    proxy_factory.functions.deployProxy(
         identity_proxy_initcode,
         identity_implementation.address,
         signature_of_owner_on_implementation,
     ).transact()
-    deployed_event = identity_factory.events.DeployedProxy.getLogs()[0]
-    identity_proxy_address = deployed_event["args"]["proxyAddress"]
+    deployement_event = proxy_factory.events.ProxyDeployment.getLogs()[0]
+    identity_proxy_address = deployement_event["args"]["proxyAddress"]
 
     assert HexBytes(identity_proxy_address) == pre_computed_address
 
 
 def test_proxy_deployment_arguments(
-    identity_factory,
+    proxy_factory,
     web3,
     contract_assets,
     identity_implementation,
-    build_initcode,
+    get_initcode,
     owner,
     signature_of_owner_on_implementation,
 ):
-    """Test that the proxy has proper value for IdentityImplementation and owner address"""
-    identity_proxy_initcode = build_initcode("IdentityProxy", [owner])
+    """Test that the proxy has proper value for implementation and owner address"""
+    identity_proxy_initcode = get_initcode("Proxy", [owner])
 
-    identity_factory.functions.deployProxy(
+    proxy_factory.functions.deployProxy(
         identity_proxy_initcode,
         identity_implementation.address,
         signature_of_owner_on_implementation,
     ).transact()
 
-    deployed_event = identity_factory.events.DeployedProxy.getLogs()[0]
-    identity_proxy_address = deployed_event["args"]["proxyAddress"]
+    deployement_event = proxy_factory.events.ProxyDeployment.getLogs()[0]
+    identity_proxy_address = deployement_event["args"]["proxyAddress"]
 
     identity_proxy_contract = web3.eth.contract(
         address=identity_proxy_address,
-        abi=contract_assets["IdentityProxy"]["abi"],
-        bytecode=contract_assets["IdentityProxy"]["bytecode"],
+        abi=contract_assets["Proxy"]["abi"],
+        bytecode=contract_assets["Proxy"]["bytecode"],
     )
     proxied_identity_contract = web3.eth.contract(
         address=identity_proxy_address,
@@ -266,7 +257,7 @@ def test_proxy_deployment_arguments(
     )
 
     identity_implementation_address = (
-        identity_proxy_contract.functions.identityImplementation().call()
+        identity_proxy_contract.functions.implementation().call()
     )
 
     assert identity_implementation_address == identity_implementation.address
@@ -274,18 +265,18 @@ def test_proxy_deployment_arguments(
 
 
 def test_deploy_proxy_wrong_signature(
-    identity_factory,
+    proxy_factory,
     identity_implementation,
-    build_initcode,
+    get_initcode,
     owner,
     signature_of_not_owner_on_implementation,
 ):
     """Tests that attempting to deploy a proxy with a wrong signature will fail"""
     constructor_args = [owner]
-    identity_proxy_initcode = build_initcode("IdentityProxy", constructor_args)
+    identity_proxy_initcode = get_initcode("Proxy", constructor_args)
 
     with pytest.raises(TransactionFailed):
-        identity_factory.functions.deployProxy(
+        proxy_factory.functions.deployProxy(
             identity_proxy_initcode,
             identity_implementation.address,
             signature_of_not_owner_on_implementation,
@@ -301,7 +292,7 @@ def test_change_identity_implementation(
 ):
 
     assert (
-        proxy_contract_with_owner.functions.identityImplementation().call()
+        proxy_contract_with_owner.functions.implementation().call()
         == identity_implementation.address
     )
 
@@ -317,25 +308,25 @@ def test_change_identity_implementation(
     delegate.send_signed_meta_transaction(meta_transaction)
 
     assert (
-        proxy_contract_with_owner.functions.identityImplementation().call()
+        proxy_contract_with_owner.functions.implementation().call()
         == identity_implementation_different_address.address
     )
 
 
-def test_clientlib_calculate_proxy_address(identity_factory, build_initcode, owner):
+def test_clientlib_calculate_proxy_address(proxy_factory, get_initcode, owner):
     """Give out some tests values for pre calculating the proxy address in the clientlib tests"""
-    identity_proxy_initcode = build_initcode("IdentityProxy", [owner])
+    identity_proxy_initcode = get_initcode("Proxy", [owner])
 
     pre_computed_address = build_create2_address(
-        identity_factory.address, identity_proxy_initcode
+        proxy_factory.address, identity_proxy_initcode
     )
 
-    assert pre_computed_address.hex() == "0x08209bb6de441fa36e21b4c02bac9b1dd2918506"
-    assert identity_factory.address == "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
+    assert pre_computed_address.hex() == "0xdc7249221e3a7e973a34f667bcdad301c6c667d7"
+    assert proxy_factory.address == "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
     assert owner == "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"
     assert (
         identity_proxy_initcode
-        == "0x608060405234801561001057600080fd5b5060405160208061023c8339810180604052602081101561003057600080fd5b50506101fb806100416000396000f3fe6080604052600436106100295760003560e01c80636d7203cb1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d815260200180610193603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b5056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a723058207cd2968997410c5053b2fe83b3875cbaca17001f398f7eb6871746a38a8970e900290000000000000000000000007e5f4552091a69125d5dfcb7b8c2659029395bdf"  # noqa: E501
+        == "0x608060405234801561001057600080fd5b506040516020806102788339810180604052602081101561003057600080fd5b5050610237806100416000396000f3fe6080604052600436106100295760003560e01c80635c60da1b1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d8152602001806101cf603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b604080516001600160a01b038316815290517f11135eea714a7c1c3b9aebf3d31bbd295f7e7262960215e086849c191d45bddc9181900360200190a15056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a723058204f03c65132b7f67ed08ea73c5c83a4345aadcd408a5247bd471e03b5701f8ee500290000000000000000000000007e5f4552091a69125d5dfcb7b8c2659029395bdf"  # noqa: E501
     )
 
 
