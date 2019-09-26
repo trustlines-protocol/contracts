@@ -14,7 +14,7 @@ install-requirements:: .requirements-installed
 
 compile:: install-requirements
 	@echo "==> Compiling contracts"
-	deploy-tools compile --optimize --evm-version constantinople
+	deploy-tools compile --optimize
 	cp -p build/contracts.json py-bin/
 
 install0:: SETUPTOOLS_SCM_PRETEND_VERSION = $(shell python3 -c 'from setuptools_scm import get_version; print(get_version())')

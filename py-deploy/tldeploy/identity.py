@@ -9,14 +9,14 @@ from web3 import Web3
 MAX_GAS = 1_000_000
 
 
-def validate_and_normalize_addresses(addresses):
-    formated_addresses = []
+def validate_and_checksum_addresses(addresses):
+    formatted_addresses = []
     for address in addresses:
         if Web3.isAddress(address):
-            formated_addresses.append(Web3.toChecksumAddress(address))
+            formatted_addresses.append(Web3.toChecksumAddress(address))
         else:
             raise ValueError(f"Given input {address} is not a valid address.")
-    return formated_addresses
+    return formatted_addresses
 
 
 @attr.s(auto_attribs=True, kw_only=True, frozen=True)
@@ -70,7 +70,7 @@ class MetaTransaction:
 
     @property
     def hash(self) -> bytes:
-        (from_, to, currency_network_of_fees) = validate_and_normalize_addresses(
+        (from_, to, currency_network_of_fees) = validate_and_checksum_addresses(
             [self.from_, self.to, self.currency_network_of_fees]
         )
         return solidity_keccak(

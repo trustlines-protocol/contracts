@@ -1,11 +1,13 @@
 pragma solidity ^0.5.8;
 
 import "../lib/ECDSA.sol";
+import "./Proxy.sol";
+import "./Identity.sol";
 
 
-contract IdentityFactory {
+contract IdentityProxyFactory {
 
-    event DeployedProxy(address proxyAddress);
+    event ProxyDeployment(address owner, address proxyAddress, address implementationAddress);
 
     function deployProxy(bytes memory initcode, address implementationAddress, bytes memory signature) public {
         // we need to  check a signature there to make sure the owner authorized this implementationAddress
@@ -19,7 +21,7 @@ contract IdentityFactory {
             verifySignature(implementationAddress, owner, signature),
             "The given signature does not match the owner from the given initcode.");
 
-        address proxyAddress;
+        address payable proxyAddress;
         assembly {
           proxyAddress := create2(0, add(initcode, 0x20), mload(initcode), 0)
           if iszero(extcodesize(proxyAddress)) {
@@ -27,15 +29,10 @@ contract IdentityFactory {
           }
         }
 
-        // solium-disable-next-line security/no-low-level-calls
-        (bool status,) = proxyAddress.call(abi.encodeWithSignature("setImplementation(address)", implementationAddress));
-        require(status, "Could not set the implementation in the identity proxy.");
+        Proxy(proxyAddress).setImplementation(implementationAddress);
+        Identity(proxyAddress).init(owner);
 
-        // solium-disable-next-line security/no-low-level-calls
-        (status,) = proxyAddress.call(abi.encodeWithSignature("init(address)", owner));
-        require(status, "Could not set the owner in the identity proxy.");
-
-        emit DeployedProxy(proxyAddress);
+        emit ProxyDeployment(owner, proxyAddress, implementationAddress);
     }
 
     function verifySignature(address implementationAddress, address owner, bytes memory signature) internal returns (bool) {

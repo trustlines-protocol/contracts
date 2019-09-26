@@ -3,7 +3,9 @@ pragma solidity ^0.5.8;
 import "./ProxyStorage.sol";
 
 
-contract IdentityProxy is ProxyStorage {
+contract Proxy is ProxyStorage {
+
+    event ImplementationChange(address implementation);
 
     constructor(address owner) public {
         // solium-disable-previous-line no-empty-blocks
@@ -12,7 +14,7 @@ contract IdentityProxy is ProxyStorage {
     }
 
     function() external payable {
-        address _identityImplementation = identityImplementation;
+        address _implementation = implementation;
 
         // solium-disable-next-line security/no-inline-assembly
         assembly {
@@ -22,7 +24,7 @@ contract IdentityProxy is ProxyStorage {
             calldatacopy(ptr, 0, calldatasize)
             // Call the implementation.
             // out and outsize are 0 because we don't know the size yet.
-            let result := delegatecall(gas, _identityImplementation, ptr, calldatasize, 0, 0)
+            let result := delegatecall(gas, _implementation, ptr, calldatasize, 0, 0)
             // Copy the returned data.
             returndatacopy(ptr, 0, returndatasize)
 
@@ -33,12 +35,13 @@ contract IdentityProxy is ProxyStorage {
         }
     }
 
-    function setImplementation(address _identityImplementation) public {
-        if (identityImplementation == address(0)) {
-            identityImplementation = _identityImplementation;
+    function setImplementation(address _implementation) public {
+        if (implementation == address(0)) {
+            implementation = _implementation;
         } else {
             require(msg.sender == address(this), "The implementation can only be changed by the contract itself");
-            identityImplementation = _identityImplementation;
+            implementation = _implementation;
         }
+        emit ImplementationChange(_implementation);
     }
 }
