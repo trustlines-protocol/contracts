@@ -5,10 +5,10 @@ all:: compile
 clean::
 	rm -rf build/contracts.json .requirements-installed
 
-.requirements-installed:
+.requirements-installed: constraints.txt requirements.txt
 	@echo "===> Installing requirements in your local virtualenv"
 	pip install -q -c constraints.txt -r requirements.txt
-	@touch .requirements-installed
+	@echo "This file controls for make if the requirements in your virtual env are up to date" > $@
 
 install-requirements:: .requirements-installed
 
