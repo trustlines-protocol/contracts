@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 import attr
@@ -5,6 +6,7 @@ from eth_keys.datatypes import PrivateKey
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 from web3.exceptions import BadFunctionCallOutput
 from web3 import Web3
+import pkg_resources
 
 from tldeploy.core import get_contract_interface
 from deploy_tools.compile import build_initcode
@@ -275,24 +277,25 @@ class Identity:
         return self.contract.functions.lastNonce().call() + 1
 
 
+def get_identity_proxy_interface():
+    with open(pkg_resources.resource_filename(__name__, "identity-proxy.json")) as file:
+        return json.load(file)["Proxy"]
+
+
 def deploy_proxied_identity(web3, factory_address, implementation_address, signature):
     owner = recover_proxy_deployment_signature_owner(
         web3, factory_address, implementation_address, signature
     )
 
-    proxy_interface = get_contract_interface("Proxy")
+    interface = get_identity_proxy_interface()
     initcode = build_initcode(
-        contract_abi=proxy_interface["abi"],
-        contract_bytecode=proxy_interface["bytecode"],
+        contract_abi=interface["abi"],
+        contract_bytecode=interface["bytecode"],
         constructor_args=[owner],
     )
 
     factory_interface = get_contract_interface("IdentityProxyFactory")
-    factory = web3.eth.contract(
-        address=factory_address,
-        abi=factory_interface["abi"],
-        bytecode=factory_interface["bytecode"],
-    )
+    factory = web3.eth.contract(address=factory_address, abi=factory_interface["abi"])
 
     tx_id = factory.functions.deployProxy(
         initcode, implementation_address, signature

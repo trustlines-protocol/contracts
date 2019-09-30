@@ -1,0 +1,169 @@
+{
+    "Proxy": {
+        "abi": [
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "implementation",
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    {
+                        "name": "_implementation",
+                        "type": "address"
+                    }
+                ],
+                "name": "setImplementation",
+                "outputs": [],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "name": "owner",
+                        "type": "address"
+                    }
+                ],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "payable": true,
+                "stateMutability": "payable",
+                "type": "fallback"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "name": "implementation",
+                        "type": "address"
+                    }
+                ],
+                "name": "ImplementationChange",
+                "type": "event"
+            }
+        ],
+        "devdoc": {
+            "methods": {}
+        },
+        "bytecode": "0x608060405234801561001057600080fd5b506040516020806102788339810180604052602081101561003057600080fd5b5050610237806100416000396000f3fe6080604052600436106100295760003560e01c80635c60da1b1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d8152602001806101cf603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b604080516001600160a01b038316815290517f11135eea714a7c1c3b9aebf3d31bbd295f7e7262960215e086849c191d45bddc9181900360200190a15056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a72305820c05430d1d23a2f20ae202c4f5166b959e7e02eedd737b69d7ccdc2b9697b2b180029",
+        "deployedBytecode": "0x6080604052600436106100295760003560e01c80635c60da1b1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d8152602001806101cf603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b604080516001600160a01b038316815290517f11135eea714a7c1c3b9aebf3d31bbd295f7e7262960215e086849c191d45bddc9181900360200190a15056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c66a165627a7a72305820c05430d1d23a2f20ae202c4f5166b959e7e02eedd737b69d7ccdc2b9697b2b180029",
+        "metadata": {
+            "compiler": {
+                "version": "0.5.8+commit.23d335f2"
+            },
+            "language": "Solidity",
+            "output": {
+                "abi": [
+                    {
+                        "constant": true,
+                        "inputs": [],
+                        "name": "implementation",
+                        "outputs": [
+                            {
+                                "name": "",
+                                "type": "address"
+                            }
+                        ],
+                        "payable": false,
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "constant": false,
+                        "inputs": [
+                            {
+                                "name": "_implementation",
+                                "type": "address"
+                            }
+                        ],
+                        "name": "setImplementation",
+                        "outputs": [],
+                        "payable": false,
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [
+                            {
+                                "name": "owner",
+                                "type": "address"
+                            }
+                        ],
+                        "payable": false,
+                        "stateMutability": "nonpayable",
+                        "type": "constructor"
+                    },
+                    {
+                        "payable": true,
+                        "stateMutability": "payable",
+                        "type": "fallback"
+                    },
+                    {
+                        "anonymous": false,
+                        "inputs": [
+                            {
+                                "indexed": false,
+                                "name": "implementation",
+                                "type": "address"
+                            }
+                        ],
+                        "name": "ImplementationChange",
+                        "type": "event"
+                    }
+                ],
+                "devdoc": {
+                    "methods": {}
+                },
+                "userdoc": {
+                    "methods": {}
+                }
+            },
+            "settings": {
+                "compilationTarget": {
+                    "contracts/identity/Proxy.sol": "Proxy"
+                },
+                "evmVersion": "petersburg",
+                "libraries": {},
+                "optimizer": {
+                    "enabled": true,
+                    "runs": 1000
+                },
+                "remappings": []
+            },
+            "sources": {
+                "contracts/identity/Proxy.sol": {
+                    "keccak256": "0x4436966b8ccb06abe39eb6c2cc16a843a2f95dad59091c639b3ec56d556b0cf6",
+                    "urls": [
+                        "bzzr://9c0598bd8ce26948f33333dddd60e1dcecbacf04925c8900b5d22b89c0379d97"
+                    ]
+                },
+                "contracts/identity/ProxyStorage.sol": {
+                    "keccak256": "0x3b20fd0dd7517a1ba3da716b6fa23cabee1ea0f9451982e05378e68f04af2ab0",
+                    "urls": [
+                        "bzzr://369ea35fa8bb394e73ba2ba521b8d2b9f67ffaeb08eae22fde1dd1ebcfa6f93a"
+                    ]
+                }
+            },
+            "version": 1
+        },
+        "userdoc": {
+            "methods": {}
+        }
+    }
+}

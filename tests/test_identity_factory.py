@@ -3,7 +3,12 @@ import pytest
 from web3 import Web3
 from hexbytes import HexBytes
 
-from tldeploy.identity import MetaTransaction, Identity, Delegate
+from tldeploy.identity import (
+    MetaTransaction,
+    Identity,
+    Delegate,
+    get_identity_proxy_interface,
+)
 from eth_tester.exceptions import TransactionFailed
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
@@ -99,11 +104,12 @@ def signature_of_not_owner_on_implementation(
 
 
 @pytest.fixture(scope="session")
-def get_initcode(contract_assets):
-    def initcode(contract_name, args):
+def get_proxy_initcode(contract_assets):
+    def initcode(args):
+        interface = get_identity_proxy_interface()
         return build_initcode(
-            contract_abi=contract_assets[contract_name]["abi"],
-            contract_bytecode=contract_assets[contract_name]["bytecode"],
+            contract_abi=interface["abi"],
+            contract_bytecode=interface["bytecode"],
             constructor_args=args,
         )
 
@@ -114,14 +120,14 @@ def get_initcode(contract_assets):
 def proxied_identity_contract_with_owner(
     proxy_factory,
     identity_implementation,
-    get_initcode,
+    get_proxy_initcode,
     owner,
     signature_of_owner_on_implementation,
     web3,
     contract_assets,
 ):
     constructor_args = [owner]
-    identity_proxy_initcode = get_initcode("Proxy", constructor_args)
+    identity_proxy_initcode = get_proxy_initcode(constructor_args)
 
     proxy_address = build_create2_address(
         proxy_factory.address, identity_proxy_initcode
@@ -194,12 +200,12 @@ def test_build_create2_address_conform_to_EIP1014():
 def test_deploy_identity_proxy_at_precomputed_address(
     proxy_factory,
     identity_implementation,
-    get_initcode,
+    get_proxy_initcode,
     owner,
     signature_of_owner_on_implementation,
 ):
     """Test that we can deploy the proxy at a pre-computed address"""
-    identity_proxy_initcode = get_initcode("Proxy", [owner])
+    identity_proxy_initcode = get_proxy_initcode([owner])
 
     pre_computed_address = build_create2_address(
         proxy_factory.address, identity_proxy_initcode
@@ -222,12 +228,12 @@ def test_proxy_deployment_arguments(
     web3,
     contract_assets,
     identity_implementation,
-    get_initcode,
+    get_proxy_initcode,
     owner,
     signature_of_owner_on_implementation,
 ):
     """Test that the proxy has proper value for implementation and owner address"""
-    identity_proxy_initcode = get_initcode("Proxy", [owner])
+    identity_proxy_initcode = get_proxy_initcode([owner])
 
     proxy_factory.functions.deployProxy(
         identity_proxy_initcode,
@@ -260,13 +266,13 @@ def test_proxy_deployment_arguments(
 def test_deploy_proxy_wrong_signature(
     proxy_factory,
     identity_implementation,
-    get_initcode,
+    get_proxy_initcode,
     owner,
     signature_of_not_owner_on_implementation,
 ):
     """Tests that attempting to deploy a proxy with a wrong signature will fail"""
     constructor_args = [owner]
-    identity_proxy_initcode = get_initcode("Proxy", constructor_args)
+    identity_proxy_initcode = get_proxy_initcode(constructor_args)
 
     with pytest.raises(TransactionFailed):
         proxy_factory.functions.deployProxy(
@@ -306,28 +312,17 @@ def test_change_identity_implementation(
     )
 
 
-def test_clientlib_calculate_proxy_address(proxy_factory, get_initcode, owner):
+def test_clientlib_calculate_proxy_address(proxy_factory, get_proxy_initcode, owner):
     """Give out some tests values for pre calculating the proxy address in the clientlib tests"""
-    identity_proxy_initcode = get_initcode("Proxy", [owner])
+    identity_proxy_initcode = get_proxy_initcode([owner])
 
     assert owner == "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"
     assert proxy_factory.address == "0x8688966AE53807c273D8B9fCcf667F0A0a91b1d3"
 
-    # solc will append metadata to the initcode that depends on elements we cannot rely on in tests
-    # so that initcode = bytecode + 43 bytes metadata + 32 bytes constructor arguments
-    # see https://solidity.readthedocs.io/en/v0.5.8/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
-    # we need to remove twice that length in char as two char make for one byte.
-    identity_proxy_initcode_without_metadata = (
-        identity_proxy_initcode[: -(43 + 32) * 2] + identity_proxy_initcode[(-32 * 2) :]
-    )
-    assert (
-        identity_proxy_initcode_without_metadata
-        == "0x608060405234801561001057600080fd5b506040516020806102788339810180604052602081101561003057600080fd5b5050610237806100416000396000f3fe6080604052600436106100295760003560e01c80635c60da1b1461005c578063d784d4261461008d575b600080546040516001600160a01b0390911691369082376000803683855af43d6000833e808015610058573d83f35b3d83fd5b34801561006857600080fd5b506100716100c2565b604080516001600160a01b039092168252519081900360200190f35b34801561009957600080fd5b506100c0600480360360208110156100b057600080fd5b50356001600160a01b03166100d1565b005b6000546001600160a01b031681565b6000546001600160a01b031661010e576000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b03831617905561018f565b333014610166576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252603d8152602001806101cf603d913960400191505060405180910390fd5b6000805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0383161790555b604080516001600160a01b038316815290517f11135eea714a7c1c3b9aebf3d31bbd295f7e7262960215e086849c191d45bddc9181900360200190a15056fe54686520696d706c656d656e746174696f6e2063616e206f6e6c79206265206368616e6765642062792074686520636f6e747261637420697473656c660000000000000000000000007e5f4552091a69125d5dfcb7b8c2659029395bdf"  # noqa: E501
-    )
     pre_computed_address = build_create2_address(
-        proxy_factory.address, identity_proxy_initcode_without_metadata
+        proxy_factory.address, identity_proxy_initcode
     )
-    assert pre_computed_address.hex() == "0x26d19bd6e51f10b8fa4db62b92a9826947f8833d"
+    assert pre_computed_address.hex() == "0xfc22014081799f6eb79fecca92486ebdd276229b"
 
 
 def test_delegated_transaction_trustlines_flow_via_proxy(
@@ -365,7 +360,7 @@ def test_deploy_identity_proxy(
     identity_implementation,
     signature_of_owner_on_implementation,
     owner,
-    get_initcode,
+    get_proxy_initcode,
 ):
     proxy = deploy_proxied_identity(
         web3,
@@ -374,7 +369,7 @@ def test_deploy_identity_proxy(
         signature_of_owner_on_implementation,
     )
 
-    identity_proxy_initcode = get_initcode("Proxy", [owner])
+    identity_proxy_initcode = get_proxy_initcode([owner])
     pre_computed_address = build_create2_address(
         proxy_factory.address, identity_proxy_initcode
     )
