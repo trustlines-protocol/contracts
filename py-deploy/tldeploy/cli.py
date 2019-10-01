@@ -215,6 +215,35 @@ def exchange(jsonrpc: str):
     click.echo("Unwrapping ether: {}".format(to_checksum_address(unw_eth_address)))
 
 
+@cli.command(short_help="Deploy an identity implementation contract.")
+@jsonrpc_option
+def identity_implementation(jsonrpc: str):
+    """Deploy an identity contract without initializing it. Can be used as the implementation for deployed
+    identity proxies.
+    """
+    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
+    identity_implementation = deploy_identity_implementation(web3)
+    click.echo(
+        "Identity implementation: {}".format(
+            to_checksum_address(identity_implementation.address)
+        )
+    )
+
+
+@cli.command(short_help="Deploy an identity proxy factory.")
+@jsonrpc_option
+def identity_proxy_factory(jsonrpc: str):
+    """Deploy an identity proxy factory, which can be used to create proxies for identity contracts.
+    """
+    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
+    identity_proxy_factory = deploy_identity_proxy_factory(web3)
+    click.echo(
+        "Identity proxy factory: {}".format(
+            to_checksum_address(identity_proxy_factory.address)
+        )
+    )
+
+
 @cli.command(short_help="Deploy contracts for testing.")
 @click.option(
     "--file",

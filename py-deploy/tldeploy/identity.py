@@ -277,7 +277,7 @@ class Identity:
         return self.contract.functions.lastNonce().call() + 1
 
 
-def get_identity_proxy_interface():
+def get_pinned_proxy_interface():
     with open(pkg_resources.resource_filename(__name__, "identity-proxy.json")) as file:
         return json.load(file)["Proxy"]
 
@@ -295,7 +295,7 @@ def deploy_proxied_identity(web3, factory_address, implementation_address, signa
         web3, factory_address, implementation_address, signature
     )
 
-    interface = get_identity_proxy_interface()
+    interface = get_pinned_proxy_interface()
     initcode = build_initcode(
         contract_abi=interface["abi"],
         contract_bytecode=interface["bytecode"],

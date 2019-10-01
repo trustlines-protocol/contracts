@@ -7,7 +7,7 @@ from tldeploy.identity import (
     MetaTransaction,
     Identity,
     Delegate,
-    get_identity_proxy_interface,
+    get_pinned_proxy_interface,
 )
 from eth_tester.exceptions import TransactionFailed
 
@@ -106,7 +106,7 @@ def signature_of_not_owner_on_implementation(
 @pytest.fixture(scope="session")
 def get_proxy_initcode(contract_assets):
     def initcode(args):
-        interface = get_identity_proxy_interface()
+        interface = get_pinned_proxy_interface()
         return build_initcode(
             contract_abi=interface["abi"],
             contract_bytecode=interface["bytecode"],
