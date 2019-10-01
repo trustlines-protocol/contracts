@@ -8,7 +8,7 @@ from web3.exceptions import BadFunctionCallOutput
 from web3 import Web3
 import pkg_resources
 
-from tldeploy.core import get_contract_interface
+from tldeploy.core import get_contract_interface, deploy
 from deploy_tools.compile import build_initcode
 from deploy_tools.deploy import wait_for_successful_transaction_receipt
 
@@ -280,6 +280,14 @@ class Identity:
 def get_identity_proxy_interface():
     with open(pkg_resources.resource_filename(__name__, "identity-proxy.json")) as file:
         return json.load(file)["Proxy"]
+
+
+def deploy_identity_proxy_factory(web3):
+    return deploy("IdentityProxyFactory", web3=web3)
+
+
+def deploy_identity_implementation(web3):
+    return deploy("Identity", web3=web3)
 
 
 def deploy_proxied_identity(web3, factory_address, implementation_address, signature):
