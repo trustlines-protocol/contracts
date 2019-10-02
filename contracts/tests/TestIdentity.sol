@@ -5,7 +5,7 @@ pragma solidity ^0.5.8;
 */
 
 
-import "../Identity.sol";
+import "../identity/Identity.sol";
 
 
 contract TestIdentity is Identity {

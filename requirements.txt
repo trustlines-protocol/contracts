@@ -2,6 +2,7 @@ web3
 click
 attrs>=18.2
 contract-deploy-tools
+setuptools
 # --- development dependencies, i.e. dependencies not needed for running contracts
 flake8
 mypy

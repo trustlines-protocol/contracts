@@ -50,6 +50,7 @@ setup(
         "contract-deploy-tools>=0.2.1",
         "attrs>=18.2",
         "pendulum>=2.0.0",
+        "setuptools",
     ],
     python_requires=">=3.6",
     # To provide executable scripts, use entry points in preference to the

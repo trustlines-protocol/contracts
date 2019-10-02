@@ -6,7 +6,9 @@
  """
 import pytest
 from texttable import Texttable
+from web3 import Web3
 from tldeploy.core import deploy_network, deploy_identity
+from tldeploy.identity import deploy_proxied_identity
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
@@ -73,6 +75,30 @@ def currency_network_contract_with_trustlines(web3, accounts):
             accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 1, 1
         ).transact()
     return contract
+
+
+@pytest.fixture(scope="session")
+def identity_implementation(deploy_contract, web3):
+
+    identity_implementation = deploy_contract("Identity")
+    return identity_implementation
+
+
+@pytest.fixture(scope="session")
+def proxy_factory(deploy_contract, web3):
+
+    proxy_factory = deploy_contract("IdentityProxyFactory")
+    return proxy_factory
+
+
+@pytest.fixture(scope="session")
+def signature_of_owner_on_implementation(
+    account_keys, identity_implementation, proxy_factory
+):
+    abi_types = ["bytes1", "bytes1", "address", "address"]
+    to_hash = ["0x19", "0x00", proxy_factory.address, identity_implementation.address]
+    to_sign = Web3.solidityKeccak(abi_types, to_hash)
+    return account_keys[3].sign_msg_hash(to_sign).to_bytes()
 
 
 def test_cost_transfer_0_mediators(
@@ -205,3 +231,28 @@ def test_deploy_identity(web3, accounts, table):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
     report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_000_000)
+
+
+def test_deploy_proxied_identity(
+    web3,
+    table,
+    proxy_factory,
+    identity_implementation,
+    signature_of_owner_on_implementation,
+):
+    block_number_before = web3.eth.blockNumber
+
+    deploy_proxied_identity(
+        web3,
+        proxy_factory.address,
+        identity_implementation.address,
+        signature_of_owner_on_implementation,
+    )
+
+    block_number_after = web3.eth.blockNumber
+
+    gas_cost = 0
+    for block_number in range(block_number_after, block_number_before, -1):
+        gas_cost += web3.eth.getBlock(block_number).gasUsed
+
+    report_gas_costs(table, "Deploy Identity", gas_cost, limit=270_000)

@@ -2,6 +2,10 @@ import click
 import json
 import pendulum
 import pkg_resources
+from tldeploy.identity import (
+    deploy_identity_implementation,
+    deploy_identity_proxy_factory,
+)
 from web3 import Web3
 
 from eth_utils import is_checksum_address, to_checksum_address
@@ -211,6 +215,35 @@ def exchange(jsonrpc: str):
     click.echo("Unwrapping ether: {}".format(to_checksum_address(unw_eth_address)))
 
 
+@cli.command(short_help="Deploy an identity implementation contract.")
+@jsonrpc_option
+def identity_implementation(jsonrpc: str):
+    """Deploy an identity contract without initializing it. Can be used as the implementation for deployed
+    identity proxies.
+    """
+    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
+    identity_implementation = deploy_identity_implementation(web3)
+    click.echo(
+        "Identity implementation: {}".format(
+            to_checksum_address(identity_implementation.address)
+        )
+    )
+
+
+@cli.command(short_help="Deploy an identity proxy factory.")
+@jsonrpc_option
+def identity_proxy_factory(jsonrpc: str):
+    """Deploy an identity proxy factory, which can be used to create proxies for identity contracts.
+    """
+    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
+    identity_proxy_factory = deploy_identity_proxy_factory(web3)
+    click.echo(
+        "Identity proxy factory: {}".format(
+            to_checksum_address(identity_proxy_factory.address)
+        )
+    )
+
+
 @cli.command(short_help="Deploy contracts for testing.")
 @click.option(
     "--file",
@@ -222,9 +255,10 @@ def exchange(jsonrpc: str):
 @currency_network_contract_name_option
 def test(jsonrpc: str, file: str, currency_network_contract_name: str):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
+    Also deploys an identity proxy factory and a identity implementation contract.
     This can be used for testing"""
 
-    expiration_time = 4102444800  # 01/01/2100
+    expiration_time = 4_102_444_800  # 01/01/2100
 
     network_settings = [
         {
@@ -261,6 +295,8 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
         network_settings,
         currency_network_contract_name=currency_network_contract_name,
     )
+    identity_implementation = deploy_identity_implementation(web3)
+    identity_proxy_factory = deploy_identity_proxy_factory(web3)
     addresses = dict()
     network_addresses = [network.address for network in networks]
     exchange_address = exchange.address
@@ -268,6 +304,8 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
     addresses["networks"] = network_addresses
     addresses["exchange"] = exchange_address
     addresses["unwEth"] = unw_eth_address
+    addresses["identityImplementation"] = identity_implementation.address
+    addresses["identityProxyFactory"] = identity_proxy_factory.address
 
     if file:
         with open(file, "w") as outfile:
@@ -275,7 +313,16 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
 
     click.echo("Exchange: {}".format(to_checksum_address(exchange_address)))
     click.echo("Unwrapping ether: {}".format(to_checksum_address(unw_eth_address)))
-
+    click.echo(
+        "Identity proxy factory: {}".format(
+            to_checksum_address(identity_proxy_factory.address)
+        )
+    )
+    click.echo(
+        "Identity implementation: {}".format(
+            to_checksum_address(identity_implementation.address)
+        )
+    )
     for settings, address in zip(network_settings, network_addresses):
         click.echo(
             "CurrencyNetwork({settings}) at {address}".format(

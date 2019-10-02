@@ -1,11 +1,30 @@
+import json
 from typing import Optional
 
 import attr
 from eth_keys.datatypes import PrivateKey
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 from web3.exceptions import BadFunctionCallOutput
+from web3 import Web3
+import pkg_resources
+
+from tldeploy.core import get_contract_interface, deploy
+from deploy_tools.compile import build_initcode
+from deploy_tools.deploy import wait_for_successful_transaction_receipt
+
+from hexbytes import HexBytes
 
 MAX_GAS = 1_000_000
+
+
+def validate_and_checksum_addresses(addresses):
+    formatted_addresses = []
+    for address in addresses:
+        if Web3.isAddress(address):
+            formatted_addresses.append(Web3.toChecksumAddress(address))
+        else:
+            raise ValueError(f"Given input {address} is not a valid address.")
+    return formatted_addresses
 
 
 @attr.s(auto_attribs=True, kw_only=True, frozen=True)
@@ -59,6 +78,9 @@ class MetaTransaction:
 
     @property
     def hash(self) -> bytes:
+        (from_, to, currency_network_of_fees) = validate_and_checksum_addresses(
+            [self.from_, self.to, self.currency_network_of_fees]
+        )
         return solidity_keccak(
             [
                 "bytes1",
@@ -75,12 +97,12 @@ class MetaTransaction:
             [
                 "0x19",
                 "0x00",
-                self.from_,
-                self.to,
+                from_,
+                to,
                 self.value,
                 solidity_keccak(["bytes"], [self.data]),
                 self.fees,
-                self.currency_network_of_fees,
+                currency_network_of_fees,
                 self.nonce,
                 self.extra_data,
             ],
@@ -253,3 +275,71 @@ class Identity:
 
     def get_next_nonce(self):
         return self.contract.functions.lastNonce().call() + 1
+
+
+def get_pinned_proxy_interface():
+    with open(pkg_resources.resource_filename(__name__, "identity-proxy.json")) as file:
+        return json.load(file)["Proxy"]
+
+
+def deploy_identity_proxy_factory(web3):
+    return deploy("IdentityProxyFactory", web3=web3)
+
+
+def deploy_identity_implementation(web3):
+    return deploy("Identity", web3=web3)
+
+
+def deploy_proxied_identity(web3, factory_address, implementation_address, signature):
+    owner = recover_proxy_deployment_signature_owner(
+        web3, factory_address, implementation_address, signature
+    )
+
+    interface = get_pinned_proxy_interface()
+    initcode = build_initcode(
+        contract_abi=interface["abi"],
+        contract_bytecode=interface["bytecode"],
+        constructor_args=[owner],
+    )
+
+    factory_interface = get_contract_interface("IdentityProxyFactory")
+    factory = web3.eth.contract(address=factory_address, abi=factory_interface["abi"])
+
+    tx_id = factory.functions.deployProxy(
+        initcode, implementation_address, signature
+    ).transact({"from": web3.eth.accounts[0]})
+    wait_for_successful_transaction_receipt(web3, tx_id)
+
+    deployment_event = factory.events.ProxyDeployment.getLogs(
+        argument_filters={
+            "owner": owner,
+            "implementationAddress": implementation_address,
+        }
+    )
+    proxy_address = HexBytes(deployment_event[0]["args"]["proxyAddress"])
+
+    identity_interface = get_contract_interface("Identity")
+    proxied_identity = web3.eth.contract(
+        address=proxy_address,
+        abi=identity_interface["abi"],
+        bytecode=identity_interface["bytecode"],
+    )
+    return proxied_identity
+
+
+def recover_proxy_deployment_signature_owner(
+    web3, factory_address, implementation_address, signature
+):
+    abi_types = ["bytes1", "bytes1", "address", "address"]
+    signed_values = ["0x19", "0x00", factory_address, implementation_address]
+    signed_hash = Web3.solidityKeccak(abi_types, signed_values)
+    owner = web3.eth.account.recoverHash(signed_hash, signature=signature)
+    return owner
+
+
+def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
+    hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
+    to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
+    abi_types = ["bytes1", "address", "bytes32", "bytes32"]
+
+    return Web3.solidityKeccak(abi_types, to_hash)[12:]
