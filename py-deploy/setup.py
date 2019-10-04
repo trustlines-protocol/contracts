@@ -43,10 +43,11 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=["contrib", "docs", "tests"]),
+    package_data={"tldeploy": ["identity-proxy.json"]},
     install_requires=[
         "web3>=4.7.1",
         "click>=7.0",
-        "trustlines-contracts-bin>=0.9.1,<0.10.0",
+        "trustlines-contracts-bin>=0.9.2,<0.10.0",
         "contract-deploy-tools>=0.2.1",
         "attrs>=18.2",
         "pendulum>=2.0.0",
