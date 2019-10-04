@@ -1,6 +1,10 @@
 ==========
 Change Log
 ==========
+`0.9.2`_ (2019-10-04)
+-----------------------
+* Fix `deploy_proxied_identity` by adding the missing file `identity-proxy.json` containing bytecode for the contract deployment to package
+
 `0.9.1`_ (2019-10-04)
 -----------------------
 * Added proxy and factory contracts
@@ -166,3 +170,4 @@ The rest of the changes are only interesting for developers:
 .. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.7.0...0.8.0
 .. _0.9.0: https://github.com/trustlines-protocol/contracts/compare/0.8.0...0.9.0
 .. _0.9.1: https://github.com/trustlines-protocol/contracts/compare/0.9.0...0.9.1
+.. _0.9.2: https://github.com/trustlines-protocol/contracts/compare/0.9.0...0.9.2
