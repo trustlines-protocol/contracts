@@ -1,6 +1,12 @@
 ==========
 Change Log
 ==========
+`0.9.1`_ (2019-10-04)
+-----------------------
+* Added proxy and factory contracts
+* Added method `deploy_proxied_identity` in `tldeploy.identity` to deploy an identity at a pre-computable address using a factory
+* Added showcase tests for getting information out of events
+
 `0.9.0`_ (2019-09-11)
 -----------------------
 * Add currency network registry that can be used to register curency networks and list registered networks
@@ -158,4 +164,5 @@ The rest of the changes are only interesting for developers:
 .. _0.6.3: https://github.com/trustlines-protocol/contracts/compare/0.6.2...0.6.3
 .. _0.7.0: https://github.com/trustlines-protocol/contracts/compare/0.6.3...0.7.0
 .. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.7.0...0.8.0
-.. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.8.0...0.9.0
+.. _0.9.0: https://github.com/trustlines-protocol/contracts/compare/0.8.0...0.9.0
+.. _0.9.1: https://github.com/trustlines-protocol/contracts/compare/0.9.0...0.9.1
