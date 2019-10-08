@@ -7,10 +7,9 @@ from tldeploy.signing import solidity_keccak, sign_msg_hash
 from web3.exceptions import BadFunctionCallOutput
 from web3 import Web3
 import pkg_resources
-
+from deploy_tools.deploy import wait_for_successful_transaction_receipt
 from tldeploy.core import get_contract_interface, deploy
 from deploy_tools.compile import build_initcode
-from deploy_tools.deploy import wait_for_successful_transaction_receipt
 
 from hexbytes import HexBytes
 
@@ -305,18 +304,18 @@ def deploy_proxied_identity(web3, factory_address, implementation_address, signa
     factory_interface = get_contract_interface("IdentityProxyFactory")
     factory = web3.eth.contract(address=factory_address, abi=factory_interface["abi"])
 
-    tx_id = factory.functions.deployProxy(
+    tx_hash = factory.functions.deployProxy(
         initcode, implementation_address, signature
     ).transact({"from": web3.eth.accounts[0]})
-    wait_for_successful_transaction_receipt(web3, tx_id)
+    tx_receipt = wait_for_successful_transaction_receipt(web3, tx_hash)
 
-    deployment_event = factory.events.ProxyDeployment.getLogs(
-        argument_filters={
-            "owner": owner,
-            "implementationAddress": implementation_address,
-        }
-    )
+    deployment_event = factory.events.ProxyDeployment().processReceipt(tx_receipt)
     proxy_address = HexBytes(deployment_event[0]["args"]["proxyAddress"])
+
+    computed_proxy_address = build_create2_address(factory_address, initcode)
+    assert (
+        computed_proxy_address == proxy_address
+    ), "The computed proxy address does not match the deployed address found via events"
 
     identity_interface = get_contract_interface("Identity")
     proxied_identity = web3.eth.contract(
