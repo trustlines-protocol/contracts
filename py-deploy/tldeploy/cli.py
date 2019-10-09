@@ -99,16 +99,20 @@ currency_network_contract_name_option = click.option(
 @currency_network_contract_name_option
 @click.option(
     "--expiration-time",
-    help="Expiration time of the currency network after which it will be frozen (0 means disabled)",
+    help=(
+        "Expiration time of the currency network after which it will be frozen (0 means disabled). "
+        "Per default the network does not expire."
+    ),
     required=False,
     type=int,
-    default=0,  # disabled
-    show_default=True,
 )
 @click.option(
     "--expiration-date",
-    help="Expiration date of the currency network after which it will be frozen, "
-    "(e.g. '2020-09-28', '2020-09-28T13:56')",
+    help=(
+        "Expiration date of the currency network after which it will be frozen "
+        "(e.g. '2020-09-28', '2020-09-28T13:56'). "
+        "Per default the network does not expire."
+    ),
     type=str,
     required=False,
     metavar="DATE",
@@ -144,10 +148,13 @@ def currencynetwork(
             "Prevent mediator interests is not necessary if custom interests are disabled."
         )
 
-    if expiration_date is not None and expiration_time != 0:
+    if expiration_date is not None and expiration_time is not None:
         raise click.BadParameter(
             f"Both --expiration-date and --expiration-times have been specified."
         )
+
+    if expiration_date is None and expiration_time is None:
+        expiration_time = 0
 
     if expiration_date is not None:
         expiration_time = int(expiration_date.timestamp())
