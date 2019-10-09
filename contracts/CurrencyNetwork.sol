@@ -147,7 +147,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
      * @param _preventMediatorInterests Flag to allow or disallow transactions resulting in loss of interests for
      *         intermediaries, unless the transaction exclusively reduces balances
-     * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore
+     * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore. Setting
+     *         this value to zero disables freezing.
      */
     function init(
         string calldata _name,
@@ -175,7 +176,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             "Prevent mediator interest cannot be set without using custom interests."
         );
 
-        require(_expirationTime > now, "Expiration time must be in the future.");
+        require(
+            _expirationTime == 0 || _expirationTime > now,
+            "Expiration time must be either in the future or zero to disable it."
+        );
 
         name = _name;
         symbol = _symbol;
@@ -604,6 +608,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function freezeNetwork() external {
+        require(expirationTime != 0, "The currency network has disabled freezing.");
         require(expirationTime <= now, "The currency network cannot be frozen yet.");
         isNetworkFrozen = true;
     }
