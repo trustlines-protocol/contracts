@@ -1,6 +1,11 @@
 ==========
 Change Log
 ==========
+`0.9.3`_ (2019-10-10)
+-----------------------
+* Fix `deploy_proxied_identity` by getting the deployed contract address via deployment transaction receipt events. This solves a bug where the wrong address would be returned when deploying two proxies in the same block
+* Expiry date of currency networks is now optional. The default argument in tl-deploy is no expiry date.
+
 `0.9.2`_ (2019-10-04)
 -----------------------
 * Fix `deploy_proxied_identity` by adding the missing file `identity-proxy.json` containing bytecode for the contract deployment to package
@@ -170,4 +175,5 @@ The rest of the changes are only interesting for developers:
 .. _0.8.0: https://github.com/trustlines-protocol/contracts/compare/0.7.0...0.8.0
 .. _0.9.0: https://github.com/trustlines-protocol/contracts/compare/0.8.0...0.9.0
 .. _0.9.1: https://github.com/trustlines-protocol/contracts/compare/0.9.0...0.9.1
-.. _0.9.2: https://github.com/trustlines-protocol/contracts/compare/0.9.0...0.9.2
+.. _0.9.2: https://github.com/trustlines-protocol/contracts/compare/0.9.1...0.9.2
+.. _0.9.3: https://github.com/trustlines-protocol/contracts/compare/0.9.2...0.9.3
