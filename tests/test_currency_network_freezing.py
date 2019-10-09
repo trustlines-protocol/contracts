@@ -1,12 +1,13 @@
+from typing import Any, Dict
+
+import eth_tester.exceptions
 import pytest
 
 from tldeploy.core import deploy_network
-import eth_tester.exceptions
 
 from .conftest import EXPIRATION_TIME
 
-
-NETWORK_SETTING = {
+NETWORK_SETTING: Dict[str, Any] = {
     "name": "TestCoin",
     "symbol": "T",
     "decimals": 6,
@@ -32,6 +33,11 @@ trustlines = [
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
     return deploy_network(web3, **NETWORK_SETTING)
+
+
+@pytest.fixture(scope="session")
+def currency_network_contract_without_expiration(web3):
+    return deploy_network(web3, **{**NETWORK_SETTING, "expiration_time": 0})
 
 
 @pytest.fixture(scope="session")
@@ -107,6 +113,18 @@ def frozen_functions_and_args(accounts):
 def test_freeze_too_soon(currency_network_contract):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.freezeNetwork().transact()
+
+
+def test_cannot_freeze_with_disabled_expiration(
+    currency_network_contract_without_expiration
+):
+    assert (
+        currency_network_contract_without_expiration.functions.expirationTime().call()
+        == 0
+    )
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_contract_without_expiration.functions.freezeNetwork().transact()
 
 
 def test_freeze(currency_network_contract, chain):
