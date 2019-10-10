@@ -1,13 +1,14 @@
 #! pytest
 
-import pytest
-from tldeploy.core import deploy
 import eth_tester.exceptions
+import pytest
+
+from tldeploy.core import deploy
 
 
 @pytest.fixture()
 def unweth_contract(web3):
-    return deploy("UnwEth", web3)
+    return deploy("UnwEth", web3=web3)
 
 
 def test_transfer(unweth_contract, web3, accounts):
