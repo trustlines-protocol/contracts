@@ -26,9 +26,6 @@ commands:
           name: Create python venv
           command: |
             python3 -m venv venv
-            pip --version
-            pip install -U pip wheel setuptools
-            pip --version
 
   config-path:
     description: "set environment variables and change PATH"
@@ -38,6 +35,15 @@ commands:
         command: |
           echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:${PATH}'
           echo >> ${BASH_ENV} '. ~/.nvm/nvm.sh'
+
+  upgrade-venv:
+    description: "Update venv"
+    steps:
+      - run:
+        name: "Update base packages"
+        command: |
+            pip install -U pip wheel setuptools
+
 
   publish-npm:
     description: Publish npm package
@@ -107,6 +113,7 @@ jobs:
 
       - restore_cache:
           key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
+      - update-venv
       - run:
           name: Install requirements
           command: |
