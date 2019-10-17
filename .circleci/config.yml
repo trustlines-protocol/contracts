@@ -28,6 +28,7 @@ commands:
             python3 -m venv venv
             pip --version
             pip install -U pip wheel setuptools
+            pip --version
 
   config-path:
     description: "set environment variables and change PATH"
@@ -109,6 +110,7 @@ jobs:
       - run:
           name: Install requirements
           command: |
+            pip --version
             make install-requirements
       - save_cache:
           key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
