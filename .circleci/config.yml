@@ -26,6 +26,7 @@ commands:
           name: Create python venv
           command: |
             python3 -m venv venv
+            pip --version
             pip install -U pip wheel setuptools
 
   config-path:
@@ -104,13 +105,13 @@ jobs:
       - create-venv
 
       - restore_cache:
-          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}_v2
+          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
       - run:
           name: Install requirements
           command: |
             make install-requirements
       - save_cache:
-          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}_v2
+          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
           paths:
             - venv
             - .requirements-installed
