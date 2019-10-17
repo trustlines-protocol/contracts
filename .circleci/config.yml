@@ -30,19 +30,19 @@ commands:
   config-path:
     description: "set environment variables and change PATH"
     steps:
-    - run:
-        name: Configuring PATH
-        command: |
-          echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:${PATH}'
-          echo >> ${BASH_ENV} '. ~/.nvm/nvm.sh'
+      - run:
+          name: Configuring PATH
+          command: |
+            echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:${PATH}'
+            echo >> ${BASH_ENV} '. ~/.nvm/nvm.sh'
 
   upgrade-venv:
-    description: "Update venv"
+    description: "Upgrade venv"
     steps:
       - run:
-        name: "Update base packages"
-        command: |
-            pip install -U pip wheel setuptools
+          name: "Upgrade base packages"
+          command: |
+              pip install -U pip wheel setuptools
 
 
   publish-npm:
@@ -113,7 +113,7 @@ jobs:
 
       - restore_cache:
           key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
-      - update-venv
+      - upgrade-venv
       - run:
           name: Install requirements
           command: |
