@@ -104,13 +104,13 @@ jobs:
       - create-venv
 
       - restore_cache:
-          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
+          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}_v2
       - run:
           name: Install requirements
           command: |
             make install-requirements
       - save_cache:
-          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}
+          key: venv-{{ checksum "constraints.txt" }}-{{ checksum "requirements.txt" }}_v2
           paths:
             - venv
             - .requirements-installed
