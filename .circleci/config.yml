@@ -121,6 +121,10 @@ jobs:
           name: Build python distributions
           command: |
             make dist
+      - run:
+          name: Verify installed packages have compatible dependencies
+          command: |
+            pip check
       - persist_to_workspace:
           root: "~"
           paths:
