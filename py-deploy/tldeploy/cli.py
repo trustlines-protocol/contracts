@@ -1,16 +1,28 @@
-import click
 import json
-import pendulum
+
+import click
 import pkg_resources
+from deploy_tools.cli import (
+    auto_nonce_option,
+    connect_to_json_rpc,
+    gas_option,
+    gas_price_option,
+    get_nonce,
+    jsonrpc_option,
+    keystore_option,
+    nonce_option,
+    retrieve_private_key,
+)
+from deploy_tools.deploy import build_transaction_options
+from eth_utils import is_checksum_address, to_checksum_address
+
+import pendulum
 from tldeploy.identity import (
     deploy_identity_implementation,
     deploy_identity_proxy_factory,
 )
-from web3 import Web3
 
-from eth_utils import is_checksum_address, to_checksum_address
-
-from .core import deploy_network, deploy_exchange, deploy_unw_eth, deploy_networks
+from .core import deploy_exchange, deploy_network, deploy_networks, deploy_unw_eth
 
 
 def report_version():
@@ -41,14 +53,6 @@ def cli(ctx, version):
         click.echo(ctx.get_help())
         ctx.exit()
 
-
-jsonrpc_option = click.option(
-    "--jsonrpc",
-    help="JsonRPC URL of the ethereum client",
-    default="http://127.0.0.1:8545",
-    show_default=True,
-    metavar="URL",
-)
 
 currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
@@ -119,6 +123,11 @@ currency_network_contract_name_option = click.option(
     callback=validate_date,
 )
 @jsonrpc_option
+@gas_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
 def currencynetwork(
     name: str,
     symbol: str,
@@ -132,6 +141,11 @@ def currencynetwork(
     currency_network_contract_name: str,
     expiration_time: int,
     expiration_date: pendulum.DateTime,
+    gas: int,
+    gas_price: int,
+    nonce: int,
+    auto_nonce: bool,
+    keystore: str,
 ):
     """Deploy a currency network contract with custom settings and optionally connect it to an exchange contract"""
     if exchange_contract is not None and not is_checksum_address(exchange_contract):
@@ -169,7 +183,14 @@ def currencynetwork(
         raise click.BadParameter("This default interest rate is not usable")
     default_interest_rate = int(default_interest_rate)
 
-    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=gas, gas_price=gas_price, nonce=nonce
+    )
 
     contract = deploy_network(
         web3,
@@ -183,6 +204,8 @@ def currencynetwork(
         exchange_address=exchange_contract,
         currency_network_contract_name=currency_network_contract_name,
         expiration_time=expiration_time,
+        transaction_options=transaction_options,
+        private_key=private_key,
     )
 
     click.echo(
@@ -207,14 +230,35 @@ def currencynetwork(
 
 @cli.command(short_help="Deploy an exchange contract.")
 @jsonrpc_option
-def exchange(jsonrpc: str):
+@gas_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def exchange(
+    jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
+):
     """Deploy an exchange contract and a contract to wrap Ether into an ERC 20
   token.
     """
-    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
-    exchange_contract = deploy_exchange(web3)
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=gas, gas_price=gas_price, nonce=nonce
+    )
+    exchange_contract = deploy_exchange(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     exchange_address = exchange_contract.address
-    unw_eth_contract = deploy_unw_eth(web3, exchange_address=exchange_address)
+    unw_eth_contract = deploy_unw_eth(
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+        exchange_address=exchange_address,
+    )
     unw_eth_address = unw_eth_contract.address
     click.echo("Exchange: {}".format(to_checksum_address(exchange_address)))
     click.echo("Unwrapping ether: {}".format(to_checksum_address(unw_eth_address)))
@@ -222,12 +266,28 @@ def exchange(jsonrpc: str):
 
 @cli.command(short_help="Deploy an identity implementation contract.")
 @jsonrpc_option
-def identity_implementation(jsonrpc: str):
+@gas_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def identity_implementation(
+    jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
+):
     """Deploy an identity contract without initializing it. Can be used as the implementation for deployed
     identity proxies.
     """
-    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
-    identity_implementation = deploy_identity_implementation(web3)
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=gas, gas_price=gas_price, nonce=nonce
+    )
+    identity_implementation = deploy_identity_implementation(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     click.echo(
         "Identity implementation: {}".format(
             to_checksum_address(identity_implementation.address)
@@ -237,11 +297,28 @@ def identity_implementation(jsonrpc: str):
 
 @cli.command(short_help="Deploy an identity proxy factory.")
 @jsonrpc_option
-def identity_proxy_factory(jsonrpc: str):
+@gas_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def identity_proxy_factory(
+    jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
+):
     """Deploy an identity proxy factory, which can be used to create proxies for identity contracts.
     """
-    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
-    identity_proxy_factory = deploy_identity_proxy_factory(web3)
+
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=gas, gas_price=gas_price, nonce=nonce
+    )
+    identity_proxy_factory = deploy_identity_proxy_factory(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     click.echo(
         "Identity proxy factory: {}".format(
             to_checksum_address(identity_proxy_factory.address)
@@ -257,8 +334,22 @@ def identity_proxy_factory(jsonrpc: str):
     type=click.Path(dir_okay=False, writable=True),
 )
 @jsonrpc_option
+@gas_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
 @currency_network_contract_name_option
-def test(jsonrpc: str, file: str, currency_network_contract_name: str):
+def test(
+    jsonrpc: str,
+    file: str,
+    gas: int,
+    gas_price: int,
+    nonce: int,
+    auto_nonce: bool,
+    keystore: str,
+    currency_network_contract_name: str,
+):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     Also deploys an identity proxy factory and a identity implementation contract.
     This can be used for testing"""
@@ -294,14 +385,25 @@ def test(jsonrpc: str, file: str, currency_network_contract_name: str):
         },
     ]
 
-    web3 = Web3(Web3.HTTPProvider(jsonrpc, request_kwargs={"timeout": 180}))
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=gas, gas_price=gas_price, nonce=nonce
+    )
     networks, exchange, unw_eth = deploy_networks(
         web3,
         network_settings,
         currency_network_contract_name=currency_network_contract_name,
     )
-    identity_implementation = deploy_identity_implementation(web3)
-    identity_proxy_factory = deploy_identity_proxy_factory(web3)
+    identity_implementation = deploy_identity_implementation(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
+    identity_proxy_factory = deploy_identity_proxy_factory(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     addresses = dict()
     network_addresses = [network.address for network in networks]
     exchange_address = exchange.address

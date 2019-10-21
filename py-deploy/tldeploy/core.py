@@ -2,13 +2,18 @@
 # We like to get rid of the populus dependency and we don't want to compile the
 # contracts when running tests in this project.
 
+import collections
+import json
 import os
 import sys
-import json
-import collections
+from typing import Dict
 
 from deploy_tools import deploy_compiled_contract
-from deploy_tools.deploy import wait_for_successful_transaction_receipt
+from deploy_tools.deploy import (
+    increase_transaction_options_nonce,
+    send_function_call_transaction,
+)
+from web3 import Web3
 
 
 def load_contracts_json():
@@ -37,29 +42,74 @@ def get_contract_interface(contract_name):
     return contracts[contract_name]
 
 
-def deploy(contract_name, web3, *args):
+def deploy(
+    contract_name,
+    *,
+    web3: Web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+    constructor_args=(),
+):
+    if transaction_options is None:
+        transaction_options = {}
+
     contract_interface = contracts[contract_name]
     return deploy_compiled_contract(
         abi=contract_interface["abi"],
         bytecode=contract_interface["bytecode"],
         web3=web3,
-        constructor_args=args,
+        transaction_options=transaction_options,
+        private_key=private_key,
+        constructor_args=constructor_args,
     )
 
 
-def deploy_exchange(web3):
-    exchange = deploy("Exchange", web3)
+def deploy_exchange(
+    *, web3: Web3, transaction_options: Dict = None, private_key: bytes = None
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    exchange = deploy(
+        "Exchange",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
     return exchange
 
 
-def deploy_unw_eth(web3, exchange_address=None):
-    unw_eth = deploy("UnwEth", web3)
+def deploy_unw_eth(
+    *,
+    web3: Web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+    exchange_address=None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    unw_eth = deploy(
+        "UnwEth",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+
+    increase_transaction_options_nonce(transaction_options)
+
     if exchange_address is not None:
         if exchange_address is not None:
-            txid = unw_eth.functions.addAuthorizedAddress(exchange_address).transact(
-                {"from": web3.eth.accounts[0]}
+            function_call = unw_eth.functions.addAuthorizedAddress(exchange_address)
+            send_function_call_transaction(
+                function_call,
+                web3=web3,
+                transaction_options=transaction_options,
+                private_key=private_key,
             )
-            wait_for_successful_transaction_receipt(web3, txid)
+            increase_transaction_options_nonce(transaction_options)
+
     return unw_eth
 
 
@@ -76,16 +126,28 @@ def deploy_network(
     exchange_address=None,
     currency_network_contract_name=None,
     account_management_enabled=False,
+    transaction_options: Dict = None,
+    private_key=None,
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     # CurrencyNetwork is the standard contract to deploy, If we're running
     # tests or trying to export data for testing the python implementation of
     # private functions, we may want deploy the TestCurrencyNetwork contract
     # instead.
     if currency_network_contract_name is None:
         currency_network_contract_name = "CurrencyNetwork"
-    currency_network = deploy(currency_network_contract_name, web3)
 
-    txid = currency_network.functions.init(
+    currency_network = deploy(
+        currency_network_contract_name,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+
+    init_function_call = currency_network.functions.init(
         name,
         symbol,
         decimals,
@@ -94,25 +156,44 @@ def deploy_network(
         custom_interests,
         prevent_mediator_interests,
         expiration_time,
-    ).transact({"from": web3.eth.accounts[0]})
-    wait_for_successful_transaction_receipt(web3, txid)
+    )
+
+    send_function_call_transaction(
+        init_function_call,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+
     if exchange_address is not None:
-        txid = currency_network.functions.addAuthorizedAddress(
+        add_function_call = currency_network.functions.addAuthorizedAddress(
             exchange_address
-        ).transact({"from": web3.eth.accounts[0]})
-        wait_for_successful_transaction_receipt(web3, txid)
-    if account_management_enabled is False:
-        txid = currency_network.functions.disableAccountManagement().transact(
-            {"from": web3.eth.accounts[0]}
         )
-        wait_for_successful_transaction_receipt(web3, txid)
+        send_function_call_transaction(
+            add_function_call,
+            web3=web3,
+            transaction_options=transaction_options,
+            private_key=private_key,
+        )
+        increase_transaction_options_nonce(transaction_options)
+
+    if account_management_enabled is False:
+        disable_function_call = currency_network.functions.disableAccountManagement()
+        send_function_call_transaction(
+            disable_function_call,
+            web3=web3,
+            transaction_options=transaction_options,
+            private_key=private_key,
+        )
+        increase_transaction_options_nonce(transaction_options)
 
     return currency_network
 
 
 def deploy_networks(web3, network_settings, currency_network_contract_name=None):
-    exchange = deploy_exchange(web3)
-    unw_eth = deploy_unw_eth(web3, exchange.address)
+    exchange = deploy_exchange(web3=web3)
+    unw_eth = deploy_unw_eth(web3=web3, exchange_address=exchange.address)
 
     networks = [
         deploy_network(
@@ -129,10 +210,7 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
 
 def deploy_identity(web3, owner_address):
     identity = deploy("Identity", web3=web3)
-
-    tx_id = identity.functions.init(owner_address).transact(
-        {"from": web3.eth.accounts[0]}
-    )
-    wait_for_successful_transaction_receipt(web3, tx_id)
+    function_call = identity.functions.init(owner_address)
+    send_function_call_transaction(function_call, web3=web3)
 
     return identity

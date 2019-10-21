@@ -25,13 +25,14 @@ NULL_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 @pytest.fixture(scope="session")
 def exchange_contract(web3):
-    return deploy_exchange(web3)
+    return deploy_exchange(web3=web3)
 
 
 @pytest.fixture(scope="session")
 def token_contract(web3, accounts):
     A, B, C, *rest = accounts
-    contract = deploy("DummyToken", web3, "DummyToken", "DT", 18, 10000000)
+    constructor_args = ("DummyToken", "DT", 18, 10000000)
+    contract = deploy("DummyToken", web3=web3, constructor_args=constructor_args)
     contract.functions.setBalance(A, 10000).transact()
     contract.functions.setBalance(B, 10000).transact()
     contract.functions.setBalance(C, 10000).transact()
