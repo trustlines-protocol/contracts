@@ -125,7 +125,6 @@ def deploy_network(
     prevent_mediator_interests=False,
     exchange_address=None,
     currency_network_contract_name=None,
-    account_management_enabled=False,
     transaction_options: Dict = None,
     private_key=None,
 ):
@@ -172,16 +171,6 @@ def deploy_network(
         )
         send_function_call_transaction(
             add_function_call,
-            web3=web3,
-            transaction_options=transaction_options,
-            private_key=private_key,
-        )
-        increase_transaction_options_nonce(transaction_options)
-
-    if account_management_enabled is False:
-        disable_function_call = currency_network.functions.disableAccountManagement()
-        send_function_call_transaction(
-            disable_function_call,
             web3=web3,
             transaction_options=transaction_options,
             private_key=private_key,

@@ -15,7 +15,6 @@ NETWORK_SETTING: Dict[str, Any] = {
     "default_interest_rate": 0,
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
-    "account_management_enabled": True,
     "expiration_time": EXPIRATION_TIME,
 }
 

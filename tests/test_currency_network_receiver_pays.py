@@ -24,7 +24,6 @@ def currency_network_contract_with_trustlines(web3, accounts):
         decimals=6,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
-        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:
@@ -43,7 +42,6 @@ def currency_network_contract_with_high_trustlines(web3, accounts):
         decimals=6,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
-        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
     creditline = 1000000

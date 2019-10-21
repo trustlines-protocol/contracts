@@ -24,7 +24,6 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
-    "account_management_enabled": True,
     "expiration_time": EXPIRATION_TIME,
 }
 
@@ -56,7 +55,6 @@ def currency_network_contract_custom_interest(web3):
         default_interest_rate=0,
         custom_interests=True,
         prevent_mediator_interests=False,
-        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
 
@@ -815,41 +813,6 @@ def test_overflow_max_transfer(currency_network_contract, accounts):
     )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(B, 1, 0, [B], EXTRA_DATA).transact({"from": A})
-
-
-def test_disabled_set_account(currency_network_contract, accounts):
-    """
-    Tests that we cannot set an account when account_management_enabled is False.
-    """
-    network = currency_network_contract
-
-    network.functions.disableAccountManagement().transact()
-    assert network.functions.accountManagementEnabled().call() is False
-
-    account = (accounts[0], accounts[1], 100, 100, 0, 0, False, 0, 0, 0, 0)
-    account_no_interest = (accounts[0], accounts[1], 100, 100, False, 0, 0, 0, 0)
-
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.setAccount(*account).transact()
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.setAccountDefaultInterests(*account_no_interest).transact()
-
-
-def test_enabled_set_account(currency_network_contract, accounts):
-    """
-    Tests that we can set an account when account_management_enabled is True.
-    """
-    network = currency_network_contract
-
-    assert network.functions.accountManagementEnabled().call() is True
-
-    account = (accounts[0], accounts[1], 100, 100, 0, 0, False, 0, 0, 0, 0)
-    account_no_interest = (accounts[0], accounts[1], 200, 200, False, 0, 0, 0, 0)
-
-    network.functions.setAccount(*account).transact()
-    assert network.functions.balanceOf(accounts[0]).call() == 100
-    network.functions.setAccountDefaultInterests(*account_no_interest).transact()
-    assert network.functions.balanceOf(accounts[0]).call() == 200
 
 
 @pytest.mark.parametrize("creditor, debtor", [(0, 1), (1, 0)])
