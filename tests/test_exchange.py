@@ -48,7 +48,6 @@ def currency_network_contract_with_trustlines(web3, exchange_contract, accounts)
         decimals=6,
         fee_divisor=0,
         currency_network_contract_name="TestCurrencyNetwork",
-        account_management_enabled=True,
         expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:

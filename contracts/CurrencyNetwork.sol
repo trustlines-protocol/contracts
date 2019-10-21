@@ -50,7 +50,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     bool public isInitialized;
     uint public expirationTime;
     bool public isNetworkFrozen;
-    bool public accountManagementEnabled = true;  // Whether the functions for setting up accounts by the owner are enable or not
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
     uint16 public capacityImbalanceFeeDivisor;
@@ -440,96 +439,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             _otherParty,
             _maxFee,
             _path);
-    }
-
-    /**
-    * Remove the ability for the owner of the currency network to set accounts with `setAccount` and related
-    */
-    function disableAccountManagement() external onlyOwner {
-        accountManagementEnabled = false;
-    }
-
-    /**
-    * Set the trustline account between two users.
-    * Can be removed once structs are supported in the ABI
-    */
-    function setAccount(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        int16 _interestRateGiven,
-        int16 _interestRateReceived,
-        bool _isFrozen,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        external
-        onlyOwner
-    {
-        require(accountManagementEnabled, "This function has been disabled and cannot be used anymore.");
-        require(
-            customInterests ||
-            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
-            "Interest rates given and received must be equal to default interest rates."
-        );
-        if (customInterests) {
-            require(
-                _interestRateGiven >= 0 &&
-                _interestRateReceived >= 0,
-                "Only positive interest rates are supported."
-            );
-        }
-
-        _setAccount(
-            _a,
-            _b,
-            _creditlineGiven,
-            _creditlineReceived,
-            _interestRateGiven,
-            _interestRateReceived,
-            _isFrozen,
-            _feesOutstandingA,
-            _feesOutstandingB,
-            _mtime,
-            _balance
-        );
-    }
-
-    /**
-    * Set the trustline account between two users with default interests.
-    * Can be removed once structs are supported in the ABI
-    */
-    function setAccountDefaultInterests(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        bool _isFrozen,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        external
-        onlyOwner
-    {
-        require(accountManagementEnabled, "This function has been disabled and cannot be used anymore.");
-        _setAccount(
-            _a,
-            _b,
-            _creditlineGiven,
-            _creditlineReceived,
-            defaultInterestRate,
-            defaultInterestRate,
-            _isFrozen,
-            _feesOutstandingA,
-            _feesOutstandingB,
-            _mtime,
-            _balance
-        );
     }
 
     /**
@@ -999,42 +908,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         } // else {} /* balance is zero, there's nothing to do here */
 
         _closeTrustline(_from, _otherParty);
-    }
-
-    function _setAccount(
-        address _a,
-        address _b,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        int16 _interestRateGiven,
-        int16 _interestRateReceived,
-        bool _isFrozen,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
-        uint32 _mtime,
-        int72 _balance
-    )
-        internal
-    {
-        TrustlineAgreement memory trustlineAgreement;
-        trustlineAgreement.creditlineGiven = _creditlineGiven;
-        trustlineAgreement.creditlineReceived = _creditlineReceived;
-        trustlineAgreement.interestRateGiven = _interestRateGiven;
-        trustlineAgreement.interestRateReceived = _interestRateReceived;
-        trustlineAgreement.isFrozen = _isFrozen;
-
-        TrustlineBalances memory trustlineBalances;
-        trustlineBalances.feesOutstandingA = _feesOutstandingA;
-        trustlineBalances.feesOutstandingB = _feesOutstandingB;
-        trustlineBalances.mtime = _mtime;
-        trustlineBalances.balance = _balance;
-
-        _storeTrustlineAgreement(_a, _b, trustlineAgreement);
-        _storeTrustlineBalances(_a, _b, trustlineBalances);
-
-        addToUsersAndFriends(_a, _b);
-        _applyOnboardingRules(_a, owner);
-        _applyOnboardingRules(_b, owner);
     }
 
     function addToUsersAndFriends(address _a, address _b) internal {
