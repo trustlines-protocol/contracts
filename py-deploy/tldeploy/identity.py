@@ -283,8 +283,11 @@ def get_pinned_proxy_interface():
 
 
 def deploy_identity_proxy_factory(
-    *, web3: Web3, transaction_options: Dict = {}, private_key: bytes = None
+    *, web3: Web3, transaction_options: Dict = None, private_key: bytes = None
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     identity_proxy_factory = deploy(
         "IdentityProxyFactory",
         web3=web3,
@@ -296,8 +299,11 @@ def deploy_identity_proxy_factory(
 
 
 def deploy_identity_implementation(
-    *, web3: Web3, transaction_options: Dict = {}, private_key: bytes = None
+    *, web3: Web3, transaction_options: Dict = None, private_key: bytes = None
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     indentity_implementation = deploy(
         "Identity",
         web3=web3,

@@ -46,10 +46,13 @@ def deploy(
     contract_name,
     *,
     web3: Web3,
-    transaction_options: Dict = {},
+    transaction_options: Dict = None,
     private_key: bytes = None,
     constructor_args=(),
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     contract_interface = contracts[contract_name]
     return deploy_compiled_contract(
         abi=contract_interface["abi"],
@@ -62,8 +65,11 @@ def deploy(
 
 
 def deploy_exchange(
-    *, web3: Web3, transaction_options: Dict = {}, private_key: bytes = None
+    *, web3: Web3, transaction_options: Dict = None, private_key: bytes = None
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     exchange = deploy(
         "Exchange",
         web3=web3,
@@ -77,10 +83,13 @@ def deploy_exchange(
 def deploy_unw_eth(
     *,
     web3: Web3,
-    transaction_options: Dict = {},
+    transaction_options: Dict = None,
     private_key: bytes = None,
     exchange_address=None,
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     unw_eth = deploy(
         "UnwEth",
         web3=web3,
@@ -117,9 +126,12 @@ def deploy_network(
     exchange_address=None,
     currency_network_contract_name=None,
     account_management_enabled=False,
-    transaction_options: Dict = {},
+    transaction_options: Dict = None,
     private_key=None,
 ):
+    if transaction_options is None:
+        transaction_options = {}
+
     # CurrencyNetwork is the standard contract to deploy, If we're running
     # tests or trying to export data for testing the python implementation of
     # private functions, we may want deploy the TestCurrencyNetwork contract
