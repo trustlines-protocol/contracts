@@ -1,6 +1,13 @@
 ==========
 Change Log
 ==========
+`0.11.0`_ (unreleased)
+-----------------------
+`0.10.0`_ (2019-11-05)
+-----------------------
+* Add commandline option based on contract-deploy-tools to sign transactions based on a keystore file
+* Add commandline option based on contract-deploy-tools to set nonce, gas limit and gas price
+* Remove setAccount function in currency network (BREAKING). 
 `0.9.3`_ (2019-10-10)
 -----------------------
 * Fix `deploy_proxied_identity` by getting the deployed contract address via deployment transaction receipt events. This solves a bug where the wrong address would be returned when deploying two proxies in the same block
@@ -177,3 +184,5 @@ The rest of the changes are only interesting for developers:
 .. _0.9.1: https://github.com/trustlines-protocol/contracts/compare/0.9.0...0.9.1
 .. _0.9.2: https://github.com/trustlines-protocol/contracts/compare/0.9.1...0.9.2
 .. _0.9.3: https://github.com/trustlines-protocol/contracts/compare/0.9.2...0.9.3
+.. _0.10.0: https://github.com/trustlines-protocol/contracts/compare/0.9.3...0.10.0
+.. _0.11.0: https://github.com/trustlines-protocol/contracts/compare/0.10.0...master
