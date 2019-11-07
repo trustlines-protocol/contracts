@@ -231,10 +231,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     /**
      * @notice send `_value` token to `_to` from `_from`
      * msg.sender needs to be authorized to call this function
+     * @param _from The address of the sender
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
-     * @param _path Path between msg.sender and _to
+     * @param _path Path between _from and _to
      * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transferFrom(
@@ -264,6 +265,48 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _value,
                 _extraData
             );
+        }
+    }
+
+    /**
+     * @notice send `_value` token to `_to` from `_from`
+     * `_from` needs to have a debt towards è_to` of at least `_value`
+     * `_to` needs to be msg.sender
+     * @param _from The address of the sender
+     * @param _to The address of the recipient
+     * @param _value The amount of token to be transferred
+     * @param _maxFee Maximum fee the sender wants to pay
+     * @param _path Path between _from and _to
+     * @param _extraData extra data bytes to be logged in the Transfer event
+     **/
+    function debitTransfer(
+        address _from,
+        address _to,
+        uint64 _value,
+        uint64 _maxFee,
+        address[] calldata _path,
+        bytes calldata _extraData
+    )
+        external returns (bool success)
+    {
+        require(_to == msg.sender, "The transfer can only be initiated by the creditor (_to).");
+        require(getDebt(_from, _to) >= _value, "The sender does not have such debt towards the receiver.");
+
+        success = _mediatedTransferReceiverPays(
+            _from,
+            _to,
+            _value,
+            _maxFee,
+            _path);
+
+        if (success) {
+            emit Transfer(
+                _from,
+                _to,
+                _value,
+                _extraData
+            );
+            _reduceDebt(_from, _to, _value);
         }
     }
 
@@ -447,33 +490,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param value The value to increase the debt by
      */
     function increaseDebt(address creditor, uint64 value) external {
-        address debtor = msg.sender;
-        int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
-        if (debtor < creditor) {
-            int72 newDebt = oldDebt + value;
-            assert(newDebt > oldDebt);
-            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
-            emit DebtUpdate(debtor, creditor, newDebt);
-        } else {
-            int72 newDebt = oldDebt - value;
-            assert(newDebt < oldDebt);
-            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
-            emit DebtUpdate(debtor, creditor, -newDebt);
-        }
-    }
-
-    /**
-     * @notice Get the debt owed by debtor to creditor, may be negative if creditor owes debtor
-     * @param debtor The address of which we query the debt
-     * @param creditor The address towards which the debtor owes money
-     * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
-     */
-    function getDebt(address debtor, address creditor) external view returns (int256) {
-        if (debtor < creditor) {
-            return debt[uniqueIdentifier(debtor, creditor)];
-        } else {
-            return - debt[uniqueIdentifier(debtor, creditor)];
-        }
+        _increaseDebt(msg.sender, creditor, value);
     }
 
     /**
@@ -616,6 +633,20 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         }
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(a, b);
         return trustlineAgreement.isFrozen;
+    }
+
+    /**
+     * @notice Get the debt owed by debtor to creditor, may be negative if creditor owes debtor
+     * @param debtor The address of which we query the debt
+     * @param creditor The address towards which the debtor owes money
+     * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
+     */
+    function getDebt(address debtor, address creditor) public view returns (int256) {
+        if (debtor < creditor) {
+            return debt[uniqueIdentifier(debtor, creditor)];
+        } else {
+            return - debt[uniqueIdentifier(debtor, creditor)];
+        }
     }
 
     // This function transfers value over this trustline
@@ -1199,6 +1230,23 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
+    function _increaseDebt(address debtor, address creditor, int72 value) internal {
+        int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
+        if (debtor < creditor) {
+            int72 newDebt = _safeSum(oldDebt, value);
+            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
+            emit DebtUpdate(debtor, creditor, newDebt);
+        } else {
+            int72 newDebt = _safeSum(oldDebt, -value);
+            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
+            emit DebtUpdate(debtor, creditor, -newDebt);
+        }
+    }
+
+    function _reduceDebt(address debtor, address creditor, uint64 value) internal {
+        _increaseDebt(debtor, creditor, - int72(value));
+    }
+
     function _applyOnboardingRules(address a, address b) internal {
         if (onboarder[a] == address(0)) {
             if (onboarder[b] == address(0)) {
@@ -1423,4 +1471,13 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         return keccak256(abi.encodePacked(_creditor, _debtor));
     }
 
+    function _safeSum(int72 a, int72 b) internal pure returns (int72 sum) {
+        sum = a + b;
+        if (a > 0 && b > 0) {
+            assert(sum > 0);
+        }
+        if (a < 0 && b < 0) {
+            assert(sum < 0);
+        }
+    }
 }
