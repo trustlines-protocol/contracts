@@ -151,6 +151,10 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         );
     }
 
+    function testSafeSum(int72 a, int72 b) external returns (int72 sum) {
+        return _safeSum(a, b);
+    }
+
     function testCalculateFees(uint64 _imbalanceGenerated, uint16 _capacityImbalanceFeeDivisor)
         public pure
         returns (uint64)

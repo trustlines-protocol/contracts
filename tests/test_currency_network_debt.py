@@ -15,6 +15,9 @@ trustlines = [
     (0, 4, 500, 550),
 ]  # (A, B, clAB, clBA)
 
+max_int72 = 2 ** 71 - 1
+min_int72 = -(max_int72 + 1)
+
 NETWORK_SETTING = {
     "name": "TestCoin",
     "symbol": "T",
@@ -204,3 +207,28 @@ def test_debit_transfer_events(
     assert transfer_event["_from"] == debtor
     assert transfer_event["_to"] == creditor
     assert transfer_event["_value"] == debt_value
+
+
+@pytest.mark.parametrize(
+    "a, b",
+    [
+        (0, 1),
+        (1, 0),
+        (max_int72, 0),
+        (max_int72, -1),
+        (max_int72, min_int72),
+        (min_int72, 0),
+        (min_int72, 1),
+    ],
+)
+def test_safe_sum_no_error(currency_network_contract, a, b):
+    assert currency_network_contract.functions.testSafeSum(a, b).call() == a + b
+
+
+@pytest.mark.parametrize(
+    "a, b",
+    [(max_int72, max_int72), (max_int72, 1), (min_int72, -1), (min_int72, min_int72)],
+)
+def test_safe_sum_raises_error(currency_network_contract, a, b):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_contract.functions.testSafeSum(a, b).call()
