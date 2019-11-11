@@ -92,6 +92,66 @@ def test_add_network_multiple(
     )
 
 
+def test_add_network_twice_does_not_change_metadata(
+    initialized_currency_network_registry_contract, currency_network_contract, accounts
+):
+    """Adding the same network again does not change the initial information.
+
+    Each new registration does throw an event with the current
+    registrar, but the stored metadata from the first call do not change
+    who has registered it originally.
+    """
+
+    currency_network_metadata = initialized_currency_network_registry_contract.functions.getCurrencyNetworkMetadata(
+        currency_network_contract.address
+    ).call()
+
+    initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
+        currency_network_contract.address
+    ).transact({"from": accounts[1]})
+
+    initialized_currency_network_registry_contract.functions.getCurrencyNetworkMetadata(
+        currency_network_contract.address
+    ).call()
+    assert (
+        initialized_currency_network_registry_contract.functions.getCurrencyNetworkMetadata(
+            currency_network_contract.address
+        ).call()[
+            0
+        ]
+        == currency_network_metadata[0]
+    )
+
+
+def test_add_network_multiple_events(
+    currency_network_registry_contract, currency_network_contract, accounts
+):
+    """Adding the same network with multiple accounts.
+
+    Each call throws a new event with the according account as
+    registrar.
+    """
+
+    currency_added_event_filter = currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
+        fromBlock=0
+    )
+    currency_network_registry_contract.functions.addCurrencyNetwork(
+        currency_network_contract.address
+    ).transact({"from": accounts[0]})
+
+    currency_added_event_list = currency_added_event_filter.get_new_entries()
+    assert len(currency_added_event_list) == 1
+    assert currency_added_event_list[0].args._registeredBy == accounts[0]
+
+    currency_network_registry_contract.functions.addCurrencyNetwork(
+        currency_network_contract.address
+    ).transact({"from": accounts[1]})
+
+    currency_added_event_list = currency_added_event_filter.get_new_entries()
+    assert len(currency_added_event_list) == 1
+    assert currency_added_event_list[0].args._registeredBy == accounts[1]
+
+
 def test_add_invalid_network(initialized_currency_network_registry_contract, accounts):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
