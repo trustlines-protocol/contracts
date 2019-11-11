@@ -97,9 +97,8 @@ def test_add_network_twice_does_not_change_metadata(
 ):
     """Adding the same network again does not change the initial information.
 
-    Each new registration does throw an event with the current
-    registrar, but the stored metadata from the first call do not change
-    who has registered it originally.
+    Each new registration emits an event with the new registrar, but the
+    original registrar from the first call does change.
     """
 
     currency_network_metadata = initialized_currency_network_registry_contract.functions.getCurrencyNetworkMetadata(
@@ -128,7 +127,7 @@ def test_add_network_multiple_events(
 ):
     """Adding the same network with multiple accounts.
 
-    Each call throws a new event with the according account as
+    Each call emits a new event with the corresponding account as
     registrar.
     """
 
