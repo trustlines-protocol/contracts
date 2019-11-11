@@ -7,7 +7,7 @@ import "./lib/ERC165Query.sol";
 contract CurrencyNetworkRegistry is ERC165Query {
 
     struct CurrencyNetworkMetadata {
-        address registeredBy;
+        address firstRegistrationBy;
         string name;
         string symbol;
         uint8 decimals;
@@ -46,27 +46,27 @@ contract CurrencyNetworkRegistry is ERC165Query {
         );
 
         if (
-            currencyNetworks[_address].registeredBy == address(0) &&
+            currencyNetworks[_address].firstRegistrationBy == address(0) &&
             bytes(currencyNetworks[_address].name).length == 0 &&
             bytes(currencyNetworks[_address].symbol).length == 0
         ) {
             currencyNetworks[_address] = CurrencyNetworkMetadata({
-                registeredBy: msg.sender,
+                firstRegistrationBy: msg.sender,
                 name: network.name(),
                 symbol: network.symbol(),
                 decimals: network.decimals()
             });
 
             registeredCurrencyNetworks.push(_address);
-
-            emit CurrencyNetworkAdded(
-                _address,
-                currencyNetworks[_address].registeredBy,
-                currencyNetworks[_address].name,
-                currencyNetworks[_address].symbol,
-                currencyNetworks[_address].decimals
-            );
         }
+
+        emit CurrencyNetworkAdded(
+            _address,
+            msg.sender,
+            currencyNetworks[_address].name,
+            currencyNetworks[_address].symbol,
+            currencyNetworks[_address].decimals
+        );
 
         currencyNetworksRegisteredBy[msg.sender].push(_address);
     }
@@ -85,14 +85,14 @@ contract CurrencyNetworkRegistry is ERC165Query {
         external
         view
         returns (
-            address _registeredBy,
+            address _firstRegistrationBy,
             string memory _name,
             string memory _symbol,
             uint8 _decimals
         )
     {
         return (
-            currencyNetworks[_address].registeredBy,
+            currencyNetworks[_address].firstRegistrationBy,
             currencyNetworks[_address].name,
             currencyNetworks[_address].symbol,
             currencyNetworks[_address].decimals
