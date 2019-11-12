@@ -270,12 +270,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     /**
      * @notice send `_value` token to `_to` from `_from`
-     * `_from` needs to have a debt towards è_to` of at least `_value`
+     * `_from` needs to have a debt towards `_to` of at least `_value`
      * `_to` needs to be msg.sender
      * @param _from The address of the sender
      * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
-     * @param _maxFee Maximum fee the sender wants to pay
+     * @param _maxFee Maximum fee the receiver wants to pay
      * @param _path Path between _from and _to
      * @param _extraData extra data bytes to be logged in the Transfer event
      **/
@@ -291,6 +291,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     {
         require(_to == msg.sender, "The transfer can only be initiated by the creditor (_to).");
         require(getDebt(_from, _to) >= _value, "The sender does not have such debt towards the receiver.");
+        _reduceDebt(_from, _to, _value);
 
         success = _mediatedTransferReceiverPays(
             _from,
@@ -306,7 +307,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _value,
                 _extraData
             );
-            _reduceDebt(_from, _to, _value);
+        } else {
+            revert("Transfer failed.");
         }
     }
 
@@ -490,7 +492,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
      * @param value The value to increase the debt by
      */
     function increaseDebt(address creditor, uint64 value) external {
-        _increaseDebt(msg.sender, creditor, value);
+        _addToDebt(msg.sender, creditor, value);
     }
 
     /**
@@ -1230,7 +1232,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         );
     }
 
-    function _increaseDebt(address debtor, address creditor, int72 value) internal {
+    function _addToDebt(address debtor, address creditor, int72 value) internal {
         int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
         if (debtor < creditor) {
             int72 newDebt = _safeSum(oldDebt, value);
@@ -1244,7 +1246,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     }
 
     function _reduceDebt(address debtor, address creditor, uint64 value) internal {
-        _increaseDebt(debtor, creditor, - int72(value));
+        _addToDebt(debtor, creditor, - int72(value));
     }
 
     function _applyOnboardingRules(address a, address b) internal {
@@ -1474,10 +1476,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     function _safeSum(int72 a, int72 b) internal pure returns (int72 sum) {
         sum = a + b;
         if (a > 0 && b > 0) {
-            assert(sum > 0);
+            require(sum > 0, "Overflow error.");
         }
         if (a < 0 && b < 0) {
-            assert(sum < 0);
+            require(sum < 0, "Underflow error.");
         }
     }
 }
