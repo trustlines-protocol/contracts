@@ -180,6 +180,25 @@ def test_debit_transfer_under_value(
     )
 
 
+def test_debit_transfer_revert(
+    currency_network_contract_with_trustlines_and_debt,
+    accounts,
+    creditor,
+    debtor,
+    debt_value,
+):
+    network = currency_network_contract_with_trustlines_and_debt
+
+    path = [accounts[1], accounts[1], creditor]
+    transfer_value = debt_value // 2
+    invalid_transfer_fees = 0
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        network.functions.debitTransfer(
+            debtor, creditor, transfer_value, invalid_transfer_fees, path, EXTRA_DATA
+        ).transact({"from": creditor})
+
+
 def test_debit_transfer_events(
     currency_network_contract_with_trustlines_and_debt,
     accounts,
