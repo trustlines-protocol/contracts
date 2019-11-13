@@ -18,7 +18,7 @@ contract TestContract is debtTrackingInterface {
     function increaseDebt(address creditor, uint64 value) external {
     }
 
-    function getDebt(address debtor, address creditor) external view returns (int256) {
+    function getDebt(address, address) external view returns (int256) {
         return 0;
     }
 
