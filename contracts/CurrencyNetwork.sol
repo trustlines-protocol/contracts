@@ -1427,20 +1427,20 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         internal pure
         returns (int)
     {
-        int72 balance = _trustline.balances.balance;
-        int72 transferredValue = _balanceBefore - balance;
+        int72 _balance = _trustline.balances.balance;
+        int72 transferredValue = _balanceBefore - _balance;
 
         if (_balanceBefore <= 0) {
             // Sender already owes receiver, this will only effect the interest rate received
             return - int(transferredValue) * _trustline.agreement.interestRateReceived;
-        } else if (balance >= 0) {
+        } else if (_balance >= 0) {
             // Receiver owes sender before and after the transfer. This only effects the interest rate received
             return - int(transferredValue) * _trustline.agreement.interestRateGiven;
         } else {
             // It effects both interest rates
             // Before the transfer: Receiver owes to sender balanceBefore;
             // After the transfer: Sender owes to receiver balance;
-            return - int(_balanceBefore) * _trustline.agreement.interestRateGiven + int(balance) * _trustline.agreement.interestRateReceived;
+            return - int(_balanceBefore) * _trustline.agreement.interestRateGiven + int(_balance) * _trustline.agreement.interestRateReceived;
         }
     }
 

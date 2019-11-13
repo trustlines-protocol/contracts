@@ -35,7 +35,7 @@ contract IdentityProxyFactory {
         emit ProxyDeployment(owner, proxyAddress, implementationAddress);
     }
 
-    function verifySignature(address implementationAddress, address owner, bytes memory signature) internal returns (bool) {
+    function verifySignature(address implementationAddress, address owner, bytes memory signature) internal view returns (bool) {
         bytes32 hash = keccak256(
             abi.encodePacked(
                 byte(0x19),

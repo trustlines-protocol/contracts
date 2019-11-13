@@ -66,7 +66,7 @@ contract Identity is ProxyStorage {
             lastNonce++;
         }
 
-        (bool status, bytes memory returnedData) = to.call.value(value)(data); // solium-disable-line
+        (bool status, ) = to.call.value(value)(data); // solium-disable-line
         emit TransactionExecution(hash, status);
 
         if (fees != 0 && status != false) {

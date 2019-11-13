@@ -151,7 +151,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         );
     }
 
-    function testSafeSum(int72 a, int72 b) external returns (int72 sum) {
+    function testSafeSum(int72 a, int72 b) external pure returns (int72 sum) {
         return _safeSum(a, b);
     }
 
