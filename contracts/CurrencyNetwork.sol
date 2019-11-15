@@ -88,6 +88,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
     event DebtUpdate(address _debtor, address _creditor, int72 _newDebt);
 
+    event NetworkFreeze();
+
     // for accounting balance and trustline agreement between two users introducing fees and interests
     // currently uses 160 + 136 bits, 216 remaining to make two structs
     struct Trustline {
@@ -539,6 +541,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         require(expirationTime != 0, "The currency network has disabled freezing.");
         require(expirationTime <= now, "The currency network cannot be frozen yet.");
         isNetworkFrozen = true;
+        emit NetworkFreeze();
     }
 
     function supportsInterface(
