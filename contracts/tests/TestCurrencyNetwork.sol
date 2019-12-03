@@ -211,7 +211,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         _storeTrustlineBalances(_a, _b, trustlineBalances);
 
         addToUsersAndFriends(_a, _b);
-        _applyOnboardingRules(_a, owner);
-        _applyOnboardingRules(_b, owner);
+        _applyOnboardingRules(_a, NO_ONBOARDER);
+        _applyOnboardingRules(_b, NO_ONBOARDER);
     }
 }

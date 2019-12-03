@@ -86,9 +86,14 @@ def test_set_account_onboards(currency_network_contract, accounts):
         accounts[1], accounts[2], 1, 1, False, 1, 1, 1, 1
     ).transact()
 
-    owner = accounts[0]
-    assert currency_network_contract.functions.onboarder(accounts[1]).call() == owner
-    assert currency_network_contract.functions.onboarder(accounts[2]).call() == owner
+    assert (
+        currency_network_contract.functions.onboarder(accounts[1]).call()
+        == NO_ONBOARDER
+    )
+    assert (
+        currency_network_contract.functions.onboarder(accounts[2]).call()
+        == NO_ONBOARDER
+    )
 
 
 def test_onboarding_event_no_onboarder(currency_network_contract, web3, accounts):
