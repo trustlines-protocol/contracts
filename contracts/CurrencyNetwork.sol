@@ -42,7 +42,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
     address constant NO_ONBOARDER = address(1);
 
     // meta data for token part
-    // underscores internal variables, because otherwise the names clash with the functions
     string public name;
     string public symbol;
     uint8 public decimals;
