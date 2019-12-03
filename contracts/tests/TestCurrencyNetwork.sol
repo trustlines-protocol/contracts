@@ -43,14 +43,14 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         uint64 _maxFee,
         address[] calldata _path)
         external
-        returns (bool _success)
     {
-        _success = _mediatedTransferSenderPays(
+        _mediatedTransferSenderPays(
             _from,
             _to,
             _value,
             _maxFee,
-            _path
+            _path,
+            ""
         );
     }
 
@@ -61,14 +61,14 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         uint64 _maxFee,
         address[] calldata _path)
         external
-        returns (bool _success)
     {
-        _success = _mediatedTransferReceiverPays(
+        _mediatedTransferReceiverPays(
             _from,
             _to,
             _value,
             _maxFee,
-            _path
+            _path,
+            ""
         );
     }
 
