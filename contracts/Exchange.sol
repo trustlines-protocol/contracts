@@ -284,16 +284,13 @@ contract Exchange is SafeMath, Destructable {
 
         if (makerPath.length > 0) {
             // Transfer in a Trustlines Network
-            require(
-                CurrencyNetworkInterface(order.makerToken).transferFrom(
-                    order.maker,
-                    msg.sender,
-                    uint32(filledMakerTokenAmount), // TODO Overflow check
-                    MAX_FEE,
-                    makerPath,
-                    ""
-                ),
-                "The Trustlines Network transfer from the maker to the taker failed."
+            CurrencyNetworkInterface(order.makerToken).transferFrom(
+                order.maker,
+                msg.sender,
+                uint32(filledMakerTokenAmount), // TODO Overflow check
+                MAX_FEE,
+                makerPath,
+                ""
             );
         } else {
             // Normal token transfer
@@ -309,16 +306,13 @@ contract Exchange is SafeMath, Destructable {
 
         if (takerPath.length > 0) {
             // Transfer in a Trustlines Network
-            require(
-                CurrencyNetworkInterface(order.takerToken).transferFrom(
-                    msg.sender,
-                    order.maker,
-                    uint32(filledTakerTokenAmount), // TODO Overflow check
-                    MAX_FEE,
-                    takerPath,
-                    ""
-            ),
-                "The Trustlines Network transfer from the taker to the maker failed."
+            CurrencyNetworkInterface(order.takerToken).transferFrom(
+                msg.sender,
+                order.maker,
+                uint32(filledTakerTokenAmount), // TODO Overflow check
+                MAX_FEE,
+                takerPath,
+                ""
             );
         } else {
             require(

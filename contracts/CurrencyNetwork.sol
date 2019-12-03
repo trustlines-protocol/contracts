@@ -210,23 +210,15 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
-        returns (bool _success)
     {
-        _success = _mediatedTransferSenderPays(
+        _mediatedTransferSenderPays(
             msg.sender,
             _to,
             _value,
             _maxFee,
-            _path);
-
-        if (_success) {
-            emit Transfer(
-                msg.sender,
-                _to,
-                _value,
-                _extraData
-            );
-        }
+            _path,
+            _extraData
+        );
     }
 
     /**
@@ -248,25 +240,17 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
-        returns (bool success)
     {
         require(authorized[msg.sender], "The sender of the message is not authorized.");
 
-        success = _mediatedTransferSenderPays(
+        _mediatedTransferSenderPays(
             _from,
             _to,
             _value,
             _maxFee,
-            _path);
-
-        if (success) {
-            emit Transfer(
-                _from,
-                _to,
-                _value,
-                _extraData
-            );
-        }
+            _path,
+            _extraData
+        );
     }
 
     /**
@@ -288,29 +272,20 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address[] calldata _path,
         bytes calldata _extraData
     )
-        external returns (bool success)
+        external
     {
         require(_to == msg.sender, "The transfer can only be initiated by the creditor (_to).");
         require(getDebt(_from, _to) >= _value, "The sender does not have such debt towards the receiver.");
         _reduceDebt(_from, _to, _value);
 
-        success = _mediatedTransferReceiverPays(
+        _mediatedTransferReceiverPays(
             _from,
             _to,
             _value,
             _maxFee,
-            _path);
-
-        if (success) {
-            emit Transfer(
-                _from,
-                _to,
-                _value,
-                _extraData
-            );
-        } else {
-            revert("Transfer failed.");
-        }
+            _path,
+            _extraData
+        );
     }
 
     /**
@@ -330,23 +305,14 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bytes calldata _extraData
     )
         external
-        returns (bool _success)
     {
-        _success = _mediatedTransferReceiverPays(
+        _mediatedTransferReceiverPays(
             msg.sender,
             _to,
             _value,
             _maxFee,
-            _path);
-
-        if (_success) {
-            emit Transfer(
-                msg.sender,
-                _to,
-                _value,
-                _extraData
-            );
-        }
+            _path,
+            _extraData);
     }
 
     /**
@@ -370,12 +336,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bool _isFrozen
     )
         external
-        returns (bool _success)
     {
 
         address _creditor = msg.sender;
 
-        return _updateTrustline(
+        _updateTrustline(
             _creditor,
             _debtor,
             _creditlineGiven,
@@ -401,11 +366,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived
     )
         external
-        returns (bool _success)
     {
         address _creditor = msg.sender;
 
-        return _updateCreditlimits(
+        _updateCreditlimits(
             _creditor,
             _debtor,
             _creditlineGiven,
@@ -430,11 +394,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bool _isFrozen
     )
         external
-        returns (bool _success)
     {
         address _creditor = msg.sender;
 
-        return _updateTrustline(
+        _updateTrustline(
             _creditor,
             _debtor,
             _creditlineGiven,
@@ -455,17 +418,13 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _otherParty
     )
         external
-        returns (bool _success)
     {
-
         address from = msg.sender;
 
         _closeTrustline(
             from,
             _otherParty
         );
-
-        return true;
     }
 
     /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
@@ -484,7 +443,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             msg.sender,
             _otherParty,
             _maxFee,
-            _path);
+            _path
+            );
     }
 
     /**
@@ -699,10 +659,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] memory _path
+        address[] memory _path,
+        bytes memory _extraData
     )
         internal
-        returns (bool)
     {
         require(_path.length > 0, "No path was given.");
         require(_to == _path[_path.length - 1], "The last address of the path does not match the 'to' address.");
@@ -767,7 +727,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             emit BalanceUpdate(sender, _path[i-1], trustline.balances.balance);
         }
 
-        return true;
+        emit Transfer(
+            _from,
+            _to,
+            _value,
+            _extraData
+        );
     }
 
     /* like _mediatedTransfer only the receiver pays
@@ -778,10 +743,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         address _to,
         uint64 _value,
         uint64 _maxFee,
-        address[] memory _path
+        address[] memory _path,
+        bytes memory _extraData
     )
         internal
-        returns (bool)
     {
         require(_path.length > 0, "No path was given.");
         require(_to == _path[_path.length - 1], "The last address of the path does not match the 'to' address.");
@@ -845,7 +810,12 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
 
         }
 
-        return true;
+        emit Transfer(
+            _from,
+            _to,
+            _value,
+            _extraData
+        );
     }
 
     /* close a trustline, which must have a balance of zero */
@@ -918,7 +888,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _from,
                 uint32(balances.balance),
                 _maxFee,
-                _path
+                _path,
+                ""
             );
         } else if (balances.balance < 0) {
             require(
@@ -938,7 +909,8 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _from,
                 uint32(-balances.balance),
                 _maxFee,
-                _path
+                _path,
+                ""
             );
         } // else {} /* balance is zero, there's nothing to do here */
 
@@ -1074,7 +1046,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         bool _isFrozen
     )
         internal
-        returns (bool success)
     {
         require(! isNetworkFrozen, "The network is frozen and trustlines cannot be updated.");
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
@@ -1111,7 +1082,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _interestRateReceived,
                 _isFrozen
             );
-            return true;
+            return;
         }
 
         TrustlineRequest memory trustlineRequest = _loadTrustlineRequest(_creditor, _debtor);
@@ -1132,9 +1103,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                     _isFrozen
                 );
                 _applyOnboardingRules(_creditor, _debtor);
-
-                return true;
-
             } else {
                 _requestTrustlineUpdate(
                     _creditor,
@@ -1145,8 +1113,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                     _interestRateReceived,
                     _isFrozen
                 );
-
-                return true;
             }
         // update the trustline request
         } else {
@@ -1159,8 +1125,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
                 _interestRateReceived,
                 _isFrozen
             );
-
-            return true;
         }
     }
 
@@ -1171,7 +1135,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint64 _creditlineReceived
     )
         internal
-        returns (bool success)
     {
         int16 interestRateGiven = defaultInterestRate;
         int16 interestRateReceived = defaultInterestRate;
@@ -1181,7 +1144,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
             interestRateGiven = trustlineAgreement.interestRateGiven;
             interestRateReceived = trustlineAgreement.interestRateReceived;
         }
-        return _updateTrustline(
+        _updateTrustline(
             _creditor,
             _debtor,
             _creditlineGiven,

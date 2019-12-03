@@ -14,8 +14,7 @@ interface CurrencyNetworkInterface {
         address[] calldata _path,
         bytes calldata _extraData
     )
-        external
-        returns (bool success);
+        external;
 
     function transferFrom(
         address _from,
@@ -25,8 +24,7 @@ interface CurrencyNetworkInterface {
         address[] calldata _path,
         bytes calldata _extraData
     )
-        external
-        returns (bool success);
+        external;
 
     function balance(address _from, address _to) external view returns (int);
 
