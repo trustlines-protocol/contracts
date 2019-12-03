@@ -18,7 +18,7 @@ import "./debtTrackingInterface.sol";
  * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Destructable, debtTrackingInterface, ERC165 {
+contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, Destructable, debtTrackingInterface, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**71 - 1;
@@ -161,7 +161,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         uint _expirationTime
     )
         external
-        onlyOwner
     {
         require(!isInitialized, "Currency Network already initialized.");
         isInitialized = true;
@@ -189,8 +188,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Ownable, Authorizable, Des
         customInterests = _customInterests;
         preventMediatorInterests = _preventMediatorInterests;
         expirationTime = _expirationTime;
-
-        onboarder[owner] = NO_ONBOARDER;
     }
 
     /**
