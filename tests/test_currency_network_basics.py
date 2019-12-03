@@ -2,7 +2,6 @@
 
 import pytest
 
-from web3.exceptions import BadFunctionCallOutput
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
@@ -762,21 +761,6 @@ def test_update_set_account_add_users(currency_network_contract, accounts):
     A, B, *rest = accounts
     contract.functions.setAccount(A, B, 50, 100, 0, 0, False, 0, 0, 0, 0).transact()
     assert len(contract.functions.getUsers().call()) == 2
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="broken by updates, see https://github.com/trustlines-protocol/contracts/issues/216",
-)
-def test_selfdestruct(currency_network_contract):
-    currency_network_contract.functions.destruct().transact()
-    with pytest.raises(BadFunctionCallOutput):  # contract does not exist
-        currency_network_contract.functions.decimals().call()
-
-
-def test_only_owner_selfdestruct(currency_network_contract, accounts):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.destruct().transact({"from": accounts[1]})
 
 
 CREDITLINE_WIDTH = 64
