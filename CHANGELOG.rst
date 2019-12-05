@@ -3,6 +3,10 @@ Change Log
 ==========
 `0.11.0`_ (unreleased)
 -----------------------
+* Remove self destruct from Currency Network
+* Remove owner from Currency Network
+* Remove boolean return values from Currency Network functions.
+* Bugfix: emit Transfer event also on closeTrustlineViaTriangularTransfer
 
 `0.10.1`_ (2019-11-18)
 -----------------------
