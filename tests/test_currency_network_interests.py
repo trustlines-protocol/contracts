@@ -103,8 +103,6 @@ def test_interests_positive_balance(
         100,
         100,
         False,
-        0,
-        0,
         current_time,
         100000000,
     ).transact()
@@ -140,8 +138,6 @@ def test_interests_high_value(
         2000,
         2000,
         False,
-        0,
-        0,
         current_time,
         1000000000000000000,
     ).transact()
@@ -173,8 +169,6 @@ def test_interests_negative_balance(
         100,
         100,
         False,
-        0,
-        0,
         current_time,
         -100000000,
     ).transact()
@@ -207,8 +201,6 @@ def test_no_interests(
         0,
         0,
         False,
-        0,
-        0,
         current_time,
         100000000,
     ).transact()
@@ -234,7 +226,7 @@ def test_custom_interests(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     contract.functions.setAccount(
-        accounts[0], accounts[1], 0, 2000000000, 0, 1234, False, 0, 0, 0, 0
+        accounts[0], accounts[1], 0, 2000000000, 0, 1234, False, 0, 0
     ).transact()
     current_time = int(time.time())
     chain.time_travel(current_time + SECONDS_PER_YEAR)
@@ -264,17 +256,7 @@ def test_custom_interests_postive_balance(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0],
-        accounts[1],
-        0,
-        2000000000,
-        1234,
-        0,
-        False,
-        0,
-        0,
-        current_time,
-        100000000,
+        accounts[0], accounts[1], 0, 2000000000, 1234, 0, False, current_time, 100000000
     ).transact()
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
@@ -311,7 +293,7 @@ def test_safe_interest_allows_direct_transactions(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     contract.functions.setAccount(
-        accounts[0], accounts[1], 1000000, 2000000, 100, 200, False, 0, 0, 0, 0
+        accounts[0], accounts[1], 1000000, 2000000, 100, 200, False, 0, 0
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -332,30 +314,10 @@ def test_safe_interest_allows_transactions_mediated(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0],
-        accounts[1],
-        1000000,
-        2000000,
-        100,
-        200,
-        False,
-        0,
-        0,
-        current_time,
-        0,
+        accounts[0], accounts[1], 1000000, 2000000, 100, 200, False, current_time, 0
     ).transact()
     contract.functions.setAccount(
-        accounts[1],
-        accounts[2],
-        1000000,
-        2000000,
-        100,
-        200,
-        False,
-        0,
-        0,
-        current_time,
-        0,
+        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 0
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -377,30 +339,10 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0],
-        accounts[1],
-        1000000,
-        2000000,
-        200,
-        100,
-        False,
-        0,
-        0,
-        current_time,
-        0,
+        accounts[0], accounts[1], 1000000, 2000000, 200, 100, False, current_time, 0
     ).transact()
     contract.functions.setAccount(
-        accounts[1],
-        accounts[2],
-        1000000,
-        2000000,
-        100,
-        200,
-        False,
-        0,
-        0,
-        current_time,
-        0,
+        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 0
     ).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
@@ -421,30 +363,10 @@ def test_safe_interest_allows_transactions_mediated_solves_imbalance(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0],
-        accounts[1],
-        1000000,
-        2000000,
-        200,
-        100,
-        False,
-        0,
-        0,
-        current_time,
-        100,
+        accounts[0], accounts[1], 1000000, 2000000, 200, 100, False, current_time, 100
     ).transact()
     contract.functions.setAccount(
-        accounts[1],
-        accounts[2],
-        1000000,
-        2000000,
-        100,
-        200,
-        False,
-        0,
-        0,
-        current_time,
-        100,
+        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 100
     ).transact()
 
     getattr(contract.functions, transfer_function_name)(
@@ -464,30 +386,10 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0],
-        accounts[1],
-        1000000,
-        2000000,
-        200,
-        100,
-        False,
-        0,
-        0,
-        current_time,
-        100,
+        accounts[0], accounts[1], 1000000, 2000000, 200, 100, False, current_time, 100
     ).transact()
     contract.functions.setAccount(
-        accounts[1],
-        accounts[2],
-        1000000,
-        2000000,
-        100,
-        200,
-        False,
-        0,
-        0,
-        current_time,
-        100,
+        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 100
     ).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
@@ -515,8 +417,6 @@ def test_negative_interests_default_positive_balance(
         -100,
         -100,
         False,
-        0,
-        0,
         current_time,
         100000000,
     ).transact()
@@ -551,8 +451,6 @@ def test_negative_interests_default_negative_balance(
         -100,
         -100,
         False,
-        0,
-        0,
         current_time,
         -100000000,
     ).transact()
@@ -588,8 +486,6 @@ def test_interests_overflow(
         2 ** (INTEREST_WIDTH - 1) - 1,
         2 ** (INTEREST_WIDTH - 1) - 1,
         False,
-        0,
-        0,
         current_time,
         2 ** CREDITLINE_WIDTH - 1,
     ).transact()
@@ -620,8 +516,6 @@ def test_interests_underflow(
         2 ** (INTEREST_WIDTH - 1) - 1,
         2 ** (INTEREST_WIDTH - 1) - 1,
         False,
-        0,
-        0,
         current_time,
         -(2 ** CREDITLINE_WIDTH - 1),
     ).transact()

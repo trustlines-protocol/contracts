@@ -70,7 +70,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 1, 1
+            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 1, 1
         ).transact()
     return contract
 
