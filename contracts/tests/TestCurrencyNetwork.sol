@@ -84,8 +84,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         int16 _interestRateGiven,
         int16 _interestRateReceived,
         bool _isFrozen,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
         uint32 _mtime,
         int72 _balance
     )
@@ -112,8 +110,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
             _interestRateGiven,
             _interestRateReceived,
             _isFrozen,
-            _feesOutstandingA,
-            _feesOutstandingB,
             _mtime,
             _balance
         );
@@ -129,8 +125,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         uint64 _creditlineGiven,
         uint64 _creditlineReceived,
         bool _isFrozen,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
         uint32 _mtime,
         int72 _balance
     )
@@ -144,8 +138,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
             defaultInterestRate,
             defaultInterestRate,
             _isFrozen,
-            _feesOutstandingA,
-            _feesOutstandingB,
             _mtime,
             _balance
         );
@@ -187,8 +179,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         int16 _interestRateGiven,
         int16 _interestRateReceived,
         bool _isFrozen,
-        uint16 _feesOutstandingA,
-        uint16 _feesOutstandingB,
         uint32 _mtime,
         int72 _balance
     )
@@ -202,8 +192,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         trustlineAgreement.isFrozen = _isFrozen;
 
         TrustlineBalances memory trustlineBalances;
-        trustlineBalances.feesOutstandingA = _feesOutstandingA;
-        trustlineBalances.feesOutstandingB = _feesOutstandingB;
         trustlineBalances.mtime = _mtime;
         trustlineBalances.balance = _balance;
 

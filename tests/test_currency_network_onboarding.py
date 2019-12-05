@@ -83,7 +83,7 @@ def test_cannot_change_onboarder(currency_network_contract, accounts):
 
 def test_set_account_onboards(currency_network_contract, accounts):
     currency_network_contract.functions.setAccountDefaultInterests(
-        accounts[1], accounts[2], 1, 1, False, 1, 1, 1, 1
+        accounts[1], accounts[2], 1, 1, False, 1, 1
     ).transact()
 
     assert (

@@ -44,7 +44,7 @@ def currency_network_contract_with_trustlines(web3, accounts, chain):
     contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0, 0, 0
+            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0
         ).transact()
 
     return contract
@@ -260,7 +260,7 @@ def test_freezing_trustline_via_set_account(
     network = currency_network_contract_with_trustlines
 
     network.functions.setAccount(
-        accounts[0], accounts[1], 100, 100, 0, 0, True, 0, 0, 0, 12
+        accounts[0], accounts[1], 100, 100, 0, 0, True, 0, 12
     ).transact()
 
     assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
@@ -272,7 +272,7 @@ def test_freezing_trustline_via_set_account_default_interests(
     network = currency_network_contract_with_trustlines
 
     network.functions.setAccountDefaultInterests(
-        accounts[0], accounts[1], 100, 100, True, 0, 0, 0, 12
+        accounts[0], accounts[1], 100, 100, True, 0, 12
     ).transact()
 
     assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True

@@ -37,7 +37,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
     contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccountDefaultInterests(
-            accounts[A], accounts[B], clAB, clBA, False, 0, 0, 0, 0
+            accounts[A], accounts[B], clAB, clBA, False, 0, 0
         ).transact()
     return contract
 

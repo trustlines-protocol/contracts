@@ -99,7 +99,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     }
 
     struct TrustlineAgreement {
-
         uint64 creditlineGiven;       //  creditline given by A to B, always positive
         uint64 creditlineReceived;    //  creditline given by B to A, always positive
 
@@ -111,15 +110,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     }
 
     struct TrustlineBalances {
-
-        uint16 feesOutstandingA;       //  fees outstanding by A
-        uint16 feesOutstandingB;       //  fees outstanding by B
-
         uint32 mtime;                  //  last time interests were applied
-
         int72 balance;                 //  balance between A and B, balance is >0 if B owes A, negative otherwise.
                                        //  balance(B,A) = - balance(A,B)
-        int120 padding;                //  fill up to 256 bit
+        int152 padding;                //  fill up to 256 bit
     }
 
     struct TrustlineRequest {
@@ -470,7 +464,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     * Query the trustline between two users.
     * Can be removed once structs are supported in the ABI
     */
-    function getAccount(address _a, address _b) external view returns (int, int, int, int, bool, int, int, int, int) {
+    function getAccount(address _a, address _b) external view returns (int, int, int, int, bool, int, int) {
         Trustline memory trustline = _loadTrustline(_a, _b);
 
         return (
@@ -479,8 +473,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
             trustline.agreement.interestRateGiven,
             trustline.agreement.interestRateReceived,
             trustline.agreement.isFrozen || isNetworkFrozen,
-            trustline.balances.feesOutstandingA,
-            trustline.balances.feesOutstandingB,
             trustline.balances.mtime,
             trustline.balances.balance);
     }
@@ -912,8 +904,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         if (_a < _b) {
             result = balances;
         } else {
-            result.feesOutstandingB = balances.feesOutstandingA;
-            result.feesOutstandingA = balances.feesOutstandingB;
             result.mtime = balances.mtime;
             result.balance = - balances.balance;
         }
@@ -952,14 +942,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     function _storeTrustlineBalances(address _a, address _b, TrustlineBalances memory trustlineBalances) internal {
         TrustlineBalances storage storedTrustlineBalance = trustlines[uniqueIdentifier(_a, _b)].balances;
         if (_a < _b) {
-            storedTrustlineBalance.feesOutstandingA = trustlineBalances.feesOutstandingA;
-            storedTrustlineBalance.feesOutstandingB = trustlineBalances.feesOutstandingB;
             storedTrustlineBalance.mtime = trustlineBalances.mtime;
             storedTrustlineBalance.balance = trustlineBalances.balance;
             storedTrustlineBalance.padding = trustlineBalances.padding;
         } else {
-            storedTrustlineBalance.feesOutstandingA = trustlineBalances.feesOutstandingB;
-            storedTrustlineBalance.feesOutstandingB = trustlineBalances.feesOutstandingA;
             storedTrustlineBalance.mtime = trustlineBalances.mtime;
             storedTrustlineBalance.balance = - trustlineBalances.balance;
             storedTrustlineBalance.padding = trustlineBalances.padding;

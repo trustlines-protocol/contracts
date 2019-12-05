@@ -51,8 +51,6 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
                 _interestRateGiven=interest_rate,
                 _interestRateReceived=interest_rate,
                 _isFrozen=False,
-                _feesOutstandingA=0,
-                _feesOutstandingB=0,
                 _mtime=current_time,
                 _balance=0,
             ).transact()
@@ -73,8 +71,6 @@ def ensure_trustline_closed(contract, address1, address2):
         0,
         0,
         False,
-        0,
-        0,
         0,
         0,
     ]
