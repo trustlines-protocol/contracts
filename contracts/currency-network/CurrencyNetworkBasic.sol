@@ -171,16 +171,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     /**
-     * @notice send `_value` token to `_to` from `msg.sender`
-     * The fees will be payed by the sender, so `_value` is the amount received by `_to`
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
+     * @notice send `_value` along `_path`
+     * The fees will be payed by the sender, so `_value` is the amount received by receiver
+     * @param _value The amount to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
-     * @param _path Path between msg.sender and _to
+     * @param _path Path of transfer starting with msg.sender and ending with receiver
      * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transfer(
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path,
@@ -188,9 +186,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
     {
+        require(msg.sender == _path[0], "The path must start with msg.sender");
         _mediatedTransferSenderPays(
-            msg.sender,
-            _to,
             _value,
             _maxFee,
             _path,
@@ -199,18 +196,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     /**
-     * @notice send `_value` token to `_to` from `_from`
+     * @notice send `_value` along `_path`
      * msg.sender needs to be authorized to call this function
-     * @param _from The address of the sender
-     * @param _to The address of the recipient
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
-     * @param _path Path between _from and _to
+     * @param _path Path of transfer starting with sender and ending with receiver
      * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transferFrom(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path,
@@ -221,8 +214,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         require(authorized[msg.sender], "The sender of the message is not authorized.");
 
         _mediatedTransferSenderPays(
-            _from,
-            _to,
             _value,
             _maxFee,
             _path,
@@ -231,16 +222,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     /**
-     * @notice send `_value` token to `_to` from `msg.sender`
-     * The fees will be payed by the receiver, so `_value` is the amount that is sent out by `msg.sender`
-     * @param _to The address of the recipient
+     * @notice send `_value` along `_path`
+     * The fees will be payed by the receiver, so `_value` is the amount that is sent out by sender
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the sender wants to pay
-     * @param _path Path between msg.sender and _to
+     * @param _path Path of transfer starting with msg.sender and ending with receiver
      * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function transferReceiverPays(
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path,
@@ -248,9 +237,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
     {
+        require(msg.sender == _path[0], "The path must start with msg.sender");
         _mediatedTransferReceiverPays(
-            msg.sender,
-            _to,
             _value,
             _maxFee,
             _path,
@@ -396,7 +384,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         external
     {
         _closeTrustlineByTriangularTransfer(
-            msg.sender,
             _otherParty,
             _maxFee,
             _path
@@ -536,8 +523,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     function _mediatedTransferSenderPays(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] memory _path,
@@ -546,7 +531,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal
     {
         require(_path.length > 0, "No path was given.");
-        require(_to == _path[_path.length - 1], "The last address of the path does not match the 'to' address.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -555,21 +539,18 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         bool reducingDebtOfNextHopOnly = true;
 
         // check path in reverse to correctly accumulate the fee
-        for (uint i = _path.length; i > 0; i--) {
-            // the address of the receiver is _path[i-1]
-            address sender;
+        for (uint i = _path.length - 1; i > 0; i--) {
+            // the address of the receiver is _path[i]
+            address sender = _path[i-1];
+
             uint64 fee;
-            if (i == 1) {
-                sender = _from;
-            } else {
-                sender = _path[i-2];
-            }
+
             // Load trustline only once at the beginning
-            Trustline memory trustline = _loadTrustline(sender, _path[i-1]);
+            Trustline memory trustline = _loadTrustline(sender, _path[i]);
             require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
-            if (i == _path.length) {
+            if (i == _path.length - 1) {
                 fee = 0; // receiver should not get a fee
             } else {
                 fee = _calculateFeesReverse(_imbalanceGenerated(forwardedValue, trustline.balances.balance), capacityImbalanceFeeDivisor);
@@ -603,14 +584,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             }
 
             // store only balance because trustline agreement did not change
-            _storeTrustlineBalances(sender, _path[i-1], trustline.balances);
+            _storeTrustlineBalances(sender, _path[i], trustline.balances);
             // The BalanceUpdate always has to be in the transfer direction
-            emit BalanceUpdate(sender, _path[i-1], trustline.balances.balance);
+            emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
         }
 
         emit Transfer(
-            _from,
-            _to,
+            _path[0],
+            _path[_path.length - 1],
             _value,
             _extraData
         );
@@ -620,8 +601,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
        which means we start walking the _path at the sender and substract fees from the forwarded value
     */
     function _mediatedTransferReceiverPays(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] memory _path,
@@ -630,7 +609,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal
     {
         require(_path.length > 0, "No path was given.");
-        require(_to == _path[_path.length - 1], "The last address of the path does not match the 'to' address.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -639,17 +617,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         bool reducingDebtOnly = true;
 
         // check path starting from sender correctly accumulate the fee
-        for (uint i = 0; i < _path.length; i++) {
-            // the address of the receiver is _path[i]
-            address sender;
+        for (uint i = 0; i < _path.length-1; i++) {
+            // the address of the receiver is _path[i+1]
+            address sender = _path[i];
+
             uint64 fee;
-            if (i == 0) {
-                sender = _from;
-            } else {
-                sender = _path[i-1];
-            }
+
             // Load trustline only once at the beginning
-            Trustline memory trustline = _loadTrustline(sender, _path[i]);
+            Trustline memory trustline = _loadTrustline(sender, _path[i+1]);
             require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
@@ -672,11 +647,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             }
 
             // store only balance because trustline agreement did not change
-            _storeTrustlineBalances(sender, _path[i], trustline.balances);
+            _storeTrustlineBalances(sender, _path[i+1], trustline.balances);
             // The BalanceUpdate always has to be in the transfer direction
-            emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
+            emit BalanceUpdate(sender, _path[i+1], trustline.balances.balance);
 
-            if (i == _path.length - 1) {
+            if (i == _path.length - 2) {
                 break; // receiver is not a mediator, so no fees
             }
 
@@ -692,8 +667,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         }
 
         emit Transfer(
-            _from,
-            _to,
+            _path[0],
+            _path[_path.length - 1],
             _value,
             _extraData
         );
@@ -725,39 +700,33 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     function _closeTrustlineByTriangularTransfer(
-        address _from,
         address _otherParty,
         uint64 _maxFee,
         address[] memory _path)
         internal
     {
-        Trustline memory trustline = _loadTrustline(_from, _otherParty);
+        require(
+            _path.length >= 3,
+            "Path given too short to be correct."
+        );
+        require(msg.sender == _path[0], "Path must start msg.sender.");
+        require(
+            msg.sender == _path[_path.length - 1],
+            "Last element of path does not match msg.sender."
+        );
+
+        Trustline memory trustline = _loadTrustline(_path[0], _otherParty);
         require(!_isTrustlineFrozen(trustline.agreement), "The trustline is frozen and cannot be closed.");
         _applyInterests(trustline);
-        /* we could as well call _storeTrustlineBalances here. It doesn't matter for the
-           _mediatedTransfer/_mediatedTransferReceiverPays calls below since the
-           interest will be recomputed if we don't call storeTrustlineBalances here. We
-           may investigate what's cheaper gas-wise later.
-        */
         TrustlineBalances memory balances = trustline.balances;
 
         if (balances.balance > 0) {
             require(
-                _path.length >= 2,
-                "The path given is too short to be correct."
-            );
-            require(
-                _from == _path[_path.length - 1],
-                "The last element of the path does not match with the _from address."
-            );
-            require(
-                _path[0] == _otherParty,
-                "The first element of the path does not match with the _otherParty address."
+                _path[1] == _otherParty,
+                "Second element of path does not match _otherParty address."
             );
             require(uint64(balances.balance) == balances.balance, "Cannot transfer too high values.");
             _mediatedTransferReceiverPays(
-                _from,
-                _from,
                 uint64(balances.balance),
                 _maxFee,
                 _path,
@@ -765,21 +734,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             );
         } else if (balances.balance < 0) {
             require(
-                _path.length >= 2,
-                "The path given is too short to be correct."
-            );
-            require(
-                _from == _path[_path.length - 1],
-                "The last element of the path does not match with the _from address"
-            );
-            require(
                 _path[_path.length - 2] == _otherParty,
-                "The second to last element of the path has to be _otherParty address."
+                "Second to last element of path does not match _otherParty address."
             );
             require(uint64(-balances.balance) == - balances.balance, "Cannot transfer too high values.");
             _mediatedTransferSenderPays(
-                _from,
-                _from,
                 uint64(-balances.balance),
                 _maxFee,
                 _path,
@@ -787,7 +746,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             );
         } // else {} /* balance is zero, there's nothing to do here */
 
-        _closeTrustline(_from, _otherParty);
+        _closeTrustline(_path[0], _otherParty);
     }
 
     function addToUsersAndFriends(address _a, address _b) internal {

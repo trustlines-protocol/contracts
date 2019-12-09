@@ -15,33 +15,28 @@ import "./CurrencyNetworkBasic.sol";
 contract CurrencyNetwork is CurrencyNetworkBasic, DebtTracking, Onboarding {
 
     /**
-     * @notice send `_value` token to `_to` from `_from`
-     * `_from` needs to have a debt towards `_to` of at least `_value`
-     * `_to` needs to be msg.sender
-     * @param _from The address of the sender
-     * @param _to The address of the recipient
+     * @notice send `_value` along `_path`
+     * sender needs to have a debt towards receiver of at least `_value`
      * @param _value The amount of token to be transferred
      * @param _maxFee Maximum fee the receiver wants to pay
-     * @param _path Path between _from and _to
+     * @param _path Path of transfer starting with debtor and ending with creditor (msg.sender)
      * @param _extraData extra data bytes to be logged in the Transfer event
      **/
     function debitTransfer(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path,
         bytes calldata _extraData
     )
         external
-        {
-        require(_to == msg.sender, "The transfer can only be initiated by the creditor (_to).");
-        require(getDebt(_from, _to) >= _value, "The sender does not have such debt towards the receiver.");
-        _reduceDebt(_from, _to, _value);
+    {
+        address from = _path[0];
+        address to = _path[_path.length - 1];
+        require(to == msg.sender, "The transfer can only be initiated by the creditor.");
+        require(getDebt(from, to) >= _value, "The sender does not have such debt towards the receiver.");
+        _reduceDebt(from, to, _value);
 
         _mediatedTransferReceiverPays(
-            _from,
-            _to,
             _value,
             _maxFee,
             _path,
