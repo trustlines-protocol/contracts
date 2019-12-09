@@ -285,8 +285,6 @@ contract Exchange is SafeMath, Destructable {
         if (makerPath.length > 0) {
             // Transfer in a Trustlines Network
             CurrencyNetworkInterface(order.makerToken).transferFrom(
-                order.maker,
-                msg.sender,
                 uint32(filledMakerTokenAmount), // TODO Overflow check
                 MAX_FEE,
                 makerPath,
@@ -307,8 +305,6 @@ contract Exchange is SafeMath, Destructable {
         if (takerPath.length > 0) {
             // Transfer in a Trustlines Network
             CurrencyNetworkInterface(order.takerToken).transferFrom(
-                msg.sender,
-                order.maker,
                 uint32(filledTakerTokenAmount), // TODO Overflow check
                 MAX_FEE,
                 takerPath,
