@@ -37,16 +37,12 @@ contract TestCurrencyNetwork is CurrencyNetwork {
     }
 
     function testTransferSenderPays(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path)
         external
     {
         _mediatedTransferSenderPays(
-            _from,
-            _to,
             _value,
             _maxFee,
             _path,
@@ -55,16 +51,12 @@ contract TestCurrencyNetwork is CurrencyNetwork {
     }
 
     function testTransferReceiverPays(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path)
         external
     {
         _mediatedTransferReceiverPays(
-            _from,
-            _to,
             _value,
             _maxFee,
             _path,

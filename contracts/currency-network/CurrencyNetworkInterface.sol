@@ -8,7 +8,6 @@ interface CurrencyNetworkInterface {
     function decimals() external view returns (uint8);
 
     function transfer(
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path,
@@ -17,8 +16,6 @@ interface CurrencyNetworkInterface {
         external;
 
     function transferFrom(
-        address _from,
-        address _to,
         uint64 _value,
         uint64 _maxFee,
         address[] calldata _path,
