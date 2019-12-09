@@ -52,7 +52,7 @@ def currency_network_with_pending_interests(
     """
     for (A, B, clAB, clBA) in trustlines:
         currency_network_contract_with_trustlines.functions.transfer(
-            accounts[B], 10, 0, [accounts[B]], b""
+            10, 0, [accounts[A], accounts[B]], b""
         ).transact({"from": accounts[A]})
 
     timestamp = web3.eth.getBlock("latest").timestamp
@@ -73,7 +73,7 @@ def currency_network_with_different_interests(
     """
     for (A, B, clAB, clBA) in trustlines:
         currency_network_contract_with_trustlines.functions.transfer(
-            accounts[B], clAB // 10, 0, [accounts[B]], b""
+            clAB // 10, 0, [accounts[A], accounts[B]], b""
         ).transact({"from": accounts[A]})
 
     timestamp = web3.eth.getBlock("latest").timestamp
@@ -224,9 +224,11 @@ def get_balance_update_events_for_transfer(currency_network_contract, transfer_e
 def get_transfer_path(currency_network_contract, transfer_event):
     """Returns the transfer path of the given transfer without the sender"""
     path_from_events = []
-    for event in get_balance_update_events_for_transfer(
+    transfer_events = get_balance_update_events_for_transfer(
         currency_network_contract, transfer_event
-    ):
+    )
+    path_from_events.append(transfer_events[0]["args"]["_from"])
+    for event in transfer_events:
         path_from_events.append(event["args"]["_to"])
 
     return path_from_events
@@ -333,16 +335,16 @@ def test_get_transfer_path_information(
     test that we can get the path of a sent transfer from the transfer event
     """
     network = currency_network_contract_with_trustlines
-    account_path = [accounts[i] for i in path[1:]]
+    account_path = [accounts[i] for i in path]
 
     if fee_payer == "sender":
-        network.functions.transfer(
-            accounts[path[-1]], 10, 100, account_path, b""
-        ).transact({"from": accounts[path[0]]})
+        network.functions.transfer(10, 100, account_path, b"").transact(
+            {"from": account_path[0]}
+        )
     elif fee_payer == "receiver":
-        network.functions.transferReceiverPays(
-            accounts[path[-1]], 10, 100, account_path, b""
-        ).transact({"from": accounts[path[0]]})
+        network.functions.transferReceiverPays(10, 100, account_path, b"").transact(
+            {"from": account_path[0]}
+        )
     else:
         assert False, "Invalid fee payer"
 
@@ -377,16 +379,16 @@ def test_get_value_information(
     test that we can get the values for sent, received and the fees from a transfer event
     """
     network = currency_network_with_pending_interests
-    account_path = [accounts[i] for i in path[1:]]
+    account_path = [accounts[i] for i in path]
 
     if fee_payer == "sender":
-        network.functions.transfer(
-            accounts[path[-1]], value, 1000, account_path, b""
-        ).transact({"from": accounts[path[0]]})
+        network.functions.transfer(value, 1000, account_path, b"").transact(
+            {"from": account_path[0]}
+        )
     elif fee_payer == "receiver":
-        network.functions.transferReceiverPays(
-            accounts[path[-1]], value, 1000, account_path, b""
-        ).transact({"from": accounts[path[0]]})
+        network.functions.transferReceiverPays(value, 1000, account_path, b"").transact(
+            {"from": account_path[0]}
+        )
     else:
         assert False, "Invalid fee payer"
 
@@ -416,13 +418,11 @@ def test_get_balance_update_events(
     network = currency_network_contract_with_trustlines
 
     if fee_payer == "sender":
-        network.functions.transfer(path[-1], 10, 1000, path[1:], b"").transact(
+        network.functions.transfer(10, 1000, path, b"").transact({"from": path[0]})
+    elif fee_payer == "receiver":
+        network.functions.transferReceiverPays(10, 1000, path, b"").transact(
             {"from": path[0]}
         )
-    elif fee_payer == "receiver":
-        network.functions.transferReceiverPays(
-            path[-1], 10, 1000, path[1:], b""
-        ).transact({"from": path[0]})
     else:
         assert False, "Invalid fee payer"
 
@@ -451,9 +451,9 @@ def test_get_interests_for_trustline(
     """
     currency_network = currency_network_contract_with_trustlines
     currency_network.functions.transfer(
-        accounts[2], 10, 1000, [accounts[2]], b""
+        10, 1000, [accounts[1], accounts[2]], b""
     ).transact({"from": accounts[1]})
-    path = [accounts[1], accounts[2], accounts[3]]
+    path = [accounts[0], accounts[1], accounts[2], accounts[3]]
 
     for year in years:
         timestamp = web3.eth.getBlock("latest").timestamp
@@ -461,7 +461,7 @@ def test_get_interests_for_trustline(
 
         chain.time_travel(timestamp)
         chain.mine_block()
-        currency_network.functions.transfer(accounts[3], 9, 1000, path, b"").transact(
+        currency_network.functions.transfer(9, 1000, path, b"").transact(
             {"from": accounts[0]}
         )
     balances = get_all_balances_for_trustline(

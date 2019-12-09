@@ -251,11 +251,11 @@ def test_transfer_0_mediators_fail_wrong_path(
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[1], 110, 0, [accounts[2]], EXTRA_DATA
+            110, 0, [accounts[0], accounts[2]], EXTRA_DATA
         ).transact({"from": accounts[0]})
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[2], 1, 0, [accounts[1]], EXTRA_DATA
+            1, 0, [accounts[2], accounts[1]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 
@@ -284,7 +284,7 @@ def test_transfer_1_mediators_not_enough_wrong_path(
     contract = currency_network_contract_with_trustlines
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[2], 110, 0, [accounts[1], accounts[3]], EXTRA_DATA
+            110, 0, [accounts[0], accounts[1], accounts[3]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 
@@ -337,24 +337,19 @@ def test_send_more(currency_network_adapter_with_trustlines, accounts):
     assert currency_network_adapter.balance(A, B) == 80
 
 
-def test_can_always_reduce(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    contract.functions.transfer(
-        accounts[1], 120, 0, [accounts[1]], EXTRA_DATA
-    ).transact({"from": accounts[0]})
-    assert contract.functions.balance(accounts[1], accounts[0]).call() == 120
+def test_can_always_reduce(currency_network_adapter_with_trustlines, accounts):
+    currency_network_adapter_with_trustlines.transfer(
+        120, path=[accounts[0], accounts[1]]
+    )
+    assert currency_network_adapter_with_trustlines.balance(accounts[1], accounts[0]) == 120
 
     # reduce creditlimits below balance
-    contract.functions.updateCreditlimits(accounts[1], 0, 0).transact(
-        {"from": accounts[0]}
-    )
-    assert contract.functions.creditline(accounts[1], accounts[0]).call() == 0
-    assert contract.functions.creditline(accounts[0], accounts[1]).call() == 0
+    currency_network_adapter_with_trustlines.update_trustline(accounts[0], accounts[1], creditline_given=0, creditline_received=0)
+    assert currency_network_adapter_with_trustlines.contract.functions.creditline(accounts[1], accounts[0]).call() == 0
+    assert currency_network_adapter_with_trustlines.contract.functions.creditline(accounts[0], accounts[1]).call() == 0
 
-    contract.functions.transfer(accounts[0], 50, 0, [accounts[0]], EXTRA_DATA).transact(
-        {"from": accounts[1]}
-    )
-    assert contract.functions.balance(accounts[1], accounts[0]).call() == 70
+    currency_network_adapter_with_trustlines.transfer(50, path=[accounts[1], accounts[0]])
+    assert currency_network_adapter_with_trustlines.balance(accounts[1], accounts[0]) == 70
 
 
 def test_update_without_accept_trustline(currency_network_adapter, accounts):
@@ -726,7 +721,7 @@ def test_cancel_trustline_update(
     )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[0], 1, 1, [accounts[0]], EXTRA_DATA
+            1, 1, [accounts[1], accounts[0]], EXTRA_DATA
         ).transact({"from": accounts[1]})
 
 
@@ -746,7 +741,7 @@ def test_cancel_trustline_update_not_initiator(
     )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         contract.functions.transfer(
-            accounts[1], 1, 1, [accounts[1]], EXTRA_DATA
+            1, 1, [accounts[0], accounts[1]], EXTRA_DATA
         ).transact({"from": accounts[0]})
 
 

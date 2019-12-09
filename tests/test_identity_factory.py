@@ -343,7 +343,7 @@ def test_delegated_transaction_trustlines_flow_via_proxy(
     )
 
     function_call = currency_network_contract.functions.transfer(
-        B, 100, 0, [B], EXTRA_DATA
+        100, 0, [A, B], EXTRA_DATA
     )
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
     meta_transaction = proxied_identity.filled_and_signed_meta_transaction(

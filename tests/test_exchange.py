@@ -201,7 +201,7 @@ def test_exchange(
         ],
         50,
         [],
-        [mediator_address, maker_address],
+        [taker_address, mediator_address, maker_address],
         v,
         r,
         s,

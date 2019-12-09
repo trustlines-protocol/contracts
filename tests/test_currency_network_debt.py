@@ -119,11 +119,11 @@ def test_debit_transfer(
 ):
     network = currency_network_contract_with_trustlines_and_debt
 
-    path = [accounts[1], accounts[2], creditor]
+    path = [debtor, accounts[1], accounts[2], creditor]
     transfer_fees = 2
 
     network.functions.debitTransfer(
-        debtor, creditor, debt_value, transfer_fees, path, EXTRA_DATA
+        debt_value, transfer_fees, path, EXTRA_DATA
     ).transact({"from": creditor})
 
     assert network.functions.getDebt(debtor, creditor).call() == 0
@@ -143,12 +143,12 @@ def test_debit_transfer_over_value(
 ):
     network = currency_network_contract_with_trustlines_and_debt
 
-    path = [accounts[1], accounts[2], creditor]
+    path = [debtor, accounts[1], accounts[2], creditor]
     transfer_fees = 2
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         network.functions.debitTransfer(
-            debtor, creditor, debt_value + 1, transfer_fees, path, EXTRA_DATA
+            debt_value + 1, transfer_fees, path, EXTRA_DATA
         ).transact({"from": creditor})
 
 
@@ -161,12 +161,12 @@ def test_debit_transfer_under_value(
 ):
     network = currency_network_contract_with_trustlines_and_debt
 
-    path = [accounts[1], accounts[2], creditor]
+    path = [debtor, accounts[1], accounts[2], creditor]
     transfer_value = debt_value // 2
     transfer_fees = 2
 
     network.functions.debitTransfer(
-        debtor, creditor, transfer_value, transfer_fees, path, EXTRA_DATA
+        transfer_value, transfer_fees, path, EXTRA_DATA
     ).transact({"from": creditor})
 
     assert (
@@ -189,13 +189,13 @@ def test_debit_transfer_revert(
 ):
     network = currency_network_contract_with_trustlines_and_debt
 
-    path = [accounts[1], accounts[1], creditor]
+    path = [debtor, accounts[1], accounts[1], creditor]
     transfer_value = debt_value // 2
     invalid_transfer_fees = 0
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         network.functions.debitTransfer(
-            debtor, creditor, transfer_value, invalid_transfer_fees, path, EXTRA_DATA
+            transfer_value, invalid_transfer_fees, path, EXTRA_DATA
         ).transact({"from": creditor})
 
 
@@ -210,11 +210,11 @@ def test_debit_transfer_events(
     debt_event_filter = network.events.DebtUpdate.createFilter(fromBlock="latest")
     transfer_event_filter = network.events.Transfer.createFilter(fromBlock="latest")
 
-    path = [accounts[1], accounts[2], creditor]
+    path = [debtor, accounts[1], accounts[2], creditor]
     transfer_fees = 2
 
     network.functions.debitTransfer(
-        debtor, creditor, debt_value, transfer_fees, path, EXTRA_DATA
+        debt_value, transfer_fees, path, EXTRA_DATA
     ).transact({"from": creditor})
 
     debt_event = debt_event_filter.get_new_entries()[0]["args"]
