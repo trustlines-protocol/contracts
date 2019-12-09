@@ -335,7 +335,7 @@ def test_delegated_transaction_trustlines_flow(
     )
 
     function_call = currency_network_contract.functions.transfer(
-        B, 100, 0, [B], EXTRA_DATA
+        100, 0, [A, B], EXTRA_DATA
     )
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
@@ -606,7 +606,7 @@ def test_failing_meta_transaction_with_fees_does_not_increases_debt(
     to = currency_network_contract.address
     fees = 123
 
-    function_call = currency_network_contract.functions.transfer(B, 100, 100, [B], b"")
+    function_call = currency_network_contract.functions.transfer(100, 100, [A, B], b"")
     meta_transaction = identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to, fees=fees)
     )

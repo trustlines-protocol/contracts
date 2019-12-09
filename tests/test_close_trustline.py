@@ -46,8 +46,8 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
 
-    for a in accounts[:4]:
-        for b in accounts[:4]:
+    for a in accounts:
+        for b in accounts:
             if a is b:
                 continue
             currency_network_adapter.set_account(
@@ -142,7 +142,7 @@ def test_close_trustline_negative_balance(
 
     assert get_balance() < 0
 
-    currency_network_adapter.close_trustline(A, B, path=[C, D, B, A])
+    currency_network_adapter.close_trustline(A, B, path=[A, C, D, B, A])
 
     assert get_balance() == 0
     assert currency_network_adapter.is_trustline_closed(A, B)
@@ -161,7 +161,7 @@ def test_close_trustline_positive_balance(
 
     assert get_balance() > 0
 
-    currency_network_adapter.close_trustline(B, A, path=[A, C, D, B])
+    currency_network_adapter.close_trustline(B, A, path=[B, A, C, D, B])
 
     assert get_balance() == 0
     assert currency_network_adapter.is_trustline_closed(A, B)
@@ -192,6 +192,6 @@ def test_close_trustline_max_balance(
 
     assert get_balance() == max_uint64
 
-    currency_network_adapter.close_trustline(A, B, path=[B, C, A])
+    currency_network_adapter.close_trustline(A, B, path=[A, B, C, A])
 
     assert get_balance() == 0

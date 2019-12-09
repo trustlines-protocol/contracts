@@ -156,9 +156,9 @@ class CurrencyNetworkAdapter:
         )
 
     def transfer(self, value: int, *, path, max_fee=MAX_FEE, extra_data=EXTRA_DATA):
-        self.contract.functions.transfer(
-            path[-1], value, max_fee, path[1:], extra_data
-        ).transact({"from": path[0]})
+        self.contract.functions.transfer(value, max_fee, path, extra_data).transact(
+            {"from": path[0]}
+        )
 
     def events(self, event_name: str):
         return list(getattr(self.contract.events, event_name).getLogs(fromBlock=0))

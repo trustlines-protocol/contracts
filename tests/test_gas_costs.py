@@ -104,9 +104,9 @@ def test_cost_transfer_0_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    tx_hash = contract.functions.transfer(
-        B, 100, 2, [accounts[1]], EXTRA_DATA
-    ).transact({"from": A})
+    tx_hash = contract.functions.transfer(100, 2, [A, B], EXTRA_DATA).transact(
+        {"from": A}
+    )
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, "0 hop transfer", gas_cost, limit=48000)
 
@@ -116,7 +116,7 @@ def test_cost_transfer_1_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, C, *rest = accounts
-    tx_hash = contract.functions.transfer(C, 50, 4, [B, C], EXTRA_DATA).transact(
+    tx_hash = contract.functions.transfer(50, 4, [A, B, C], EXTRA_DATA).transact(
         {"from": A}
     )
     gas_cost = get_gas_costs(web3, tx_hash)
@@ -128,7 +128,7 @@ def test_cost_transfer_2_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, C, D, *rest = accounts
-    tx_hash = contract.functions.transfer(D, 50, 6, [B, C, D], EXTRA_DATA).transact(
+    tx_hash = contract.functions.transfer(50, 6, [A, B, C, D], EXTRA_DATA).transact(
         {"from": A}
     )
     gas_cost = get_gas_costs(web3, tx_hash)
@@ -140,7 +140,7 @@ def test_cost_transfer_3_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, C, D, E, *rest = accounts
-    tx_hash = contract.functions.transfer(E, 50, 8, [B, C, D, E], EXTRA_DATA).transact(
+    tx_hash = contract.functions.transfer(50, 8, [A, B, C, D, E], EXTRA_DATA).transact(
         {"from": A}
     )
     gas_cost = get_gas_costs(web3, tx_hash)
@@ -207,7 +207,7 @@ def test_cost_close_trustline(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    contract.functions.transfer(B, 1, 0, [B], EXTRA_DATA).transact({"from": A})
+    contract.functions.transfer(1, 0, [A, B], EXTRA_DATA).transact({"from": A})
     assert contract.functions.balance(A, B).call() == 0
 
     tx_hash = contract.functions.closeTrustline(B).transact({"from": A})

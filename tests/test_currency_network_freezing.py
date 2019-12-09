@@ -95,9 +95,9 @@ def frozen_functions_and_args(accounts):
     the functions are expected to be called from accounts[0]
     """
     return [
-        ["transfer", (accounts[1], 1, 2, [accounts[1]], b"")],
-        ["transferReceiverPays", (accounts[1], 1, 2, [accounts[1]], b"")],
-        ["transferFrom", (accounts[0], accounts[1], 1, 2, [accounts[1]], b"")],
+        ["transfer", (1, 2, [accounts[0], accounts[1]], b"")],
+        ["transferReceiverPays", (1, 2, [accounts[0], accounts[1]], b"")],
+        ["transferFrom", (1, 2, [accounts[0], accounts[1]], b"")],
         ["updateTrustline", (accounts[1], 101, 101, 101, 101, True)],
         ["updateCreditlimits", (accounts[1], 101, 101)],
         ["updateTrustlineDefaultInterests", (accounts[1], 101, 101, True)],
@@ -344,9 +344,7 @@ def test_mediate_transfer_fails_if_intermediate_trustline_frozen(
     """
     network = currency_network_contract_with_frozen_trustline
 
-    path = [accounts[0], accounts[1], accounts[2]]
+    path = [accounts[4], accounts[0], accounts[1], accounts[2]]
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.transfer(accounts[2], 10, 10, path, b"").transact(
-            {"from": accounts[4]}
-        )
+        network.functions.transfer(10, 10, path, b"").transact({"from": accounts[4]})
