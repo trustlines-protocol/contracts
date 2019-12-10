@@ -693,12 +693,6 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
     assert contract.functions.spendableTo(B, A).call() == 140
 
 
-def test_total_supply(currency_network_contract_with_trustlines):
-    assert (
-        currency_network_contract_with_trustlines.functions.totalSupply().call() == 3250
-    )
-
-
 def test_balance_event(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
