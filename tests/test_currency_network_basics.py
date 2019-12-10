@@ -683,16 +683,6 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
         )
 
 
-def test_spendable(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    A, B, *rest = accounts
-    assert contract.functions.spendableTo(A, B).call() == 150
-    assert contract.functions.spendableTo(B, A).call() == 100
-    contract.functions.transfer(B, 40, 0, [B], EXTRA_DATA).transact({"from": A})
-    assert contract.functions.spendableTo(A, B).call() == 110
-    assert contract.functions.spendableTo(B, A).call() == 140
-
-
 def test_balance_event(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
