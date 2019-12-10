@@ -9,6 +9,7 @@ import "./lib/Authorizable.sol";
 import "./lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
 import "./debtTrackingInterface.sol";
+import "./CurrencyNetworkMetaData.sol";
 
 
 /**
@@ -18,7 +19,7 @@ import "./debtTrackingInterface.sol";
  * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTrackingInterface, ERC165 {
+contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, Authorizable, debtTrackingInterface, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**71 - 1;
@@ -40,11 +41,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTracking
     mapping (address => address) public onboarder;
     // value in the mapping for users that do not have an onboarder
     address constant NO_ONBOARDER = address(1);
-
-    // meta data for token part
-    string public name;
-    string public symbol;
-    uint8 public decimals;
 
     bool public isInitialized;
     uint public expirationTime;
@@ -180,9 +176,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTracking
             "Expiration time must be either in the future or zero to disable it."
         );
 
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
+        CurrencyNetworkMetaData.init(_name, _symbol, _decimals);
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
