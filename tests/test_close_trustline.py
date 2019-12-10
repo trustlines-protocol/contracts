@@ -28,7 +28,7 @@ def currency_network_contract(web3):
     return deploy_network(web3, **NETWORK_SETTING)
 
 
-@pytest.fixture(params=[0, 100, 2000])  # 0% , 1%, 20%
+@pytest.fixture(scope="session", params=[0, 100, 2000])  # 0% , 1%, 20%
 def interest_rate(request):
     return request.param
 
@@ -160,3 +160,41 @@ def test_close_trustline_positive_balance(
 
     assert get_balance() == 0
     ensure_trustline_closed(contract, accounts[0], accounts[1])
+
+
+def test_close_trustline_overflow_balance(currency_network_contract, accounts):
+    """Test that closing a trustline with a triangular transfer bigger than max_uint64 fails"""
+    contract = currency_network_contract
+    max_uint64 = 2 ** 64 - 1
+
+    contract.functions.setAccount(
+        _a=accounts[0],
+        _b=accounts[1],
+        _creditlineGiven=max_uint64,
+        _creditlineReceived=max_uint64,
+        _interestRateGiven=1,
+        _interestRateReceived=1,
+        _isFrozen=False,
+        _feesOutstandingA=0,
+        _feesOutstandingB=0,
+        _mtime=0,
+        _balance=max_uint64,
+    ).transact()
+
+    # We apply the interests by making a 0 transfer
+    # to make balance greater than credit limits and greater than max_uint64
+    contract.functions.transfer(
+        accounts[1], 0, max_uint64, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
+
+    def get_balance():
+        return contract.functions.balance(accounts[0], accounts[1]).call()
+
+    assert get_balance() > max_uint64
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        contract.functions.closeTrustlineByTriangularTransfer(
+            accounts[0],
+            max_uint64,
+            [accounts[0], accounts[2], accounts[3], accounts[1]],
+        ).transact({"from": accounts[1]})

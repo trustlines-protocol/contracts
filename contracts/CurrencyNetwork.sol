@@ -444,7 +444,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
      */
     function closeTrustlineByTriangularTransfer(
         address _otherParty,
-        uint32 _maxFee,
+        uint64 _maxFee,
         address[] calldata _path
     )
         external
@@ -803,21 +803,10 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
             false);
     }
 
-    /* close a trustline by doing a triangular transfer
-
-       this function receives the path along which to do the transfer. This path
-       is computed by the relay server based on the then current state of the
-       balance. In case the balance changed it's sign, the path will not have
-       the right 'shape' and the require statements below will revert the
-       transaction.
-
-       XXX This function is currently broken for balances which do not fit into
-       a uint32. We may repair that later when merging the interest changes.
-     */
     function _closeTrustlineByTriangularTransfer(
         address _from,
         address _otherParty,
-        uint32 _maxFee,
+        uint64 _maxFee,
         address[] memory _path)
         internal
     {
@@ -830,6 +819,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
            may investigate what's cheaper gas-wise later.
         */
         TrustlineBalances memory balances = trustline.balances;
+
         if (balances.balance > 0) {
             require(
                 _path.length >= 2,
@@ -843,10 +833,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
                 _path[0] == _otherParty,
                 "The first element of the path does not match with the _otherParty address."
             );
+            require(uint64(balances.balance) == balances.balance, "Cannot transfer too high values.");
             _mediatedTransferReceiverPays(
                 _from,
                 _from,
-                uint32(balances.balance),
+                uint64(balances.balance),
                 _maxFee,
                 _path,
                 ""
@@ -864,10 +855,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
                 _path[_path.length - 2] == _otherParty,
                 "The second to last element of the path has to be _otherParty address."
             );
+            require(uint64(-balances.balance) == - balances.balance, "Cannot transfer too high values.");
             _mediatedTransferSenderPays(
                 _from,
                 _from,
-                uint32(-balances.balance),
+                uint64(-balances.balance),
                 _maxFee,
                 _path,
                 ""
