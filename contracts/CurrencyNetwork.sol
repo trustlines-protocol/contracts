@@ -454,17 +454,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTracking
     }
 
     /**
-     * @return total amount of tokens. In Trustlines this is the sum of all creditlines
-     */
-    function totalSupply() external view returns (uint256 supply) {
-        supply = 0;
-        address[] storage userList = users.list;
-        for (uint i = 0; i < userList.length; i++) {
-            supply += spendable(userList[i]);
-        }
-    }
-
-    /**
     * Query the trustline between two users.
     * Can be removed once structs are supported in the ABI
     */
