@@ -693,16 +693,6 @@ def test_spendable(currency_network_contract_with_trustlines, accounts):
     assert contract.functions.spendableTo(B, A).call() == 140
 
 
-def test_balance_of(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    A, B, C, D, E, *rest = accounts
-    assert contract.functions.balanceOf(A).call() == 700
-    contract.functions.transfer(B, 40, 0, [B], EXTRA_DATA).transact({"from": A})
-    assert contract.functions.balanceOf(A).call() == 660
-    contract.functions.transfer(C, 20, 0, [E, D, C], EXTRA_DATA).transact({"from": A})
-    assert contract.functions.balanceOf(A).call() == 640
-
-
 def test_total_supply(currency_network_contract_with_trustlines):
     assert (
         currency_network_contract_with_trustlines.functions.totalSupply().call() == 3250

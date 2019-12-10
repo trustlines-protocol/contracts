@@ -454,16 +454,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTracking
     }
 
     /**
-     * @dev The ERC20 Token balance for the spender. This is different from the balance within a trustline.
-     *      In Trustlines this is the spendable amount
-     * @param _owner The address from which the balance will be retrieved
-     * @return The balance
-     */
-    function balanceOf(address _owner) external view returns (uint256) {
-        return spendable(_owner);
-    }
-
-    /**
      * @return total amount of tokens. In Trustlines this is the sum of all creditlines
      */
     function totalSupply() external view returns (uint256 supply) {
