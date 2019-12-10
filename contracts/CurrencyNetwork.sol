@@ -503,35 +503,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTracking
     }
 
     /**
-     * @notice Checks for the spendable amount by spender
-     * @param _spender The address from which the balance will be retrieved
-     * @return spendable The spendable amount
-     */
-    function spendable(address _spender) public view returns (uint _spendable) {
-        _spendable = 0;
-        address[] storage myfriends = friends[_spender].list;
-        for (uint i = 0; i < myfriends.length; i++) {
-            _spendable += spendableTo(_spender, myfriends[i]);
-        }
-    }
-
-    /**
-     * @notice the maximum spendable amount by the spender to the receiver.
-     * @param _spender The account spending the tokens
-     * @param _receiver the receiver that receives the tokens
-     * @return Amount of remaining tokens allowed to spend
-     */
-    function spendableTo(address _spender, address _receiver) public view returns (uint remaining) {
-        Trustline memory trustline = _loadTrustline(_spender, _receiver);
-        if (_isTrustlineFrozen(trustline.agreement)) {
-            return 0;
-        }
-        int72 balance = trustline.balances.balance;
-        uint64 creditline = trustline.agreement.creditlineReceived;
-        remaining = uint(creditline + balance);
-    }
-
-    /**
      * @notice The creditline limit given by `_creditor` to `_debtor`
      * @return Amount tokens allowed to spent
      */

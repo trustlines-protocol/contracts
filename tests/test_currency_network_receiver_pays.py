@@ -119,18 +119,6 @@ def test_transfer_3_mediators(currency_network_contract_with_trustlines, account
     assert contract.functions.balance(accounts[4], accounts[3]).call() == 100 - 3
 
 
-def test_spendable(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    A, B, *rest = accounts
-    assert contract.functions.spendableTo(A, B).call() == 150
-    assert contract.functions.spendableTo(B, A).call() == 100
-    contract.functions.transferReceiverPays(B, 40, 0, [B], EXTRA_DATA).transact(
-        {"from": A}
-    )
-    assert contract.functions.spendableTo(A, B).call() == 110
-    assert contract.functions.spendableTo(B, A).call() == 140
-
-
 def test_rounding_fee(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
     contract.functions.transferReceiverPays(
