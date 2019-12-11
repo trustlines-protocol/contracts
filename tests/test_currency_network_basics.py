@@ -341,15 +341,34 @@ def test_can_always_reduce(currency_network_adapter_with_trustlines, accounts):
     currency_network_adapter_with_trustlines.transfer(
         120, path=[accounts[0], accounts[1]]
     )
-    assert currency_network_adapter_with_trustlines.balance(accounts[1], accounts[0]) == 120
+    assert (
+        currency_network_adapter_with_trustlines.balance(accounts[1], accounts[0])
+        == 120
+    )
 
     # reduce creditlimits below balance
-    currency_network_adapter_with_trustlines.update_trustline(accounts[0], accounts[1], creditline_given=0, creditline_received=0)
-    assert currency_network_adapter_with_trustlines.contract.functions.creditline(accounts[1], accounts[0]).call() == 0
-    assert currency_network_adapter_with_trustlines.contract.functions.creditline(accounts[0], accounts[1]).call() == 0
+    currency_network_adapter_with_trustlines.update_trustline(
+        accounts[0], accounts[1], creditline_given=0, creditline_received=0
+    )
+    assert (
+        currency_network_adapter_with_trustlines.contract.functions.creditline(
+            accounts[1], accounts[0]
+        ).call()
+        == 0
+    )
+    assert (
+        currency_network_adapter_with_trustlines.contract.functions.creditline(
+            accounts[0], accounts[1]
+        ).call()
+        == 0
+    )
 
-    currency_network_adapter_with_trustlines.transfer(50, path=[accounts[1], accounts[0]])
-    assert currency_network_adapter_with_trustlines.balance(accounts[1], accounts[0]) == 70
+    currency_network_adapter_with_trustlines.transfer(
+        50, path=[accounts[1], accounts[0]]
+    )
+    assert (
+        currency_network_adapter_with_trustlines.balance(accounts[1], accounts[0]) == 70
+    )
 
 
 def test_update_without_accept_trustline(currency_network_adapter, accounts):
