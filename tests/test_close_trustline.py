@@ -46,8 +46,8 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
 
-    for a in accounts:
-        for b in accounts:
+    for a in accounts[:4]:
+        for b in accounts[:4]:
             if a is b:
                 continue
             currency_network_adapter.set_account(

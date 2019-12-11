@@ -539,18 +539,18 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         bool reducingDebtOfNextHopOnly = true;
 
         // check path in reverse to correctly accumulate the fee
-        for (uint i = _path.length - 1; i > 0; i--) {
-            // the address of the receiver is _path[i]
-            address sender = _path[i-1];
+        for (uint receiverIndex = _path.length - 1; receiverIndex > 0; receiverIndex--) {
+            address receiver = _path[receiverIndex];
+            address sender = _path[receiverIndex-1];
 
             uint64 fee;
 
             // Load trustline only once at the beginning
-            Trustline memory trustline = _loadTrustline(sender, _path[i]);
+            Trustline memory trustline = _loadTrustline(sender, receiver);
             require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
-            if (i == _path.length - 1) {
+            if (receiverIndex == _path.length - 1) {
                 fee = 0; // receiver should not get a fee
             } else {
                 fee = _calculateFeesReverse(_imbalanceGenerated(forwardedValue, trustline.balances.balance), capacityImbalanceFeeDivisor);
@@ -584,9 +584,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             }
 
             // store only balance because trustline agreement did not change
-            _storeTrustlineBalances(sender, _path[i], trustline.balances);
+            _storeTrustlineBalances(sender, receiver, trustline.balances);
             // The BalanceUpdate always has to be in the transfer direction
-            emit BalanceUpdate(sender, _path[i], trustline.balances.balance);
+            emit BalanceUpdate(sender, receiver, trustline.balances.balance);
         }
 
         emit Transfer(
@@ -617,14 +617,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         bool reducingDebtOnly = true;
 
         // check path starting from sender correctly accumulate the fee
-        for (uint i = 0; i < _path.length-1; i++) {
-            // the address of the receiver is _path[i+1]
-            address sender = _path[i];
+        for (uint senderIndex = 0; senderIndex < _path.length-1; senderIndex++) {
+            address receiver = _path[senderIndex+1];
+            address sender = _path[senderIndex];
 
             uint64 fee;
 
             // Load trustline only once at the beginning
-            Trustline memory trustline = _loadTrustline(sender, _path[i+1]);
+            Trustline memory trustline = _loadTrustline(sender, receiver);
             require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
             _applyInterests(trustline);
 
@@ -647,11 +647,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             }
 
             // store only balance because trustline agreement did not change
-            _storeTrustlineBalances(sender, _path[i+1], trustline.balances);
+            _storeTrustlineBalances(sender, receiver, trustline.balances);
             // The BalanceUpdate always has to be in the transfer direction
-            emit BalanceUpdate(sender, _path[i+1], trustline.balances.balance);
+            emit BalanceUpdate(sender, receiver, trustline.balances.balance);
 
-            if (i == _path.length - 2) {
+            if (senderIndex == _path.length - 2) {
                 break; // receiver is not a mediator, so no fees
             }
 
