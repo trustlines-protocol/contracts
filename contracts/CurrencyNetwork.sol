@@ -77,6 +77,11 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         bool _isFrozen
     );
 
+    event TrustlineUpdateCancel(
+        address indexed initiator,
+        address indexed counterparty
+    );
+
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
     event Onboard(address indexed _onboarder, address indexed _onboardee);
@@ -340,6 +345,24 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
             _interestRateReceived,
             _isFrozen
         );
+    }
+
+    /**
+     * @notice `msg.sender` cancels a trustline update it initiated with _debtor
+     * @param _counterparty The other party of the trustline agreement
+     */
+    function cancelTrustlineUpdate(
+        address _counterparty
+    )
+        external
+    {
+        require(! isNetworkFrozen, "The network is frozen; trustlines update cannot be canceled.");
+
+        TrustlineRequest memory trustlineRequest = _loadTrustlineRequest(msg.sender, _counterparty);
+        require(trustlineRequest.initiator != address(0), "No request to delete.");
+        _deleteTrustlineRequest(msg.sender, _counterparty);
+
+        emit TrustlineUpdateCancel(msg.sender, _counterparty);
     }
 
     /**
