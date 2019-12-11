@@ -58,6 +58,15 @@ def currency_network_contract_custom_interest(web3):
     )
 
 
+@pytest.fixture(scope="session")
+def currency_network_contract_with_trustline_update(web3, accounts):
+    contract = deploy_network(web3, **NETWORK_SETTING)
+    contract.functions.updateTrustline(accounts[1], 1, 1, 0, 0, False).transact(
+        {"from": accounts[0]}
+    )
+    return contract
+
+
 def test_meta_name(currency_network_contract):
     assert currency_network_contract.functions.name().call() == "TestCoin"
 
@@ -681,6 +690,73 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
         contract.functions.updateTrustline(B, 100, 100, -2, 0, False).transact(
             {"from": A}
         )
+
+
+def test_cancel_trustline_update(
+    currency_network_contract_with_trustline_update, accounts
+):
+    """Test that a trustline update is canceled when calling `cancelTrustlineUpdate`"""
+    contract = currency_network_contract_with_trustline_update
+
+    contract.functions.cancelTrustlineUpdate(accounts[1]).transact(
+        {"from": accounts[0]}
+    )
+
+    # to test it we try to accept the update and make a transfer that should fail
+    contract.functions.updateTrustline(accounts[0], 1, 1, 0, 0, False).transact(
+        {"from": accounts[1]}
+    )
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        contract.functions.transfer(
+            accounts[0], 1, 1, [accounts[0]], EXTRA_DATA
+        ).transact({"from": accounts[1]})
+
+
+def test_cancel_trustline_update_not_initiator(
+    currency_network_contract_with_trustline_update, accounts
+):
+    """Test that a trustline update canceled while not initiator"""
+    contract = currency_network_contract_with_trustline_update
+
+    contract.functions.cancelTrustlineUpdate(accounts[0]).transact(
+        {"from": accounts[1]}
+    )
+
+    # to test it we try to accept the update and make a transfer that should fail
+    contract.functions.updateTrustline(accounts[1], 1, 1, 0, 0, False).transact(
+        {"from": accounts[0]}
+    )
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        contract.functions.transfer(
+            accounts[1], 1, 1, [accounts[1]], EXTRA_DATA
+        ).transact({"from": accounts[0]})
+
+
+def test_cancel_no_trustline_update(currency_network_contract, accounts):
+    contract = currency_network_contract
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        contract.functions.cancelTrustlineUpdate(accounts[0]).transact(
+            {"from": accounts[1]}
+        )
+
+
+def test_cancel_trustline_update_event(
+    currency_network_contract_with_trustline_update, accounts
+):
+    contract = currency_network_contract_with_trustline_update
+
+    contract.functions.cancelTrustlineUpdate(accounts[1]).transact(
+        {"from": accounts[0]}
+    )
+    events = contract.events.TrustlineUpdateCancel.createFilter(
+        fromBlock=0
+    ).get_all_entries()
+    event_args = events[0]["args"]
+
+    assert len(events) == 1
+    assert event_args["initiator"] == accounts[0]
+    assert event_args["counterparty"] == accounts[1]
 
 
 def test_balance_event(currency_network_contract_with_trustlines, accounts):
