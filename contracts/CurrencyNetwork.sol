@@ -316,7 +316,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
      * @param _interestRateGiven The interest given by msg.sender
      * @param _interestRateReceived The interest given by _debtor
      * @param _isFrozen Whether the initiator asks for freezing the trustline
-     * @return true, if the credit was successful
      */
     function updateTrustline(
         address _debtor,
@@ -349,7 +348,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
      * @param _debtor The other party of the trustline agreement
      * @param _creditlineGiven The creditline limit given by msg.sender
      * @param _creditlineReceived The creditline limit given _debtor
-     * @return true, if the credit was successful
      */
     function updateCreditlimits(
         address _debtor,
@@ -376,7 +374,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
      * @param _creditlineGiven The creditline limit given by msg.sender
      * @param _creditlineReceived The creditline limit given _debtor
      * @param _isFrozen Whether the initiator asks for freezing the trustline
-     * @return true, if the credit was successful
      */
     function updateTrustlineDefaultInterests(
         address _debtor,
@@ -403,7 +400,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
      * @notice `msg.sender` closes a trustline with `_otherParty`
      * For this to succeed the balance of this trustline needs to be zero
      * @param _otherParty The other party of the trustline agreement
-     * @return true, if the trustline was closed
      */
     function closeTrustline(
         address _otherParty
