@@ -10,6 +10,7 @@ from .conftest import EXTRA_DATA, EXPIRATION_TIME
 
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
+MAX_UINT_64 = 2 ** 64 - 1
 NETWORK_SETTING = {
     "name": "TestCoin",
     "symbol": "T",
@@ -28,6 +29,13 @@ def currency_network_contract(web3):
     return deploy_network(web3, **NETWORK_SETTING)
 
 
+@pytest.fixture(scope="session")
+def currency_network_contract_no_fees(web3):
+    network_setting = NETWORK_SETTING
+    network_setting["fee_divisor"] = 0
+    return deploy_network(web3, **NETWORK_SETTING)
+
+
 @pytest.fixture(scope="session", params=[0, 100, 2000])  # 0% , 1%, 20%
 def interest_rate(request):
     return request.param
@@ -39,8 +47,8 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
 
-    for a in accounts:
-        for b in accounts:
+    for a in accounts[:4]:
+        for b in accounts[:4]:
             if a is b:
                 continue
             currency_network_contract.functions.setAccount(
@@ -62,6 +70,34 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
     ).transact({"from": accounts[0]})
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
+
+    return currency_network_contract
+
+
+@pytest.fixture()
+def currency_network_contract_with_max_uint_trustlines(
+    currency_network_contract_no_fees, chain, web3, accounts
+):
+    """Currency network that uses max_unit64 for all credit limits"""
+    currency_network_contract = currency_network_contract_no_fees
+
+    for a in accounts[:3]:
+        for b in accounts[:3]:
+            if a is b:
+                continue
+            currency_network_contract.functions.setAccount(
+                _a=a,
+                _b=b,
+                _creditlineGiven=MAX_UINT_64,
+                _creditlineReceived=MAX_UINT_64,
+                _interestRateGiven=1,
+                _interestRateReceived=1,
+                _isFrozen=False,
+                _feesOutstandingA=0,
+                _feesOutstandingB=0,
+                _mtime=0,
+                _balance=0,
+            ).transact()
 
     return currency_network_contract
 
@@ -162,9 +198,11 @@ def test_close_trustline_positive_balance(
     ensure_trustline_closed(contract, accounts[0], accounts[1])
 
 
-def test_close_trustline_overflow_balance(currency_network_contract, accounts):
-    """Test that closing a trustline with a triangular transfer bigger than max_uint64 fails"""
-    contract = currency_network_contract
+def test_close_trustline_max_balance(
+    currency_network_contract_with_max_uint_trustlines, accounts
+):
+    """Test that closing a trustline with a triangular transfer as big as max_uint64 succeed"""
+    contract = currency_network_contract_with_max_uint_trustlines
     max_uint64 = 2 ** 64 - 1
 
     contract.functions.setAccount(
@@ -181,20 +219,13 @@ def test_close_trustline_overflow_balance(currency_network_contract, accounts):
         _balance=max_uint64,
     ).transact()
 
-    # We apply the interests by making a 0 transfer
-    # to make balance greater than credit limits and greater than max_uint64
-    contract.functions.transfer(
-        accounts[1], 0, max_uint64, [accounts[1]], EXTRA_DATA
-    ).transact({"from": accounts[0]})
-
     def get_balance():
         return contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert get_balance() > max_uint64
+    assert get_balance() == max_uint64
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.closeTrustlineByTriangularTransfer(
-            accounts[0],
-            max_uint64,
-            [accounts[0], accounts[2], accounts[3], accounts[1]],
-        ).transact({"from": accounts[1]})
+    contract.functions.closeTrustlineByTriangularTransfer(
+        accounts[1], max_uint64, [accounts[1], accounts[2], accounts[0]]
+    ).transact({"from": accounts[0]})
+
+    assert get_balance() == 0

@@ -21,8 +21,8 @@ import "./debtTrackingInterface.sol";
 contract CurrencyNetwork is CurrencyNetworkInterface, Authorizable, debtTrackingInterface, ERC165 {
 
     // Constants
-    int72 constant MAX_BALANCE = 2**71 - 1;
-    int72 constant MIN_BALANCE = - MAX_BALANCE; // for symmetry MIN_BALANCE needs to be the same absolute value like MAX_BALANCE
+    int72 constant MAX_BALANCE = 2**64 - 1;
+    int72 constant MIN_BALANCE = - MAX_BALANCE;
     int256 constant SECONDS_PER_YEAR = 60*60*24*365;
 
     using ItSet for ItSet.AddressSet;
