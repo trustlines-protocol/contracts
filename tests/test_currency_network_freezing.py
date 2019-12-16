@@ -5,7 +5,7 @@ import pytest
 
 from tldeploy.core import deploy_network
 
-from .conftest import EXPIRATION_TIME
+from .conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
 
 NETWORK_SETTING: Dict[str, Any] = {
     "name": "TestCoin",
@@ -43,9 +43,9 @@ def currency_network_contract_without_expiration(web3):
 def currency_network_contract_with_trustlines(web3, accounts, chain):
     contract = deploy_network(web3, **NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
-        contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0
-        ).transact()
+        CurrencyNetworkAdapter(contract).set_account(
+            accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
+        )
 
     return contract
 
@@ -258,10 +258,9 @@ def test_freezing_trustline_via_set_account(
     currency_network_contract_with_trustlines, accounts
 ):
     network = currency_network_contract_with_trustlines
+    A, B, *rest = accounts
 
-    network.functions.setAccount(
-        accounts[0], accounts[1], 100, 100, 0, 0, True, 0, 12
-    ).transact()
+    CurrencyNetworkAdapter(network).set_account(A, B, is_frozen=True)
 
     assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
 

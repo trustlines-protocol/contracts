@@ -6,11 +6,9 @@ import pytest
 import eth_tester.exceptions
 
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA, EXPIRATION_TIME
-
+from .conftest import EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
-MAX_UINT_64 = 2 ** 64 - 1
 NETWORK_SETTING = {
     "name": "TestCoin",
     "symbol": "T",
@@ -44,6 +42,7 @@ def interest_rate(request):
 @pytest.fixture()
 def currency_network_contract_with_trustlines(chain, web3, accounts, interest_rate):
     currency_network_contract = deploy_network(web3, **NETWORK_SETTING)
+    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
 
@@ -51,22 +50,17 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
         for b in accounts[:4]:
             if a is b:
                 continue
-            currency_network_contract.functions.setAccount(
-                _a=a,
-                _b=b,
-                _creditlineGiven=1000000,
-                _creditlineReceived=1000000,
-                _interestRateGiven=interest_rate,
-                _interestRateReceived=interest_rate,
-                _isFrozen=False,
-                _mtime=current_time,
-                _balance=0,
-            ).transact()
+            currency_network_adapter.set_account(
+                a,
+                b,
+                creditline_given=1_000_000,
+                creditline_received=1_000_000,
+                interest_rate_given=interest_rate,
+                interest_rate_received=interest_rate,
+                m_time=current_time,
+            )
 
-    currency_network_contract.functions.transfer(
-        accounts[1], 10000, 102, [accounts[1]], EXTRA_DATA
-    ).transact({"from": accounts[0]})
-
+    currency_network_adapter.transfer(10000, path=[accounts[0], accounts[1]])
     chain.time_travel(current_time + SECONDS_PER_YEAR)
 
     return currency_network_contract
@@ -78,150 +72,126 @@ def currency_network_contract_with_max_uint_trustlines(
 ):
     """Currency network that uses max_unit64 for all credit limits"""
     currency_network_contract = currency_network_contract_no_fees
+    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
 
     for a in accounts[:3]:
         for b in accounts[:3]:
             if a is b:
                 continue
-            currency_network_contract.functions.setAccount(
-                _a=a,
-                _b=b,
-                _creditlineGiven=MAX_UINT_64,
-                _creditlineReceived=MAX_UINT_64,
-                _interestRateGiven=1,
-                _interestRateReceived=1,
-                _isFrozen=False,
-                _feesOutstandingA=0,
-                _feesOutstandingB=0,
-                _mtime=0,
-                _balance=0,
-            ).transact()
+            currency_network_adapter.set_account(
+                a,
+                b,
+                creditline_given=MAX_UINT_64,
+                creditline_received=MAX_UINT_64,
+                interest_rate_given=1,
+                interest_rate_received=1,
+            )
 
     return currency_network_contract
 
 
-def ensure_trustline_closed(contract, address1, address2):
-    assert contract.functions.getAccount(address1, address2).call() == [
-        0,
-        0,
-        0,
-        0,
-        False,
-        0,
-        0,
-    ]
-
-    assert address2 not in contract.functions.getFriends(address1).call()
-    assert address1 not in contract.functions.getFriends(address2).call()
-
-
 def test_close_trustline(currency_network_contract, accounts):
-    contract = currency_network_contract
+    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+    A, B, *rest = accounts
 
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0, False).transact(
-        {"from": accounts[0]}
-    )
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0, False).transact(
-        {"from": accounts[1]}
+    currency_network_adapter.update_trustline(
+        A, B, creditline_given=1000, creditline_received=1000, accept=True
     )
 
-    contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
-    ensure_trustline_closed(contract, accounts[0], accounts[1])
+    currency_network_adapter.close_trustline(A, B)
+    assert currency_network_adapter.is_trustline_closed(A, B)
 
 
 def test_cannot_close_with_balance(currency_network_contract, accounts):
-    contract = currency_network_contract
+    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+    A, B, *rest = accounts
 
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0, False).transact(
-        {"from": accounts[0]}
+    currency_network_adapter.update_trustline(
+        A, B, creditline_given=1000, creditline_received=1000, accept=True
     )
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0, False).transact(
-        {"from": accounts[1]}
-    )
+    currency_network_adapter.transfer(20, path=[A, B])
 
-    contract.functions.transfer(accounts[1], 20, 1, [accounts[1]], EXTRA_DATA).transact(
-        {"from": accounts[0]}
-    )
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
+        currency_network_adapter.close_trustline(A, B)
 
 
 def test_cannot_reopen_closed_trustline(currency_network_contract, accounts):
-    contract = currency_network_contract
-    contract.functions.updateTrustline(accounts[1], 1000, 1000, 0, 0, False).transact(
-        {"from": accounts[0]}
+    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+    A, B, *rest = accounts
+
+    currency_network_adapter.update_trustline(
+        A, B, creditline_given=1000, creditline_received=1000
     )
-    contract.functions.closeTrustline(accounts[1]).transact({"from": accounts[0]})
-    contract.functions.updateTrustline(accounts[0], 1000, 1000, 0, 0, False).transact(
-        {"from": accounts[1]}
+    currency_network_adapter.close_trustline(A, B)
+    currency_network_adapter.update_trustline(
+        B, A, creditline_given=1000, creditline_received=1000
     )
-    ensure_trustline_closed(contract, accounts[0], accounts[1])
+    assert currency_network_adapter.is_trustline_closed(A, B)
 
 
 def test_close_trustline_negative_balance(
     currency_network_contract_with_trustlines, accounts
 ):
-    contract = currency_network_contract_with_trustlines
+    currency_network_adapter = CurrencyNetworkAdapter(
+        currency_network_contract_with_trustlines
+    )
+    A, B, C, D, E, *rest = accounts
 
     def get_balance():
-        return contract.functions.balance(accounts[0], accounts[1]).call()
+        return currency_network_adapter.balance(A, B)
 
     assert get_balance() < 0
 
-    contract.functions.closeTrustlineByTriangularTransfer(
-        accounts[1], 1000, [accounts[2], accounts[3], accounts[1], accounts[0]]
-    ).transact({"from": accounts[0]})
+    currency_network_adapter.close_trustline(A, B, path=[C, D, B, A])
 
     assert get_balance() == 0
-    ensure_trustline_closed(contract, accounts[0], accounts[1])
+    assert currency_network_adapter.is_trustline_closed(A, B)
 
 
 def test_close_trustline_positive_balance(
     currency_network_contract_with_trustlines, accounts
 ):
-    contract = currency_network_contract_with_trustlines
+    currency_network_adapter = CurrencyNetworkAdapter(
+        currency_network_contract_with_trustlines
+    )
+    A, B, C, D, E, *rest = accounts
 
     def get_balance():
-        return contract.functions.balance(accounts[1], accounts[0]).call()
+        return currency_network_adapter.balance(B, A)
 
     assert get_balance() > 0
 
-    contract.functions.closeTrustlineByTriangularTransfer(
-        accounts[0], 1000, [accounts[0], accounts[2], accounts[3], accounts[1]]
-    ).transact({"from": accounts[1]})
+    currency_network_adapter.close_trustline(B, A, path=[A, C, D, B])
 
     assert get_balance() == 0
-    ensure_trustline_closed(contract, accounts[0], accounts[1])
+    assert currency_network_adapter.is_trustline_closed(A, B)
 
 
 def test_close_trustline_max_balance(
     currency_network_contract_with_max_uint_trustlines, accounts
 ):
     """Test that closing a trustline with a triangular transfer as big as max_uint64 succeed"""
-    contract = currency_network_contract_with_max_uint_trustlines
+    currency_network_adapter = CurrencyNetworkAdapter(
+        currency_network_contract_with_max_uint_trustlines
+    )
     max_uint64 = 2 ** 64 - 1
+    A, B, C, *rest = accounts
 
-    contract.functions.setAccount(
-        _a=accounts[0],
-        _b=accounts[1],
-        _creditlineGiven=max_uint64,
-        _creditlineReceived=max_uint64,
-        _interestRateGiven=1,
-        _interestRateReceived=1,
-        _isFrozen=False,
-        _feesOutstandingA=0,
-        _feesOutstandingB=0,
-        _mtime=0,
-        _balance=max_uint64,
-    ).transact()
+    currency_network_adapter.set_account(
+        A,
+        B,
+        creditline_given=max_uint64,
+        creditline_received=max_uint64,
+        interest_rate_given=1,
+        interest_rate_received=1,
+        balance=max_uint64,
+    )
 
     def get_balance():
-        return contract.functions.balance(accounts[0], accounts[1]).call()
+        return currency_network_adapter.balance(A, B)
 
     assert get_balance() == max_uint64
 
-    contract.functions.closeTrustlineByTriangularTransfer(
-        accounts[1], max_uint64, [accounts[1], accounts[2], accounts[0]]
-    ).transact({"from": accounts[0]})
+    currency_network_adapter.close_trustline(A, B, path=[B, C, A])
 
     assert get_balance() == 0
