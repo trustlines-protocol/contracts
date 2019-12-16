@@ -1,25 +1,24 @@
 pragma solidity ^0.5.8;
 
 
-import "./lib/it_set_lib.sol";
-import "./tokens/Receiver_Interface.sol";
-import "./lib/Ownable.sol";
-import "./lib/Destructable.sol";
-import "./lib/Authorizable.sol";
-import "./lib/ERC165.sol";
+import "../lib/it_set_lib.sol";
+import "../tokens/Receiver_Interface.sol";
+import "../lib/Ownable.sol";
+import "../lib/Destructable.sol";
+import "../lib/Authorizable.sol";
+import "../lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
 import "./DebtTracking.sol";
-import "./CurrencyNetworkMetaData.sol";
+import "./MetaData.sol";
 
 
 /**
- * CurrencyNetwork
+ * CurrencyNetworkBasic
  *
- * Main contract of Trustlines, encapsulates all trustlines of one currency network.
- * Implements functions to ripple payments in a currency network. Implements core features of ERC20
+ * Implements core features of currency networks
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, Authorizable, DebtTracking, ERC165 {
+contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizable, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**64 - 1;
@@ -35,10 +34,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     mapping (address => ItSet.AddressSet) internal friends;
     // list of all users of the system
     ItSet.AddressSet internal users;
-    // map each user to its onboarder
-    mapping (address => address) public onboarder;
-    // value in the mapping for users that do not have an onboarder
-    address constant NO_ONBOARDER = address(1);
 
     bool public isInitialized;
     uint public expirationTime;
@@ -81,8 +76,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     );
 
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
-
-    event Onboard(address indexed _onboarder, address indexed _onboardee);
 
     event NetworkFreeze();
 
@@ -171,7 +164,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
             "Expiration time must be either in the future or zero to disable it."
         );
 
-        CurrencyNetworkMetaData.init(_name, _symbol, _decimals);
+        MetaData.init(_name, _symbol, _decimals);
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
@@ -230,41 +223,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         require(authorized[msg.sender], "The sender of the message is not authorized.");
 
         _mediatedTransferSenderPays(
-            _from,
-            _to,
-            _value,
-            _maxFee,
-            _path,
-            _extraData
-        );
-    }
-
-    /**
-     * @notice send `_value` token to `_to` from `_from`
-     * `_from` needs to have a debt towards `_to` of at least `_value`
-     * `_to` needs to be msg.sender
-     * @param _from The address of the sender
-     * @param _to The address of the recipient
-     * @param _value The amount of token to be transferred
-     * @param _maxFee Maximum fee the receiver wants to pay
-     * @param _path Path between _from and _to
-     * @param _extraData extra data bytes to be logged in the Transfer event
-     **/
-    function debitTransfer(
-        address _from,
-        address _to,
-        uint64 _value,
-        uint64 _maxFee,
-        address[] calldata _path,
-        bytes calldata _extraData
-    )
-        external
-        {
-        require(_to == msg.sender, "The transfer can only be initiated by the creditor (_to).");
-        require(getDebt(_from, _to) >= _value, "The sender does not have such debt towards the receiver.");
-        _reduceDebt(_from, _to, _value);
-
-        _mediatedTransferReceiverPays(
             _from,
             _to,
             _value,
@@ -1013,7 +971,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
                     _interestRateGiven,
                     _isFrozen
                 );
-                _applyOnboardingRules(_creditor, _debtor);
             } else {
                 _requestTrustlineUpdate(
                     _creditor,
@@ -1106,30 +1063,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
             _interestRateReceived,
             _isFrozen
         );
-    }
-
-    function _reduceDebt(address debtor, address creditor, uint64 value) internal {
-        _addToDebt(debtor, creditor, - int72(value));
-    }
-
-    function _applyOnboardingRules(address a, address b) internal {
-        if (onboarder[a] == address(0)) {
-            if (onboarder[b] == address(0)) {
-                onboarder[a] = NO_ONBOARDER;
-                onboarder[b] = NO_ONBOARDER;
-                emit Onboard(NO_ONBOARDER, a);
-                emit Onboard(NO_ONBOARDER, b);
-                return;
-            } else {
-                onboarder[a] = b;
-                emit Onboard(b, a);
-            }
-        } else {
-            if (onboarder[b] == address(0)) {
-                onboarder[b] = a;
-                emit Onboard(a, b);
-            }
-        }
     }
 
     function _requestTrustlineUpdate(

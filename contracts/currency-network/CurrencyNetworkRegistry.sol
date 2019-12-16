@@ -1,7 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "./CurrencyNetworkInterface.sol";
-import "./lib/ERC165Query.sol";
+import "../lib/ERC165Query.sol";
 
 
 contract CurrencyNetworkRegistry is ERC165Query {

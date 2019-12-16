@@ -31,6 +31,10 @@ contract DebtTracking {
         }
     }
 
+    function _reduceDebt(address debtor, address creditor, uint64 value) internal {
+        _addToDebt(debtor, creditor, - int72(value));
+    }
+
     function _addToDebt(address debtor, address creditor, int72 value) internal {
         int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
         if (debtor < creditor) {

@@ -21,7 +21,7 @@ pragma solidity ^0.5.8;
 import "./tokens/Token.sol";
 import "./lib/SafeMath.sol";
 import "./lib/Destructable.sol";
-import "./CurrencyNetworkInterface.sol";
+import "./currency-network/CurrencyNetworkInterface.sol";
 
 
 /// @title Exchange - Facilitates exchange of ERC20 tokens.

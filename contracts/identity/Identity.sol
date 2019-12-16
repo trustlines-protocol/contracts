@@ -1,7 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "../lib/ECDSA.sol";
-import "../DebtTracking.sol";
+import "../currency-network/DebtTracking.sol";
 import "./ProxyStorage.sol";
 
 

@@ -1,6 +1,6 @@
 pragma solidity ^0.5.8;
 
-import "../DebtTracking.sol";
+import "../currency-network/DebtTracking.sol";
 
 
 // Test contract used for testing identity contract meta transaction features
