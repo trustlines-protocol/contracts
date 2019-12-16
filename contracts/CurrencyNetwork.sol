@@ -8,7 +8,7 @@ import "./lib/Destructable.sol";
 import "./lib/Authorizable.sol";
 import "./lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
-import "./debtTrackingInterface.sol";
+import "./DebtTracking.sol";
 import "./CurrencyNetworkMetaData.sol";
 
 
@@ -19,7 +19,7 @@ import "./CurrencyNetworkMetaData.sol";
  * Implements functions to ripple payments in a currency network. Implements core features of ERC20
  *
  **/
-contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, Authorizable, debtTrackingInterface, ERC165 {
+contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, Authorizable, DebtTracking, ERC165 {
 
     // Constants
     int72 constant MAX_BALANCE = 2**64 - 1;
@@ -35,8 +35,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     mapping (address => ItSet.AddressSet) internal friends;
     // list of all users of the system
     ItSet.AddressSet internal users;
-    // mapping of a pair of user to the signed debt in the point of view of the lowest address
-    mapping (bytes32 => int72) public debt;
     // map each user to its onboarder
     mapping (address => address) public onboarder;
     // value in the mapping for users that do not have an onboarder
@@ -85,8 +83,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
 
     event Onboard(address indexed _onboarder, address indexed _onboardee);
-
-    event DebtUpdate(address _debtor, address _creditor, int72 _newDebt);
 
     event NetworkFreeze();
 
@@ -263,7 +259,7 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         bytes calldata _extraData
     )
         external
-    {
+        {
         require(_to == msg.sender, "The transfer can only be initiated by the creditor (_to).");
         require(getDebt(_from, _to) >= _value, "The sender does not have such debt towards the receiver.");
         _reduceDebt(_from, _to, _value);
@@ -452,15 +448,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
     }
 
     /**
-     * @notice Used to increase the debt tracked by the currency network of msg.sender towards creditor address
-     * @param creditor The address towards which msg.sender increases its debt
-     * @param value The value to increase the debt by
-     */
-    function increaseDebt(address creditor, uint64 value) external {
-        _addToDebt(msg.sender, creditor, value);
-    }
-
-    /**
     * Query the trustline between two users.
     * Can be removed once structs are supported in the ABI
     */
@@ -549,20 +536,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         }
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(a, b);
         return trustlineAgreement.isFrozen;
-    }
-
-    /**
-     * @notice Get the debt owed by debtor to creditor, may be negative if creditor owes debtor
-     * @param debtor The address of which we query the debt
-     * @param creditor The address towards which the debtor owes money
-     * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
-     */
-    function getDebt(address debtor, address creditor) public view returns (int256) {
-        if (debtor < creditor) {
-            return debt[uniqueIdentifier(debtor, creditor)];
-        } else {
-            return - debt[uniqueIdentifier(debtor, creditor)];
-        }
     }
 
     // This function transfers value over this trustline
@@ -1135,19 +1108,6 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         );
     }
 
-    function _addToDebt(address debtor, address creditor, int72 value) internal {
-        int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
-        if (debtor < creditor) {
-            int72 newDebt = _safeSum(oldDebt, value);
-            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
-            emit DebtUpdate(debtor, creditor, newDebt);
-        } else {
-            int72 newDebt = _safeSum(oldDebt, -value);
-            debt[uniqueIdentifier(debtor, creditor)] = newDebt;
-            emit DebtUpdate(debtor, creditor, -newDebt);
-        }
-    }
-
     function _reduceDebt(address debtor, address creditor, uint64 value) internal {
         _addToDebt(debtor, creditor, - int72(value));
     }
@@ -1374,15 +1334,5 @@ contract CurrencyNetwork is CurrencyNetworkInterface, CurrencyNetworkMetaData, A
         returns (bytes32)
     {
         return keccak256(abi.encodePacked(_creditor, _debtor));
-    }
-
-    function _safeSum(int72 a, int72 b) internal pure returns (int72 sum) {
-        sum = a + b;
-        if (a > 0 && b > 0) {
-            require(sum > 0, "Overflow error.");
-        }
-        if (a < 0 && b < 0) {
-            require(sum < 0, "Underflow error.");
-        }
     }
 }
