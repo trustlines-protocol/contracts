@@ -1,7 +1,7 @@
 pragma solidity ^0.5.8;
 
 
-contract CurrencyNetworkMetaData {
+contract MetaData {
 
     string public name;
     string public symbol;
