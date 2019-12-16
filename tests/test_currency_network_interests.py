@@ -576,6 +576,7 @@ INTEREST_WIDTH = 16
 def test_interests_overflow(
     chain, currency_network_contract_custom_interests_safe_ripple, accounts
 ):
+    """Test that the interests will not put the balance above max uint64"""
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
@@ -601,12 +602,13 @@ def test_interests_overflow(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == 2 ** (BALANCE_WIDTH - 1) - 1
+    assert balance + 1 == 2 ** CREDITLINE_WIDTH - 1
 
 
 def test_interests_underflow(
     chain, currency_network_contract_custom_interests_safe_ripple, accounts
 ):
+    """Test that the interests will not put the balance below min uint64"""
     contract = currency_network_contract_custom_interests_safe_ripple
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
@@ -637,7 +639,7 @@ def test_interests_underflow(
     )
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance - 1 == -(2 ** (BALANCE_WIDTH - 1) - 1)
+    assert balance - 1 == -(2 ** CREDITLINE_WIDTH - 1)
 
 
 def test_interests_over_change_in_trustline(
