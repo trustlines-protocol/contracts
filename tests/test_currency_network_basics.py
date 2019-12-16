@@ -350,6 +350,26 @@ def test_send_more(currency_network_contract_with_trustlines, accounts):
     assert contract.functions.balance(accounts[0], accounts[1]).call() == 80
 
 
+def test_can_always_reduce(currency_network_contract_with_trustlines, accounts):
+    contract = currency_network_contract_with_trustlines
+    contract.functions.transfer(
+        accounts[1], 120, 0, [accounts[1]], EXTRA_DATA
+    ).transact({"from": accounts[0]})
+    assert contract.functions.balance(accounts[1], accounts[0]).call() == 120
+
+    # reduce creditlimits below balance
+    contract.functions.updateCreditlimits(accounts[1], 0, 0).transact(
+        {"from": accounts[0]}
+    )
+    assert contract.functions.creditline(accounts[1], accounts[0]).call() == 0
+    assert contract.functions.creditline(accounts[0], accounts[1]).call() == 0
+
+    contract.functions.transfer(accounts[0], 50, 0, [accounts[0]], EXTRA_DATA).transact(
+        {"from": accounts[1]}
+    )
+    assert contract.functions.balance(accounts[1], accounts[0]).call() == 70
+
+
 def test_update_without_accept_trustline(currency_network_contract, accounts):
     contract = currency_network_contract
     A, B, *rest = accounts
