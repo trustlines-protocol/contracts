@@ -1,7 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "../lib/ECDSA.sol";
-import "../debtTrackingInterface.sol";
+import "../DebtTracking.sol";
 import "./ProxyStorage.sol";
 
 
@@ -70,7 +70,7 @@ contract Identity is ProxyStorage {
         emit TransactionExecution(hash, status);
 
         if (fees != 0 && status != false) {
-            debtTrackingInterface debtNetwork = debtTrackingInterface(currencyNetworkOfFees);
+            DebtTracking debtNetwork = DebtTracking(currencyNetworkOfFees);
             debtNetwork.increaseDebt(msg.sender, fees);
             emit FeesPaid(fees, currencyNetworkOfFees);
         }
