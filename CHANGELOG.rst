@@ -3,10 +3,17 @@ Change Log
 ==========
 `0.11.0`_ (unreleased)
 -----------------------
+* Change signature of functions `transfer`, `transferFrom`, `debitTransfer`, `transferReceiverPays`
+so that it no longer takes `_to` argument but takes a complete path including sender and receiver
+* Lower the absolute max value of balances from `2**71 - 1` to `2**64 - 1` to match maximum transferable value
 * Remove self destruct from Currency Network
 * Remove owner from Currency Network
 * Remove boolean return values from Currency Network functions.
+* Remove ERC20 related functions: `spendable`, `spendableTo`, `totalSupply`, and `balanceOf`
+* Remove function `updateTrustlineDefaultInterests`
+* Add function `cancelTrustlineUpdate(address counterparty)` to cancel a trustline update request in between msg.sender and counterparty.
 * Bugfix: emit Transfer event also on closeTrustlineViaTriangularTransfer
+
 
 `0.10.1`_ (2019-11-18)
 -----------------------
