@@ -878,3 +878,17 @@ def test_overflow_max_transfer(currency_network_adapter, accounts):
     currency_network_adapter.transfer(MAX_CREDITLINE, path=[A, B])
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_adapter.transfer(1, path=[A, B])
+
+
+def test_transfer_no_path(currency_network_adapter, accounts):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_adapter.contract.functions.transfer(
+            1, 100, [], EXTRA_DATA
+        ).transact({"from": accounts[0]})
+
+
+def test_transfer_too_short_path(currency_network_adapter, accounts):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_adapter.contract.functions.transfer(
+            1, 100, [accounts[0]], EXTRA_DATA
+        ).transact({"from": accounts[0]})

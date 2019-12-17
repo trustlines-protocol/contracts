@@ -530,7 +530,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         internal
     {
-        require(_path.length > 0, "No path was given.");
+        require(_path.length > 1, "Path too short.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -608,7 +608,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         internal
     {
-        require(_path.length > 0, "No path was given.");
+        require(_path.length > 1, "Path too short.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
