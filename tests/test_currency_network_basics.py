@@ -7,9 +7,7 @@ import eth_tester.exceptions
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
 
-
 MAX_CREDITLINE = MAX_UINT_64
-
 
 trustlines = [
     (0, 1, 100, 150),
@@ -18,7 +16,6 @@ trustlines = [
     (3, 4, 400, 450),
     (0, 4, 500, 550),
 ]  # (A, B, clAB, clBA)
-
 
 NETWORK_SETTING = {
     "name": "TestCoin",
@@ -479,8 +476,14 @@ def test_cannot_accept_old_trustline(currency_network_adapter, accounts):
     assert currency_network_adapter.events("TrustlineUpdate") == []
 
 
+@pytest.mark.parametrize(
+    "new_creditlimit_given, new_creditlmit_received", [(99, 150), (0, 0)]
+)
 def test_update_reduce_need_no_accept_trustline(
-    currency_network_adapter_with_trustlines, accounts
+    currency_network_adapter_with_trustlines,
+    accounts,
+    new_creditlimit_given,
+    new_creditlmit_received,
 ):
     currency_network_adapter = currency_network_adapter_with_trustlines
     A, B, *rest = accounts
@@ -489,15 +492,18 @@ def test_update_reduce_need_no_accept_trustline(
     assert currency_network_adapter.creditline(B, A) == 150
 
     currency_network_adapter.update_trustline(
-        A, B, creditline_given=99, creditline_received=150
+        A,
+        B,
+        creditline_given=new_creditlimit_given,
+        creditline_received=new_creditlmit_received,
     )
-    assert currency_network_adapter.creditline(A, B) == 99
-    assert currency_network_adapter.creditline(B, A) == 150
+    assert currency_network_adapter.creditline(A, B) == new_creditlimit_given
+    assert currency_network_adapter.creditline(B, A) == new_creditlmit_received
     assert (
         currency_network_adapter.events("TrustlineUpdate")[0]["args"][
             "_creditlineGiven"
         ]
-        == 99
+        == new_creditlimit_given
     )
 
 
