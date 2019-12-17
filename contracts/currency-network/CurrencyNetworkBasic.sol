@@ -2,20 +2,18 @@ pragma solidity ^0.5.8;
 
 
 import "../lib/it_set_lib.sol";
-import "../tokens/Receiver_Interface.sol";
-import "../lib/Ownable.sol";
-import "../lib/Destructable.sol";
 import "../lib/Authorizable.sol";
 import "../lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
-import "./DebtTracking.sol";
 import "./MetaData.sol";
 
 
 /**
  * CurrencyNetworkBasic
  *
- * Implements core features of currency networks
+ * Main contract of Trustlines, encapsulates all trustlines of one currency network.
+ * Implements core features of currency networks related to opening / closing trustline and transfers.
+ * Also includes freezing of TL / currency networks, interests and fees.
  *
  **/
 contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizable, ERC165 {
@@ -941,6 +939,16 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             _isFrozen == trustlineAgreement.isFrozen &&
             ! trustlineAgreement.isFrozen
         ) {
+            // Prevent opening a trustline with 0 limits
+            // as this would allow opening a trustline without counterparty's consent
+            if (trustlineAgreement.creditlineGiven == 0 &&
+                trustlineAgreement.creditlineReceived == 0 &&
+                trustlineAgreement.interestRateGiven == 0 &&
+                trustlineAgreement.interestRateReceived == 0 &&
+                trustlineAgreement.isFrozen == false
+            ) {
+                return;
+            }
             _deleteTrustlineRequest(_creditor, _debtor);
             _setTrustline(
                 _creditor,
