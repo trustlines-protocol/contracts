@@ -127,3 +127,15 @@ def test_onboarding_event_with_onboarder(currency_network_contract, web3, accoun
 
     assert len(all_events) == 3
     assert event_onboarding_3[0]["args"]["_onboarder"] == accounts[2]
+
+
+def test_onboarding_no_accept_tl(currency_network_contract, web3, accounts):
+    """Test that users cannot attempt to open a TL with (0, 0, 0, 0) to onboard someone"""
+    open_trustline(currency_network_contract, accounts[1], accounts[2])
+    currency_network_contract.functions.updateTrustlineDefaultInterests(
+        accounts[3], 0, 0, False
+    ).transact({"from": accounts[1]})
+
+    assert (
+        currency_network_contract.functions.onboarder(accounts[3]).call() == ADDRESS_0
+    )
