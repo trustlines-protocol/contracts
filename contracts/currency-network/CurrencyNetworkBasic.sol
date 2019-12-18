@@ -504,7 +504,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal
     {
         require(_path.length > 1, "Path too short.");
-        require(_value > 0, "No value to transfer");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -590,7 +589,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
         // check path starting from sender correctly accumulate the fee
         for (uint senderIndex = 0; senderIndex < _path.length-1; senderIndex++) {
-            require(forwardedValue > 0, "Nothing left to forward");
 
             address receiver = _path[senderIndex+1];
             address sender = _path[senderIndex];
