@@ -6,7 +6,7 @@ from math import exp
 
 from eth_tester.exceptions import TransactionFailed
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA, EXPIRATION_TIME, MAX_UINT_64
+from .conftest import EXTRA_DATA, EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
 
 trustlines = [
     (0, 1, 2000000000, 2000000000),
@@ -743,3 +743,60 @@ def test_correct_balance_update_event_on_interest_rate_change(
     assert from_ != to
 
     assert contract.functions.balance(from_, to).call() == value
+
+
+@pytest.mark.parametrize("value", [10, 100000, -10, -10000])
+@pytest.mark.parametrize("rate", [0, 10, 200])
+def test_apply_interests(
+    currency_network_contract_custom_interests_safe_ripple, chain, accounts, value, rate
+):
+    adapter = CurrencyNetworkAdapter(
+        currency_network_contract_custom_interests_safe_ripple
+    )
+    A, B, *rest = accounts
+
+    current_time = int(time.time())
+    chain.time_travel(current_time + 10)
+    adapter.update_trustline(
+        A,
+        B,
+        creditline_given=abs(value),
+        creditline_received=abs(value),
+        interest_rate_given=rate,
+        interest_rate_received=rate,
+        accept=True,
+    )
+    if value > 0:
+        adapter.transfer(value, path=[A, B])
+    else:
+        adapter.transfer(-value, path=[B, A])
+
+    chain.time_travel(current_time + SECONDS_PER_YEAR + 10)
+    assert adapter.balance(A, B) == -value
+    # apply Interests
+    adapter.contract.functions.applyInterests(B).transact({"from": A})
+    assert adapter.balance(A, B) == pytest.approx(-value * exp(rate / 10000), abs=3)
+    # reapply interests should not change anything
+    adapter.contract.functions.applyInterests(B).transact({"from": A})
+    assert adapter.balance(A, B) == pytest.approx(-value * exp(rate / 10000), abs=3)
+    # Test apply interests in other direction
+    chain.time_travel(current_time + 2 * SECONDS_PER_YEAR + 10)
+    adapter.contract.functions.applyInterests(A).transact({"from": B})
+    assert adapter.balance(A, B) == pytest.approx(-value * exp(2 * rate / 10000), abs=4)
+
+
+def test_apply_interests_not_possible_when_frozen(
+    currency_network_contract_custom_interests_safe_ripple, accounts
+):
+    adapter = CurrencyNetworkAdapter(
+        currency_network_contract_custom_interests_safe_ripple
+    )
+    A, B, *rest = accounts
+
+    adapter.update_trustline(A, B, accept=True)
+    # should be fine
+    adapter.contract.functions.applyInterests(B).transact({"from": A})
+
+    adapter.update_trustline(A, B, is_frozen=True, accept=True)
+    with pytest.raises(TransactionFailed):
+        adapter.contract.functions.applyInterests(B).transact({"from": A})
