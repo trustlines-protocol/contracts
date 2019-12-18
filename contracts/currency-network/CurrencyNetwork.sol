@@ -57,6 +57,14 @@ contract CurrencyNetwork is CurrencyNetworkBasic, DebtTracking, Onboarding {
         internal
     {
         _applyOnboardingRules(_creditor, _debtor);
-        super._setTrustline(_creditor, _debtor, _creditlineGiven, _creditlineReceived, _interestRateGiven, _interestRateReceived, _isFrozen);
+        super._setTrustline(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _isFrozen
+        );
     }
 }
