@@ -70,8 +70,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     );
 
     event TrustlineUpdateCancel(
-        address indexed initiator,
-        address indexed counterparty
+        address indexed _initiator,
+        address indexed _counterparty
     );
 
     event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
@@ -1123,6 +1123,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         return result;
     }
 
+    // This function will calculate the compound interests with a Taylor approximation
+    // It will give correct results if: rate * (_endTime - _startTime) < 10_000 * SECONDS_PER_YEAR
+    // so that Balance(t) = Balance(0) * exp(r*t) where (r*t) < 1
     function _calculateBalanceWithInterests(
         int72 _balance,
         uint _startTime,
@@ -1137,11 +1140,13 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         int16 rate = 0;
         if (_balance > 0) {
             rate = _interestRateGiven;
-        }else if (_balance < 0) {
+        } else if (_balance < 0) {
             rate = _interestRateReceived;
         }
 
-        if (rate == 0) return _balance;
+        if (rate == 0) {
+            return _balance;
+        }
 
         int256 dt = int256(_endTime - _startTime);
         int256 intermediateOrder = _balance;
@@ -1172,15 +1177,38 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
                 break;
             }
 
+            int256 oldBalance = newBalance;
             newBalance += intermediateOrder;
-            //Overflow adjustment
-            if (newBalance > MAX_BALANCE) {
-                newBalance = MAX_BALANCE;
-                break;
+
+            // overflow check of newBalance
+            if (oldBalance > 0 && intermediateOrder > 0) {
+                if (newBalance <= 0) {
+                    newBalance = oldBalance;
+                    break;
+                }
             }
-            if (newBalance < MIN_BALANCE) {
+            if (oldBalance < 0 && intermediateOrder < 0) {
+                if (newBalance >= 0) {
+                    newBalance = oldBalance;
+                    break;
+                }
+            }
+        }
+
+        // Restrict balance within MAX / MIN balance
+        // If rate is negative, we assume that the balance was eventually going to be 0
+        if (newBalance > MAX_BALANCE) {
+            if (rate < 0) {
+                newBalance = 0;
+            } else {
+                newBalance = MAX_BALANCE;
+            }
+        }
+        if (newBalance < MIN_BALANCE) {
+            if (rate < 0) {
+                newBalance = 0;
+            } else {
                 newBalance = MIN_BALANCE;
-                break;
             }
         }
 

@@ -140,6 +140,30 @@ def test_interest_calculation(
         )
 
 
+@pytest.mark.parametrize(
+    "balance, start_time, end_time, interest_rate_given, interest_rate_received, result",
+    [
+        (1000, 0, SECONDS_PER_YEAR, 10000, 0, 1000 * exp(1)),
+        (-1000, 0, SECONDS_PER_YEAR, 10000, 10000, -1000 * exp(1)),
+        (1000, 0, SECONDS_PER_YEAR, -10000, 0, 1000 * exp(-1)),
+        (-1000, 0, SECONDS_PER_YEAR, 0, -10000, -1000 * exp(-1)),
+    ],
+)
+def test_interest_calculation_approximation_boundary(
+    test_currency_network_contract,
+    balance,
+    start_time,
+    end_time,
+    interest_rate_given,
+    interest_rate_received,
+    result,
+):
+
+    assert test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+        balance, start_time, end_time, interest_rate_given, interest_rate_received
+    ).call() == pytest.approx(result, abs=3)
+
+
 def test_interests_positive_balance(
     chain, currency_network_contract_default_interests, accounts, transfer_function_name
 ):
