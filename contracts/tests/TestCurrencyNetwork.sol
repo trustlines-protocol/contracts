@@ -163,6 +163,26 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         return _imbalanceGenerated(_value, _balance);
     }
 
+    function testCalculateBalanceWithInterests(
+        int72 _balance,
+        uint _startTime,
+        uint _endTime,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived
+    )
+        public
+        pure
+        returns (int72)
+    {
+        return _calculateBalanceWithInterests(
+            _balance,
+            _startTime,
+            _endTime,
+            _interestRateGiven,
+            _interestRateReceived
+        );
+    }
+
     function _setAccount(
         address _a,
         address _b,

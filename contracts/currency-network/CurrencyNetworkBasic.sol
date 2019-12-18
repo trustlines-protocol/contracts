@@ -5,6 +5,7 @@ import "../lib/it_set_lib.sol";
 import "../lib/Authorizable.sol";
 import "../lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
+import "./CurrencyNetworkSafeMath.sol";
 import "./MetaData.sol";
 
 
@@ -16,7 +17,7 @@ import "./MetaData.sol";
  * Also includes freezing of TL / currency networks, interests and fees.
  *
  **/
-contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizable, ERC165 {
+contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizable, ERC165, CurrencyNetworkSafeMath {
 
     // Constants
     int72 constant MAX_BALANCE = 2**64 - 1;
@@ -162,6 +163,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             "Expiration time must be either in the future or zero to disable it."
         );
 
+        require(
+            _capacityImbalanceFeeDivisor != 1,
+            "Too low imbalance fee divisor, fees can not be more than 50%"
+        );
+
         MetaData.init(_name, _symbol, _decimals);
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
@@ -186,7 +192,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
     {
-        require(msg.sender == _path[0], "The path must start with msg.sender");
+        require(_path.length > 0 && msg.sender == _path[0], "The path must start with msg.sender");
         _mediatedTransferSenderPays(
             _value,
             _maxFee,
@@ -237,7 +243,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
     {
-        require(msg.sender == _path[0], "The path must start with msg.sender");
+        require(_path.length > 0 && msg.sender == _path[0], "The path must start with msg.sender");
         _mediatedTransferReceiverPays(
             _value,
             _maxFee,
@@ -490,16 +496,12 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal
         pure
     {
-        int72 newBalance = _trustline.balances.balance - _value;
-        require(
-            newBalance <= _trustline.balances.balance,
-            "The transferred value underflows the balance"
-        );
+        int72 newBalance = safeSubInt(_trustline.balances.balance, _value);
 
         // check if creditline is not exceeded
         uint64 creditlineReceived = _trustline.agreement.creditlineReceived;
         require(
-            -newBalance <= int72(creditlineReceived),
+            safeMinus(newBalance) <= creditlineReceived,
             "The transferred value exceeds the capacity of the credit line."
         );
 
@@ -519,6 +521,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             _trustline.agreement.interestRateGiven,
             _trustline.agreement.interestRateReceived
         );
+        // Fine until 2106
         _trustline.balances.mtime = uint32(now);
     }
 
@@ -531,6 +534,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal
     {
         require(_path.length > 1, "Path too short.");
+        require(_value > 0, "No value to transfer");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
@@ -557,10 +561,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             }
 
             // forward the value + the fee
-            forwardedValue += fee;
-            //Overflow check
-            require(forwardedValue >= fee, "The fees overflow the value to be forwarded.");
-            fees += fee;
+            forwardedValue = safeAdd(forwardedValue, fee);
+            fees = safeAdd(fees, fee);
             require(fees <= _maxFee, "The fees exceed the max fee parameter.");
 
 
@@ -618,6 +620,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
         // check path starting from sender correctly accumulate the fee
         for (uint senderIndex = 0; senderIndex < _path.length-1; senderIndex++) {
+            require(forwardedValue > 0, "Nothing left to forward");
+
             address receiver = _path[senderIndex+1];
             address sender = _path[senderIndex];
 
@@ -658,10 +662,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             // calculate fees for next mediator
             fee = _calculateFees(_imbalanceGenerated(forwardedValue, balanceBefore), capacityImbalanceFeeDivisor);
             // Underflow check
-            require(forwardedValue > fee, "The fees underflow the value to be forwarded.");
-            forwardedValue -= fee;
+            forwardedValue = safeSub(forwardedValue, fee);
 
-            fees += fee;
+            fees = safeAdd(fees, fee);
             require(fees <= _maxFee, "The fees exceed the max fee parameter.");
 
         }
@@ -1104,7 +1107,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal pure
         returns (uint64)
     {
-        int72 imbalanceGenerated = int72(_value);
+        int72 imbalanceGenerated = _value;
         if (_balance > 0) {
             imbalanceGenerated = _value - _balance;
             // Overflow
@@ -1134,10 +1137,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         int16 rate = 0;
         if (_balance > 0) {
             rate = _interestRateGiven;
-        }else {
+        }else if (_balance < 0) {
             rate = _interestRateReceived;
         }
 
+        if (rate == 0) return _balance;
 
         int256 dt = int256(_endTime - _startTime);
         int256 intermediateOrder = _balance;
@@ -1151,9 +1155,13 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             //Overflow adjustment
             if ((newIntermediateOrder != 0) && (newIntermediateOrder / (rate * dt) != intermediateOrder)) {
                 if (rate > 0) {
-                    newBalance = MAX_BALANCE;
+                    if (_balance > 0) {
+                        newBalance = MAX_BALANCE;
+                    } else {
+                        newBalance = MIN_BALANCE;
+                    }
                 } else {
-                    newBalance = MIN_BALANCE;
+                    newBalance = 0;
                 }
                 break;
             }
@@ -1191,14 +1199,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         returns (int)
     {
         int72 _balance = _trustline.balances.balance;
-        int72 transferredValue = _balanceBefore - _balance;
+        int transferredValue = int(_balanceBefore) - _balance;
 
         if (_balanceBefore <= 0) {
             // Sender already owes receiver, this will only effect the interest rate received
-            return - int(transferredValue) * _trustline.agreement.interestRateReceived;
+            return -transferredValue * _trustline.agreement.interestRateReceived;
         } else if (_balance >= 0) {
             // Receiver owes sender before and after the transfer. This only effects the interest rate received
-            return - int(transferredValue) * _trustline.agreement.interestRateGiven;
+            return -transferredValue * _trustline.agreement.interestRateGiven;
         } else {
             // It effects both interest rates
             // Before the transfer: Receiver owes to sender balanceBefore;

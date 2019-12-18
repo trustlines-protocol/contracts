@@ -4,8 +4,9 @@ import pytest
 import eth_tester.exceptions
 from math import exp
 
+from eth_tester.exceptions import TransactionFailed
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA, EXPIRATION_TIME
+from .conftest import EXTRA_DATA, EXPIRATION_TIME, MAX_UINT_64
 
 trustlines = [
     (0, 1, 2000000000, 2000000000),
@@ -16,6 +17,11 @@ trustlines = [
 ]  # (A, B, clAB, clBA)
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
+
+
+@pytest.fixture(scope="session")
+def test_currency_network_contract(deploy_contract):
+    return deploy_contract("TestCurrencyNetwork")
 
 
 @pytest.fixture(scope="session")
@@ -85,6 +91,53 @@ def currency_network_contract_custom_interests_safe_ripple(web3):
 @pytest.fixture(params=["transfer", "transferReceiverPays"])
 def transfer_function_name(request):
     return request.param
+
+
+@pytest.mark.parametrize(
+    "balance, start_time, end_time, interest_rate_given, interest_rate_received, result",
+    [
+        (1000, 0, SECONDS_PER_YEAR, 1000, 0, 1000 * exp(0.1)),
+        (1000, 0, SECONDS_PER_YEAR, -1000, 0, 1000 * exp(-0.1)),
+        (-1000, 0, SECONDS_PER_YEAR, 0, 1000, -1000 * exp(0.1)),
+        (1000, 0, SECONDS_PER_YEAR, 100, 100, 1000 * exp(0.01)),
+        (10 ** 17, 0, SECONDS_PER_YEAR, 200, 200, 10 ** 17 * exp(0.02)),
+        (1000, SECONDS_PER_YEAR, 2 * SECONDS_PER_YEAR, 1000, 1000, 1000 * exp(0.1)),
+        (MAX_UINT_64, 0, SECONDS_PER_YEAR, 1000, 0, MAX_UINT_64),
+        (-MAX_UINT_64, 0, SECONDS_PER_YEAR, 1000, 1000, -MAX_UINT_64),
+        (MAX_UINT_64 - 10, 0, SECONDS_PER_YEAR, 1000, 1000, MAX_UINT_64),
+        (-MAX_UINT_64 + 10, 0, SECONDS_PER_YEAR, 1000, 1000, -MAX_UINT_64),
+        (1000, 0, 2 ** 32 - 1, 2 ** 15 - 1, 0, MAX_UINT_64),
+        (1000, 0, 2 ** 32 - 1, -(2 ** 15), 0, 0),
+        (-1000, 0, 2 ** 32 - 1, 0, 2 ** 15 - 1, -MAX_UINT_64),
+        (-1000, 0, 2 ** 32 - 1, 0, -(2 ** 15), 0),
+        (1000, 1, 0, 1000, 0, None),
+    ],
+)
+def test_interest_calculation(
+    test_currency_network_contract,
+    balance,
+    start_time,
+    end_time,
+    interest_rate_given,
+    interest_rate_received,
+    result,
+):
+
+    if result is None:
+        with pytest.raises(TransactionFailed):
+            test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+                balance,
+                start_time,
+                end_time,
+                interest_rate_given,
+                interest_rate_received,
+            ).call()
+    else:
+        assert test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+            balance, start_time, end_time, interest_rate_given, interest_rate_received
+        ).call() == pytest.approx(
+            result, abs=1
+        )
 
 
 def test_interests_positive_balance(
