@@ -190,13 +190,12 @@ def test_transfer_1_received(currency_network_contract_with_trustlines, accounts
 
 def test_transfer_0_received(currency_network_contract_with_trustlines, accounts):
     contract = currency_network_contract_with_trustlines
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transferReceiverPays(
-            3,
-            3,
-            [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]],
-            EXTRA_DATA,
-        ).transact({"from": accounts[0]})
+    contract.functions.transferReceiverPays(
+        3,
+        3,
+        [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]],
+        EXTRA_DATA,
+    ).transact({"from": accounts[0]})
 
 
 @pytest.mark.parametrize(

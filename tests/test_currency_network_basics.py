@@ -787,8 +787,8 @@ def test_cancel_trustline_update_event(
     event_args = events[0]["args"]
 
     assert len(events) == 1
-    assert event_args["initiator"] == accounts[0]
-    assert event_args["counterparty"] == accounts[1]
+    assert event_args["_initiator"] == accounts[0]
+    assert event_args["_counterparty"] == accounts[1]
 
 
 def test_balance_event(currency_network_adapter_with_trustlines, accounts):
