@@ -287,6 +287,22 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     /**
+     * @notice Updates the balance of the trustline between `msg.sender` and `_counterParty`
+        by applying the outstanding interests
+     */
+    function applyInterests(
+        address _counterParty
+    )
+        external
+    {
+        Trustline memory trustline = _loadTrustline(msg.sender, _counterParty);
+        require(! _isTrustlineFrozen(trustline.agreement), "Cannot apply interests, the trustline is frozen");
+        _applyInterests(trustline);
+        emit BalanceUpdate(msg.sender, _counterParty, trustline.balances.balance);
+        _storeTrustlineBalances(msg.sender, _counterParty, trustline.balances);
+    }
+
+    /**
      * @notice `msg.sender` cancels a trustline update it initiated with _debtor
      * @param _counterparty The other party of the trustline agreement
      */
