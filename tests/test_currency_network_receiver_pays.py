@@ -199,7 +199,7 @@ def test_transfer_0_received(currency_network_contract_with_trustlines, accounts
 
 
 @pytest.mark.parametrize(
-    "value", [4, 100, 101, 102, 1000, 9999, 10000, 10001, 50000, 50506, 123456]
+    "value", [0, 4, 100, 101, 102, 1000, 9999, 10000, 10001, 50000, 50506, 123456]
 )
 def test_fees_are_the_same(
     currency_network_contract_with_high_trustlines, accounts, value
