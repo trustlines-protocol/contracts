@@ -100,7 +100,6 @@ def frozen_functions_and_args(accounts):
         ["transferFrom", (1, 2, [accounts[0], accounts[1]], b"")],
         ["updateTrustline", (accounts[1], 101, 101, 101, 101, True)],
         ["updateCreditlimits", (accounts[1], 101, 101)],
-        ["updateTrustlineDefaultInterests", (accounts[1], 101, 101, True)],
         ["closeTrustline", [accounts[1]]],
         [
             "closeTrustlineByTriangularTransfer",

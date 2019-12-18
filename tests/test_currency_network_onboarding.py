@@ -24,12 +24,8 @@ def currency_network_contract(web3):
 
 
 def open_trustline(network, a, b):
-    network.functions.updateTrustlineDefaultInterests(b, 1, 1, False).transact(
-        {"from": a}
-    )
-    network.functions.updateTrustlineDefaultInterests(a, 1, 1, False).transact(
-        {"from": b}
-    )
+    network.functions.updateCreditlimits(b, 1, 1).transact({"from": a})
+    network.functions.updateCreditlimits(a, 1, 1).transact({"from": b})
 
 
 def test_no_onboarder(currency_network_contract, accounts):
@@ -129,12 +125,12 @@ def test_onboarding_event_with_onboarder(currency_network_contract, web3, accoun
     assert event_onboarding_3[0]["args"]["_onboarder"] == accounts[2]
 
 
-def test_onboarding_no_accept_tl(currency_network_contract, web3, accounts):
+def test_onboarding_no_accept_tl(currency_network_contract, accounts):
     """Test that users cannot attempt to open a TL with (0, 0, 0, 0) to onboard someone"""
     open_trustline(currency_network_contract, accounts[1], accounts[2])
-    currency_network_contract.functions.updateTrustlineDefaultInterests(
-        accounts[3], 0, 0, False
-    ).transact({"from": accounts[1]})
+    currency_network_contract.functions.updateCreditlimits(accounts[3], 0, 0).transact(
+        {"from": accounts[1]}
+    )
 
     assert (
         currency_network_contract.functions.onboarder(accounts[3]).call() == ADDRESS_0

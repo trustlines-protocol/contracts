@@ -324,36 +324,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     /**
-     * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived`
-     * token with default interests
-     * Needs to be accepted by the other party, unless we reduce both values.
-     * @param _debtor The other party of the trustline agreement
-     * @param _creditlineGiven The creditline limit given by msg.sender
-     * @param _creditlineReceived The creditline limit given _debtor
-     * @param _isFrozen Whether the initiator asks for freezing the trustline
-     */
-    function updateTrustlineDefaultInterests(
-        address _debtor,
-        uint64 _creditlineGiven,
-        uint64 _creditlineReceived,
-        bool _isFrozen
-    )
-        external
-    {
-        address _creditor = msg.sender;
-
-        _updateTrustline(
-            _creditor,
-            _debtor,
-            _creditlineGiven,
-            _creditlineReceived,
-            defaultInterestRate,
-            defaultInterestRate,
-            _isFrozen
-        );
-    }
-
-    /**
      * @notice `msg.sender` closes a trustline with `_otherParty`
      * For this to succeed the balance of this trustline needs to be zero
      * @param _otherParty The other party of the trustline agreement
