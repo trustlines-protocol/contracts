@@ -20,13 +20,12 @@ pragma solidity ^0.5.8;
 
 import "./tokens/Token.sol";
 import "./lib/SafeMath.sol";
-import "./lib/Destructable.sol";
 import "./currency-network/CurrencyNetworkInterface.sol";
 
 
 /// @title Exchange - Facilitates exchange of ERC20 tokens.
 /// @author Amir Bandeali - <amir@0xProject.com>, Will Warren - <will@0xProject.com>
-contract Exchange is SafeMath, Destructable {
+contract Exchange is SafeMath {
 
     // Error Codes
     enum Errors {

@@ -146,6 +146,10 @@ def deploy_network(
     )
     increase_transaction_options_nonce(transaction_options)
 
+    authorized_addresses = []
+    if exchange_address is not None:
+        authorized_addresses.append(exchange_address)
+
     init_function_call = currency_network.functions.init(
         name,
         symbol,
@@ -155,6 +159,7 @@ def deploy_network(
         custom_interests,
         prevent_mediator_interests,
         expiration_time,
+        authorized_addresses,
     )
 
     send_function_call_transaction(
@@ -164,18 +169,6 @@ def deploy_network(
         private_key=private_key,
     )
     increase_transaction_options_nonce(transaction_options)
-
-    if exchange_address is not None:
-        add_function_call = currency_network.functions.addAuthorizedAddress(
-            exchange_address
-        )
-        send_function_call_transaction(
-            add_function_call,
-            web3=web3,
-            transaction_options=transaction_options,
-            private_key=private_key,
-        )
-        increase_transaction_options_nonce(transaction_options)
 
     return currency_network
 

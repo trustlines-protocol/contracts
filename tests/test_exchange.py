@@ -49,12 +49,12 @@ def currency_network_contract_with_trustlines(web3, exchange_contract, accounts)
         fee_divisor=0,
         currency_network_contract_name="TestCurrencyNetwork",
         expiration_time=EXPIRATION_TIME,
+        exchange_address=exchange_contract.address,
     )
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
             accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0
         ).transact()
-    contract.functions.addAuthorizedAddress(exchange_contract.address).transact()
     return contract
 
 

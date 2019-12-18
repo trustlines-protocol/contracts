@@ -140,7 +140,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         int16 _defaultInterestRate,
         bool _customInterests,
         bool _preventMediatorInterests,
-        uint _expirationTime
+        uint _expirationTime,
+        address[] calldata authorizedAddresses
     )
         external
     {
@@ -168,6 +169,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         customInterests = _customInterests;
         preventMediatorInterests = _preventMediatorInterests;
         expirationTime = _expirationTime;
+
+        for (uint i = 0; i < authorizedAddresses.length; i++) {
+            addGlobalAuthorizedAddress(authorizedAddresses[i]);
+        }
     }
 
     /**
@@ -211,7 +216,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
     {
-        require(authorized[msg.sender], "The sender of the message is not authorized.");
+        require(globalAuthorized[msg.sender] || authorized[_path[0]][msg.sender], "The sender of the message is not authorized.");
 
         _mediatedTransferSenderPays(
             _value,
