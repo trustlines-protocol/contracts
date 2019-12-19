@@ -111,7 +111,9 @@ def test_add_global_authorized_event(
         "GlobalAuthorizedAddressAdd"
     )
     assert len(global_authorized_events) == 1
-    assert global_authorized_events[0]["args"]["target"] == global_authorized_address
+    assert (
+        global_authorized_events[0]["args"]["authorized"] == global_authorized_address
+    )
 
 
 def test_add_personal_authorized_event(currency_network_adapter, accounts):
@@ -121,7 +123,7 @@ def test_add_personal_authorized_event(currency_network_adapter, accounts):
 
     events = currency_network_adapter.events("AuthorizedAddressAdd")
     assert len(events) == 1
-    assert events[0]["args"]["target"] == target
+    assert events[0]["args"]["authorized"] == target
     assert events[0]["args"]["sender"] == sender
 
 
@@ -132,5 +134,5 @@ def test_remove_personal_authorized_event(currency_network_adapter, accounts):
 
     events = currency_network_adapter.events("AuthorizedAddressRemove")
     assert len(events) == 1
-    assert events[0]["args"]["target"] == target
+    assert events[0]["args"]["authorized"] == target
     assert events[0]["args"]["sender"] == sender

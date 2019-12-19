@@ -7,11 +7,11 @@ contract Authorizable {
     // mapping from user to mapping Address => isAuthorized
     mapping (address => mapping (address =>bool)) public authorized;
 
-    event GlobalAuthorizedAddressAdd(address indexed target);
-    event GlobalAuthorizedAddressRemove(address indexed target);
+    event GlobalAuthorizedAddressAdd(address indexed authorized);
+    event GlobalAuthorizedAddressRemove(address indexed authorized);
 
-    event AuthorizedAddressAdd(address indexed target, address indexed sender);
-    event AuthorizedAddressRemove(address indexed target, address indexed sender);
+    event AuthorizedAddressAdd(address indexed authorized, address indexed sender);
+    event AuthorizedAddressRemove(address indexed authorized, address indexed sender);
 
     /// @dev Authorizes an address.
     /// @param target Address to authorize.
