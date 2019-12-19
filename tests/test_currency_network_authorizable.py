@@ -104,6 +104,13 @@ def test_transfer_from_removed_personal_authorized(
         )
 
 
+def test_cannot_remove_not_authorized(currency_network_adapter, accounts):
+    target = accounts[3]
+    sender = accounts[4]
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_adapter.remove_authorized_address(target=target, sender=sender)
+
+
 def test_add_global_authorized_event(
     currency_network_adapter, global_authorized_address
 ):
@@ -130,6 +137,7 @@ def test_add_personal_authorized_event(currency_network_adapter, accounts):
 def test_remove_personal_authorized_event(currency_network_adapter, accounts):
     target = accounts[3]
     sender = accounts[4]
+    currency_network_adapter.add_authorized_address(target=target, sender=sender)
     currency_network_adapter.remove_authorized_address(target=target, sender=sender)
 
     events = currency_network_adapter.events("AuthorizedAddressRemove")

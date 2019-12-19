@@ -27,6 +27,7 @@ contract Authorizable {
     function removeAuthorizedAddress(address target)
         public
     {
+        require(authorized[msg.sender][target], "Target not authorized by sender.");
         delete authorized[msg.sender][target];
         emit AuthorizedAddressRemove(target, msg.sender);
     }
@@ -45,6 +46,7 @@ contract Authorizable {
     function removeGlobalAuthorizedAddress(address target)
         internal
     {
+        require(globalAuthorized[target], "Target not global authorized.");
         delete globalAuthorized[target];
         emit GlobalAuthorizedAddressRemove(target);
     }
