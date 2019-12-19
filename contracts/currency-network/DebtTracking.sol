@@ -1,7 +1,9 @@
 pragma solidity ^0.5.8;
 
+import "./CurrencyNetworkSafeMath.sol";
 
-contract DebtTracking {
+
+contract DebtTracking is CurrencyNetworkSafeMath {
 
     // mapping of a pair of user to the signed debt in the point of view of the lowest address
     mapping (bytes32 => int72) public debt;
@@ -23,11 +25,12 @@ contract DebtTracking {
      * @param creditor The address towards which the debtor owes money
      * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
      */
-    function getDebt(address debtor, address creditor) public view returns (int256) {
+    function getDebt(address debtor, address creditor) public view returns (int80) {
         if (debtor < creditor) {
             return debt[uniqueIdentifier(debtor, creditor)];
         } else {
-            return - debt[uniqueIdentifier(debtor, creditor)];
+            // We need to explicitly cast to int80 to be able to safely oppose the int72 debt
+            return - int80(debt[uniqueIdentifier(debtor, creditor)]);
         }
     }
 
@@ -38,13 +41,13 @@ contract DebtTracking {
     function _addToDebt(address debtor, address creditor, int72 value) internal {
         int72 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
         if (debtor < creditor) {
-            int72 newDebt = _safeSum(oldDebt, value);
+            int72 newDebt = safeSumInt72(oldDebt, value);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
             emit DebtUpdate(debtor, creditor, newDebt);
         } else {
-            int72 newDebt = _safeSum(oldDebt, -value);
+            int72 newDebt = safeSumInt72(oldDebt, safeMinus(value));
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
-            emit DebtUpdate(debtor, creditor, -newDebt);
+            emit DebtUpdate(debtor, creditor, safeMinus(newDebt));
         }
     }
 
@@ -54,16 +57,6 @@ contract DebtTracking {
             return keccak256(abi.encodePacked(_a, _b));
         } else if (_a > _b) {
             return keccak256(abi.encodePacked(_b, _a));
-        }
-    }
-
-    function _safeSum(int72 a, int72 b) internal pure returns (int72 sum) {
-        sum = a + b;
-        if (a > 0 && b > 0) {
-            require(sum > 0, "Overflow error.");
-        }
-        if (a < 0 && b < 0) {
-            require(sum < 0, "Underflow error.");
         }
     }
 }

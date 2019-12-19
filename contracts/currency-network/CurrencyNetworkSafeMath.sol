@@ -45,5 +45,13 @@ contract CurrencyNetworkSafeMath {
         return c;
     }
 
-
+    function safeSumInt72(int72 a, int72 b) internal pure returns (int72 sum) {
+        sum = a + b;
+        if (a > 0 && b > 0) {
+            require(sum > 0, "Overflow error.");
+        }
+        if (a < 0 && b < 0) {
+            require(sum < 0, "Underflow error.");
+        }
+    }
 }
