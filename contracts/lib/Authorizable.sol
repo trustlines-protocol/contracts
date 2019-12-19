@@ -4,6 +4,7 @@ pragma solidity ^0.5.8;
 contract Authorizable {
 
     mapping (address => bool) public globalAuthorized;
+    // mapping from user to mapping Address => isAuthorized
     mapping (address => mapping (address =>bool)) public authorized;
 
     event GlobalAuthorizedAddressAdd(address indexed target);
