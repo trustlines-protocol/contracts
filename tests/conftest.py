@@ -160,5 +160,20 @@ class CurrencyNetworkAdapter:
             {"from": path[0]}
         )
 
+    def transfer_from(
+        self, msg_sender, value: int, *, path, max_fee=MAX_FEE, extra_data=EXTRA_DATA
+    ):
+        self.contract.functions.transferFrom(value, max_fee, path, extra_data).transact(
+            {"from": msg_sender}
+        )
+
+    def add_authorized_address(self, *, target, sender):
+        self.contract.functions.addAuthorizedAddress(target).transact({"from": sender})
+
+    def remove_authorized_address(self, *, target, sender):
+        self.contract.functions.removeAuthorizedAddress(target).transact(
+            {"from": sender}
+        )
+
     def events(self, event_name: str):
         return list(getattr(self.contract.events, event_name).getLogs(fromBlock=0))

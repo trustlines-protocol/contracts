@@ -16,10 +16,9 @@
 pragma solidity ^0.5.8;
 
 import "../lib/Authorizable.sol";
-import "../lib/Destructable.sol";
 
 
-contract UnwEth is Authorizable, Destructable {
+contract UnwEth is Authorizable {
     string public name     = "Unwrapping Kovan Ether";
     string public symbol   = "UKETH";
     uint8  public decimals = 18;
@@ -34,6 +33,13 @@ contract UnwEth is Authorizable, Destructable {
 
     function() external payable {
         deposit();
+    }
+
+    // Todo Remove
+    function addAuthorizedAddress(address target)
+        public
+    {
+        super.addGlobalAuthorizedAddress(target);
     }
 
     function deposit() public payable {
@@ -68,7 +74,7 @@ contract UnwEth is Authorizable, Destructable {
     {
         require(balanceOf[src] >= wad);
 
-        if (src != msg.sender && !authorized[msg.sender] && allowance[src][msg.sender] != uint(-1)) {
+        if (src != msg.sender && !globalAuthorized[msg.sender] && !authorizedBy[src][msg.sender] && allowance[src][msg.sender] != uint(-1)) {
             require(allowance[src][msg.sender] >= wad);
             allowance[src][msg.sender] -= wad;
         }

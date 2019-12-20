@@ -99,7 +99,7 @@ def test_meta_decimal(currency_network_contract):
 def test_init_only_once(currency_network_contract):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.init(
-            "TestCoin", "T", 6, 0, 0, False, False, EXPIRATION_TIME
+            "TestCoin", "T", 6, 0, 0, False, False, EXPIRATION_TIME, []
         ).transact()
 
 

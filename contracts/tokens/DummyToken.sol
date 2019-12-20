@@ -1,11 +1,10 @@
 pragma solidity ^0.5.8;
 
-import "./../lib/Ownable.sol";
 import "./../lib/SafeMath.sol";
 import "./../tokens/StandardToken.sol";
 
 
-contract DummyToken is Ownable, StandardToken, SafeMath {
+contract DummyToken is StandardToken, SafeMath {
     string public name;
     string public symbol;
     uint public decimals;
@@ -27,7 +26,6 @@ contract DummyToken is Ownable, StandardToken, SafeMath {
 
     function setBalance(address _target, uint _value)
         public
-        onlyOwner
     {
         uint currBalance = balanceOf(_target);
         if (_value < currBalance) {

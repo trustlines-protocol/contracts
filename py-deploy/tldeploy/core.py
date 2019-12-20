@@ -127,9 +127,12 @@ def deploy_network(
     currency_network_contract_name=None,
     transaction_options: Dict = None,
     private_key=None,
+    authorized_addresses=None,
 ):
     if transaction_options is None:
         transaction_options = {}
+    if authorized_addresses is None:
+        authorized_addresses = []
 
     # CurrencyNetwork is the standard contract to deploy, If we're running
     # tests or trying to export data for testing the python implementation of
@@ -146,6 +149,9 @@ def deploy_network(
     )
     increase_transaction_options_nonce(transaction_options)
 
+    if exchange_address is not None:
+        authorized_addresses.append(exchange_address)
+
     init_function_call = currency_network.functions.init(
         name,
         symbol,
@@ -155,6 +161,7 @@ def deploy_network(
         custom_interests,
         prevent_mediator_interests,
         expiration_time,
+        authorized_addresses,
     )
 
     send_function_call_transaction(
@@ -164,18 +171,6 @@ def deploy_network(
         private_key=private_key,
     )
     increase_transaction_options_nonce(transaction_options)
-
-    if exchange_address is not None:
-        add_function_call = currency_network.functions.addAuthorizedAddress(
-            exchange_address
-        )
-        send_function_call_transaction(
-            add_function_call,
-            web3=web3,
-            transaction_options=transaction_options,
-            private_key=private_key,
-        )
-        increase_transaction_options_nonce(transaction_options)
 
     return currency_network
 
