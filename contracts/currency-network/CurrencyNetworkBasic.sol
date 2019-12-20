@@ -216,7 +216,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
     {
-        require(globalAuthorized[msg.sender] || authorized[_path[0]][msg.sender], "The sender of the message is not authorized.");
+        require(globalAuthorized[msg.sender] || (_path.length > 0 && authorizedBy[_path[0]][msg.sender]), "The sender of the message is not authorized.");
 
         _mediatedTransferSenderPays(
             _value,

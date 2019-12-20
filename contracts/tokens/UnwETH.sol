@@ -74,7 +74,7 @@ contract UnwEth is Authorizable {
     {
         require(balanceOf[src] >= wad);
 
-        if (src != msg.sender && !globalAuthorized[msg.sender] && !authorized[src][msg.sender] && allowance[src][msg.sender] != uint(-1)) {
+        if (src != msg.sender && !globalAuthorized[msg.sender] && !authorizedBy[src][msg.sender] && allowance[src][msg.sender] != uint(-1)) {
             require(allowance[src][msg.sender] >= wad);
             allowance[src][msg.sender] -= wad;
         }

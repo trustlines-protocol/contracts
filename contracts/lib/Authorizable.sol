@@ -5,20 +5,20 @@ contract Authorizable {
 
     mapping (address => bool) public globalAuthorized;
     // mapping from user to mapping Address => isAuthorized
-    mapping (address => mapping (address =>bool)) public authorized;
+    mapping (address => mapping (address =>bool)) public authorizedBy;
 
     event GlobalAuthorizedAddressAdd(address indexed authorized);
     event GlobalAuthorizedAddressRemove(address indexed authorized);
 
-    event AuthorizedAddressAdd(address indexed authorized, address indexed sender);
-    event AuthorizedAddressRemove(address indexed authorized, address indexed sender);
+    event AuthorizedAddressAdd(address indexed authorized, address indexed allower);
+    event AuthorizedAddressRemove(address indexed authorized, address indexed allower);
 
     /// @dev Authorizes an address.
     /// @param target Address to authorize.
     function addAuthorizedAddress(address target)
         public
     {
-        authorized[msg.sender][target] = true;
+        authorizedBy[msg.sender][target] = true;
         emit AuthorizedAddressAdd(target, msg.sender);
     }
 
@@ -27,8 +27,8 @@ contract Authorizable {
     function removeAuthorizedAddress(address target)
         public
     {
-        require(authorized[msg.sender][target], "Target not authorized by sender.");
-        delete authorized[msg.sender][target];
+        require(authorizedBy[msg.sender][target], "Target not authorized by sender.");
+        delete authorizedBy[msg.sender][target];
         emit AuthorizedAddressRemove(target, msg.sender);
     }
 
