@@ -13,10 +13,10 @@ contract TestContract is DebtTracking {
         int argument
     );
 
-    function increaseDebt(address creditor, uint64 value) external {
+    function increaseDebt(address creditor, uint value) external {
     }
 
-    function getDebt(address, address) public view returns (int80) {
+    function getDebt(address, address) public view returns (int) {
         return 0;
     }
 

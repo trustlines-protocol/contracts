@@ -135,12 +135,12 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         );
     }
 
-    function testAddToDebt(address debtor, address creditor, int72 value) external {
+    function testAddToDebt(address debtor, address creditor, int value) external {
         _addToDebt(debtor, creditor, value);
     }
 
-    function testSafeSumInt72(int72 a, int72 b) external pure returns (int72 sum) {
-        return safeSumInt72(a, b);
+    function testSafeSumInt256(int a, int b) external pure returns (int sum) {
+        return safeSumInt256(a, b);
     }
 
     function testCalculateFees(uint64 _imbalanceGenerated, uint16 _capacityImbalanceFeeDivisor)
