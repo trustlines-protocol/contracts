@@ -45,7 +45,20 @@ contract CurrencyNetworkSafeMath {
         return c;
     }
 
-    function safeSumInt72(int72 a, int72 b) internal pure returns (int72 sum) {
+    function safeMinusInt256(int a)
+        internal
+        pure
+        returns (int)
+    {
+        if (a == 0) {
+            return a;
+        }
+        int c = -a;
+        require(c != a, "SafeMath: Minus Overflow");
+        return c;
+    }
+
+    function safeSumInt256(int a, int b) internal pure returns (int sum) {
         sum = a + b;
         if (a > 0 && b > 0) {
             require(sum > 0, "Overflow error.");
@@ -53,5 +66,9 @@ contract CurrencyNetworkSafeMath {
         if (a < 0 && b < 0) {
             require(sum < 0, "Underflow error.");
         }
+    }
+
+    function checkIsNotMinInt256(int a) internal pure returns (bool) {
+        require(a != - 2 ** 255, "Prevent using value for minus overflow.");
     }
 }

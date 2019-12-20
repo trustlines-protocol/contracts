@@ -15,8 +15,8 @@ trustlines = [
     (0, 4, 500, 550),
 ]  # (A, B, clAB, clBA)
 
-max_int72 = 2 ** 71 - 1
-min_int72 = -(max_int72 + 1)
+max_int256 = 2 ** 255 - 1
+min_int256 = -(max_int256 + 1)
 
 NETWORK_SETTING = {
     "name": "TestCoin",
@@ -233,68 +233,73 @@ def test_debit_transfer_events(
     [
         (0, 1),
         (1, 0),
-        (max_int72, 0),
-        (max_int72, -1),
-        (max_int72, min_int72),
-        (min_int72, 0),
-        (min_int72, 1),
+        (max_int256, 0),
+        (max_int256, -1),
+        (max_int256, min_int256),
+        (min_int256, 0),
+        (min_int256, 1),
     ],
 )
 def test_safe_sum_no_error(currency_network_contract, a, b):
-    assert currency_network_contract.functions.testSafeSumInt72(a, b).call() == a + b
+    assert currency_network_contract.functions.testSafeSumInt256(a, b).call() == a + b
 
 
 @pytest.mark.parametrize(
     "a, b",
-    [(max_int72, max_int72), (max_int72, 1), (min_int72, -1), (min_int72, min_int72)],
+    [
+        (max_int256, max_int256),
+        (max_int256, 1),
+        (min_int256, -1),
+        (min_int256, min_int256),
+    ],
 )
 def test_safe_sum_raises_error(currency_network_contract, a, b):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.testSafeSumInt72(a, b).call()
+        currency_network_contract.functions.testSafeSumInt256(a, b).call()
 
 
-@pytest.mark.parametrize("creditor_index, debtor_index", [(1, 0), (3, 2)])
-def test_add_to_debt_min_int72_fails(
+@pytest.mark.parametrize("creditor_index, debtor_index", [(1, 0), (0, 1)])
+def test_add_to_debt_min_int256_fails(
     currency_network_contract, accounts, creditor_index, debtor_index
 ):
-    """we should not be able to add to debt min_int72 since it has to be opposed when creditor < debtor"""
-    min_int72 = -2 ** 71
+    """we should not be able to add to debt min_int256"""
     creditor = accounts[creditor_index]
     debtor = accounts[debtor_index]
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.testAddToDebt(
-            debtor, creditor, min_int72
+            debtor, creditor, min_int256
         ).transact({"from": debtor})
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(0, 1), (2, 3)])
-def test_add_to_debt_min_int72_succeeds(
+def test_add_to_debt_max_int256_succeeds(
     currency_network_contract, accounts, creditor_index, debtor_index
 ):
-    """we should be able to add to debt min_int72 and get it when creditor < debtor"""
-    min_int72 = -2 ** 71
     creditor = accounts[creditor_index]
     debtor = accounts[debtor_index]
     currency_network_contract.functions.testAddToDebt(
-        debtor, creditor, min_int72
+        debtor, creditor, max_int256
     ).transact({"from": debtor})
     assert (
         currency_network_contract.functions.getDebt(debtor, creditor).call()
-        == min_int72
+        == max_int256
     )
     assert (
         currency_network_contract.functions.getDebt(creditor, debtor).call()
-        == -min_int72
+        == -max_int256
     )
 
 
-def test_add_to_debt_twice_to_reach_min_int72(currency_network_contract, accounts):
-    """We should not be able to overflow the debt by adding twice to it to reach min_int72 when opposed"""
-    max_int72 = 2 ** 71 - 1
-    creditor = accounts[0]
-    debtor = accounts[1]
+@pytest.mark.parametrize("creditor_index, debtor_index", [(1, 0), (0, 1)])
+def test_add_to_debt_twice_to_reach_min_int(
+    currency_network_contract, accounts, creditor_index, debtor_index
+):
+    """We should not be able to overflow the debt by adding twice to it to reach min_int"""
+    max_int = 2 ** 255 - 1
+    creditor = accounts[creditor_index]
+    debtor = accounts[debtor_index]
     currency_network_contract.functions.testAddToDebt(
-        debtor, creditor, max_int72
+        debtor, creditor, max_int
     ).transact({"from": debtor})
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.testAddToDebt(debtor, creditor, 2).transact(
