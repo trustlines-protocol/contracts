@@ -1,18 +1,27 @@
 ==========
 Change Log
 ==========
-`0.11.0`_ (unreleased)
+`1.0.1`_ (unreleased)
 -----------------------
+`1.0.0`_ (2019-12-30)
+-----------------------
+* Add function `cancelTrustlineUpdate(address counterparty)` to cancel a trustline update request in between msg.sender and counterparty.
+* Add `applyInterests` external function to manually apply interests
 * Change signature of functions `transfer`, `transferFrom`, `debitTransfer`, `transferReceiverPays`
-so that it no longer takes `_to` argument but takes a complete path including sender and receiver
-* Lower the absolute max value of balances from `2**71 - 1` to `2**64 - 1` to match maximum transferable value
+  so that it no longer takes `_to` argument but takes a complete path including sender and receiver (BREAKING)
+* Change: Lower the absolute max value of balances from `2**71 - 1` to `2**64 - 1` to match maximum transferable value
+* Change the way how to add authorized addresses to call `transferFrom`. Users can now add an authorized address
+  for themselves
 * Remove self destruct from Currency Network
 * Remove owner from Currency Network
 * Remove boolean return values from Currency Network functions.
 * Remove ERC20 related functions: `spendable`, `spendableTo`, `totalSupply`, and `balanceOf`
 * Remove function `updateTrustlineDefaultInterests`
-* Add function `cancelTrustlineUpdate(address counterparty)` to cancel a trustline update request in between msg.sender and counterparty.
-* Bugfix: emit Transfer event also on closeTrustlineViaTriangularTransfer
+* Remove unused outstanding fees field in trustline (BREAKING)
+* Bugfix: emit Transfer event also on `closeTrustlineViaTriangularTransfer`
+* Bugfix: Prevent overflows in `closeTrustlineViaTriangularTransfer`
+* Bugfix: Prevent overflows in interests calculation
+* Bugfix: Prevent overflows in debt tracking
 
 
 `0.10.1`_ (2019-11-18)
@@ -204,5 +213,6 @@ The rest of the changes are only interesting for developers:
 .. _0.9.2: https://github.com/trustlines-protocol/contracts/compare/0.9.1...0.9.2
 .. _0.9.3: https://github.com/trustlines-protocol/contracts/compare/0.9.2...0.9.3
 .. _0.10.0: https://github.com/trustlines-protocol/contracts/compare/0.9.3...0.10.0
-.. _0.10.1: https://github.com/trustlines-protocol/contracts/compare/0.10.0...master
-.. _0.11.0: https://github.com/trustlines-protocol/contracts/compare/0.10.1...master
+.. _0.10.1: https://github.com/trustlines-protocol/contracts/compare/0.10.0...0.10.1
+.. _1.0.0: https://github.com/trustlines-protocol/contracts/compare/0.10.1...1.0.0
+.. _1.0.1: https://github.com/trustlines-protocol/contracts/compare/1.0.0...master
