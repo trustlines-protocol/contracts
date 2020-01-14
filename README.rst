@@ -49,7 +49,7 @@ unlocked account with enough ether to pay for the contract deployment.
 Deployment setup
 ~~~~~~~~~~~~~~~~
 
-Please run `pip install trustlines-contracts-deploy` to install the tl-deploy
+Please run ``pip install trustlines-contracts-deploy`` to install the ``tl-deploy``
 tool from PyPI. Solidity itself isn't needed anymore.
 
 tl-deploy
