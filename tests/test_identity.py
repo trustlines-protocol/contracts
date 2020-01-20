@@ -435,6 +435,32 @@ def test_delegated_transaction_nonce_gap_fails(identity, delegate, web3, account
     assert get_transaction_status(web3, tx_id) is False
 
 
+def test_meta_transaction_time_limit_valid(identity, delegate, web3, accounts):
+    to = accounts[2]
+    value = 1000
+    time_limit = web3.eth.getBlock("latest").timestamp + 1000
+
+    meta_transaction = MetaTransaction(to=to, value=value, gas_limit=time_limit)
+
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert get_transaction_status(web3, tx_id)
+
+
+def test_meta_transaction_time_limit_invalid(identity, delegate, web3, accounts):
+    to = accounts[2]
+    value = 1000
+    time_limit = 456
+
+    meta_transaction = MetaTransaction(to=to, value=value, gas_limit=time_limit)
+
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert get_transaction_status(web3, tx_id) is False
+
+
 def test_validate_same_tx(identity, delegate, accounts):
     to = accounts[2]
     value = 1000
@@ -659,3 +685,41 @@ def test_tracking_delegation_fee_in_different_network(
         second_currency_network_contract.functions.getDebt(A, delegate_address).call()
         == base_fee
     )
+
+
+def test_meta_transaction_gas_fee(
+    currency_network_contract, identity, delegate, delegate_address, accounts
+):
+    A = identity.address
+    B = accounts[3]
+    to = currency_network_contract.address
+    base_fee = 123
+    gas_price = 1000
+
+    function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
+    meta_transaction = identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(
+            function_call, to=to, base_fee=base_fee, gas_price=gas_price
+        )
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    effective_fee = currency_network_contract.functions.getDebt(
+        A, delegate_address
+    ).call()
+
+    assert (effective_fee - base_fee) % gas_price == 0
+    assert effective_fee - base_fee != 0
+
+
+def test_meta_transaction_gas_limit(identity, delegate, web3, accounts):
+    to = accounts[2]
+    value = 1000
+    gas_limit = 456
+
+    meta_transaction = MetaTransaction(to=to, value=value, gas_limit=gas_limit)
+
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert get_transaction_status(web3, tx_id) is False
