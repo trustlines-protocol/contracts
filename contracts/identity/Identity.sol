@@ -14,7 +14,7 @@ contract Identity is ProxyStorage {
     uint public lastNonce = 0;
 
     event TransactionExecution(bytes32 hash, bool status);
-    event FeesPaid(uint64 value, address currencyNetwork);
+    event FeesPaid(uint value, address currencyNetwork);
 
     constructor() public {
         // solium-disable-previous-line no-empty-blocks
@@ -35,15 +35,19 @@ contract Identity is ProxyStorage {
         address payable to,
         uint256 value,
         bytes memory data,
-        uint64 fees,
+        uint256 baseFee,
+        uint256 gasPrice,
+        uint256 gasLimit,
         address currencyNetworkOfFees,
         uint256 nonce,
+        uint256 timeLimit,
+        uint8 operationType,
         bytes memory extraData,
         bytes memory signature
     )
-        public returns (bool _success)
+        public
     {
-
+        uint startGas = gasleft();
         require(from == address(this), "The transaction is not meant for this identity contract");
 
         bytes32 hash = transactionHash(
@@ -51,14 +55,19 @@ contract Identity is ProxyStorage {
             to,
             value,
             data,
-            fees,
+            baseFee,
+            gasPrice,
+            gasLimit,
             currencyNetworkOfFees,
             nonce,
+            timeLimit,
+            operationType,
             extraData
         );
 
-        require(validateSignature(hash, signature), "The transaction signature is not valid");
         require(validateNonce(nonce, hash), "The transaction nonce is invalid");
+        require(validateTimeLimit(timeLimit), "The transaction expired");
+        require(validateSignature(hash, signature), "The transaction signature is not valid");
 
         if (nonce == 0) {
             hashUsed[hash] = true; // To prevent replaying this meta transaction
@@ -69,13 +78,18 @@ contract Identity is ProxyStorage {
         (bool status, ) = to.call.value(value)(data); // solium-disable-line
         emit TransactionExecution(hash, status);
 
-        if (fees != 0 && status != false) {
-            DebtTracking debtNetwork = DebtTracking(currencyNetworkOfFees);
-            debtNetwork.increaseDebt(msg.sender, fees);
-            emit FeesPaid(fees, currencyNetworkOfFees);
+        uint256 gasSpent = startGas - gasleft();
+        if (gasLimit != 0) {
+            require(gasSpent <= gasLimit, "Gas limit too low");
         }
 
-        _success = true;
+        if ((gasPrice > 0 || baseFee > 0) && status != false) {
+            uint256 fees = baseFee + gasSpent * gasPrice;
+            require(fees >= baseFee, "Fees addition overflow");
+            DebtTracking debtContract = DebtTracking(currencyNetworkOfFees);
+            debtContract.increaseDebt(msg.sender, fees);
+            emit FeesPaid(fees, currencyNetworkOfFees);
+        }
     }
 
     function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
@@ -85,6 +99,14 @@ contract Identity is ProxyStorage {
             return lastNonce + 1 == nonce;
         }
 
+    }
+
+    function validateTimeLimit(uint timeLimit) public view returns (bool) {
+        if (timeLimit == 0) {
+            return true;
+        } else {
+            return timeLimit <= now;
+        }
     }
 
     function validateSignature(bytes32 hash, bytes memory _signature) public view returns (bool) {
@@ -97,17 +119,20 @@ contract Identity is ProxyStorage {
         address to,
         uint256 value,
         bytes memory data,
-        uint64 fees,
+        uint256 baseFee,
+        uint256 gasPrice,
+        uint256 gasLimit,
         address currencyNetworkOfFees,
         uint256 nonce,
+        uint256 timeLimit,
+        uint8 operationType,
         bytes memory extraData
     )
     internal
     pure
     returns (bytes32)
     {
-        bytes32 dataHash = keccak256(data);
-
+        // we need to hash the `data` field before being able to pack it to hash it together with other fields
         bytes32 hash = keccak256(
             abi.encodePacked(
                 byte(0x19),
@@ -115,10 +140,14 @@ contract Identity is ProxyStorage {
                 from,
                 to,
                 value,
-                dataHash,
-                fees,
+                keccak256(data),
+                baseFee,
+                gasPrice,
+                gasLimit,
                 currencyNetworkOfFees,
                 nonce,
+                timeLimit,
+                operationType,
                 extraData
             ));
 

@@ -15,9 +15,13 @@ contract TestIdentity is Identity {
         address to,
         uint256 value,
         bytes memory data,
-        uint64 fees,
+        uint256 baseFee,
+        uint256 gasPrice,
+        uint256 gasLimit,
         address currencyNetworkOfFees,
         uint256 nonce,
+        uint256 timeLimit,
+        uint8 operationType,
         bytes memory extraHash
     )
         public
@@ -29,9 +33,13 @@ contract TestIdentity is Identity {
             to,
             value,
             data,
-            fees,
+            baseFee,
+            gasPrice,
+            gasLimit,
             currencyNetworkOfFees,
             nonce,
+            timeLimit,
+            operationType,
             extraHash
         );
     }

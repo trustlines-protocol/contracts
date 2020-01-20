@@ -36,9 +36,13 @@ class MetaTransaction:
     to: str
     value: int = 0
     data: bytes = bytes()
-    fees: int = 0
+    base_fee: int = 0
+    gas_price: int = 0
+    gas_limit: int = 0
     currency_network_of_fees: str = attr.ib()
     nonce: Optional[int] = None
+    time_limit: int = 0
+    operation_type: int = 0
     extra_data: bytes = bytes()
     signature: Optional[bytes] = None
 
@@ -54,8 +58,11 @@ class MetaTransaction:
         from_: str = None,
         to: str,
         nonce: int = None,
-        fees: int = 0,
+        base_fee: int = 0,
+        gas_price: int = 0,
+        gas_limit: int = 0,
         currency_network_of_fees: str = None,
+        time_limit: int = 0,
     ):
         """Construct a meta transaction from a web3 function call.
 
@@ -66,16 +73,29 @@ class MetaTransaction:
 
         if currency_network_of_fees is None:
             # Use default value for currency_network_of_fees
-            return cls(from_=from_, to=to, value=0, data=data, fees=fees, nonce=nonce)
+            return cls(
+                from_=from_,
+                to=to,
+                value=0,
+                data=data,
+                base_fee=base_fee,
+                gas_price=gas_price,
+                gas_limit=gas_limit,
+                nonce=nonce,
+                time_limit=time_limit,
+            )
         else:
             return cls(
                 from_=from_,
                 to=to,
                 value=0,
                 data=data,
-                fees=fees,
+                base_fee=base_fee,
+                gas_price=gas_price,
+                gas_limit=gas_limit,
                 currency_network_of_fees=currency_network_of_fees,
                 nonce=nonce,
+                time_limit=time_limit,
             )
 
     @property
@@ -91,9 +111,13 @@ class MetaTransaction:
                 "address",
                 "uint256",
                 "bytes32",
-                "uint64",
+                "uint256",
+                "uint256",
+                "uint256",
                 "address",
                 "uint256",
+                "uint256",
+                "uint8",
                 "bytes",
             ],
             [
@@ -103,9 +127,13 @@ class MetaTransaction:
                 to,
                 self.value,
                 solidity_keccak(["bytes"], [self.data]),
-                self.fees,
+                self.base_fee,
+                self.gas_price,
+                self.gas_limit,
                 currency_network_of_fees,
                 self.nonce,
+                self.time_limit,
+                self.operation_type,
                 self.extra_data,
             ],
         )
@@ -154,8 +182,10 @@ class Delegate:
         UnexpectedIdentityContractException, if it could not find the
         check in the contract.
         """
-        return self.validate_nonce(signed_meta_transaction) and self.validate_signature(
-            signed_meta_transaction
+        return (
+            self.validate_nonce(signed_meta_transaction)
+            and self.validate_signature(signed_meta_transaction)
+            and self.validate_time_limit(signed_meta_transaction)
         )
 
     def validate_nonce(self, signed_meta_transaction: MetaTransaction):
@@ -203,6 +233,29 @@ class Delegate:
 
         return signature_valid
 
+    def validate_time_limit(self, meta_transaction: MetaTransaction):
+        """Validates the time limit by using the provided check by the identity
+                contract.
+
+        Returns: True, if the time limit was successfully validated, False if it was wrong
+        Will raise UnexpectedIdentityContractException, if it could not find the check in the contract.
+        """
+        from_ = meta_transaction.from_
+        if from_ is None:
+            raise ValueError("From has to be set")
+
+        contract = self._get_identity_contract(from_)
+        try:
+            time_limit_valid = contract.functions.validateTimeLimit(
+                meta_transaction.time_limit
+            ).call()
+        except BadFunctionCallOutput:
+            raise UnexpectedIdentityContractException(
+                "validateSignature function not found"
+            )
+
+        return time_limit_valid
+
     def get_next_nonce(self, identity_address: str):
         """Returns the next usable nonce.
 
@@ -230,9 +283,13 @@ class Delegate:
             signed_meta_transaction.to,
             signed_meta_transaction.value,
             signed_meta_transaction.data,
-            signed_meta_transaction.fees,
+            signed_meta_transaction.base_fee,
+            signed_meta_transaction.gas_price,
+            signed_meta_transaction.gas_limit,
             signed_meta_transaction.currency_network_of_fees,
             signed_meta_transaction.nonce,
+            signed_meta_transaction.time_limit,
+            signed_meta_transaction.operation_type,
             signed_meta_transaction.extra_data,
             signed_meta_transaction.signature,
         )
