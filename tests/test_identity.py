@@ -141,20 +141,26 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     to = "0x51a240271AB8AB9f9a21C82d9a85396b704E164d"
     value = 0
     data = "0x46432830000000000000000000000000000000000000000000000000000000000000000a"
-    fees = 1
+    base_fee = 1
+    gas_price = 123
+    gas_limit = 456
     currency_network_of_fees = "0x51a240271AB8AB9f9a21C82d9a85396b704E164d"
     extra_data = "0x"
     nonce = 1
+    time_limit = 123456
 
     meta_transaction = MetaTransaction(
         from_=from_,
         to=to,
         value=value,
         data=data,
-        fees=fees,
+        base_fee=base_fee,
+        gas_price=gas_price,
+        gas_limit=gas_limit,
         currency_network_of_fees=currency_network_of_fees,
         extra_data=extra_data,
         nonce=nonce,
+        time_limit=time_limit,
     )
 
     signature = identity.signed_meta_transaction(meta_transaction).signature
@@ -165,8 +171,8 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     )
     assert (
         signature.hex()
-        == "02a3c9abd0de925653c188b7f2e6e79ca032037371ef12a560116595508a"
-        "51b65c1e4692878a87b491ef28e9ee560f7de0f2cb3f0981215134522750d42edce501"
+        == "7e01eef30353e36f5e7f142ec16ab549c4f3d41e6992a61a6ed58197b83bb30856"
+        "39ab5737d9058836dd2a1671b276648fde1f4a4b72483bc98c19dc9c0ed3a401"
     )
 
 
@@ -185,9 +191,13 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
         meta_transaction.to,
         meta_transaction.value,
         meta_transaction.data,
-        meta_transaction.fees,
+        meta_transaction.base_fee,
+        meta_transaction.gas_price,
+        meta_transaction.gas_limit,
         meta_transaction.currency_network_of_fees,
         meta_transaction.nonce,
+        meta_transaction.time_limit,
+        meta_transaction.operation_type,
         meta_transaction.extra_data,
     ).call()
 
@@ -260,9 +270,13 @@ def test_delegated_transaction_wrong_from(
             meta_transaction.to,
             meta_transaction.value,
             meta_transaction.data,
-            meta_transaction.fees,
+            meta_transaction.base_fee,
+            meta_transaction.gas_price,
+            meta_transaction.gas_limit,
             meta_transaction.currency_network_of_fees,
             meta_transaction.nonce,
+            meta_transaction.time_limit,
+            meta_transaction.operation_type,
             meta_transaction.extra_data,
             meta_transaction.signature,
         ).transact({"from": delegate_address})
@@ -433,7 +447,7 @@ def test_validate_same_tx(identity, delegate, accounts):
     assert not delegate.validate_meta_transaction(meta_transaction)
 
 
-def test_validate_from_no_code(identity_contract, delegate, accounts, owner_key):
+def test_validate_from_no_code(delegate, accounts, owner_key):
     from_ = accounts[3]
     to = accounts[2]
     value = 1000
@@ -447,7 +461,7 @@ def test_validate_from_no_code(identity_contract, delegate, accounts, owner_key)
 
 
 def test_validate_from_wrong_contract(
-    identity_contract, delegate, accounts, owner_key, currency_network_contract
+    delegate, accounts, owner_key, currency_network_contract
 ):
     from_ = currency_network_contract.address
     to = accounts[2]
@@ -585,16 +599,17 @@ def test_meta_transaction_with_fees_increases_debt(
     A = identity.address
     B = accounts[3]
     to = currency_network_contract.address
-    fees = 123
+    base_fee = 123
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
     meta_transaction = identity.filled_and_signed_meta_transaction(
-        MetaTransaction.from_function_call(function_call, to=to, fees=fees)
+        MetaTransaction.from_function_call(function_call, to=to, base_fee=base_fee)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
 
     assert (
-        currency_network_contract.functions.getDebt(A, delegate_address).call() == fees
+        currency_network_contract.functions.getDebt(A, delegate_address).call()
+        == base_fee
     )
 
 
@@ -604,11 +619,11 @@ def test_failing_meta_transaction_with_fees_does_not_increases_debt(
     A = identity.address
     B = accounts[3]
     to = currency_network_contract.address
-    fees = 123
+    base_fee = 123
 
     function_call = currency_network_contract.functions.transfer(100, 100, [A, B], b"")
     meta_transaction = identity.filled_and_signed_meta_transaction(
-        MetaTransaction.from_function_call(function_call, to=to, fees=fees)
+        MetaTransaction.from_function_call(function_call, to=to, base_fee=base_fee)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
 
@@ -626,14 +641,14 @@ def test_tracking_delegation_fee_in_different_network(
     A = identity.address
     B = accounts[3]
     to = currency_network_contract.address
-    fees = 123
+    base_fee = 123
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
     meta_transaction = identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(
             function_call,
             to=to,
-            fees=fees,
+            base_fee=base_fee,
             currency_network_of_fees=second_currency_network_contract.address,
         )
     )
@@ -642,5 +657,5 @@ def test_tracking_delegation_fee_in_different_network(
     assert currency_network_contract.functions.getDebt(A, delegate_address).call() == 0
     assert (
         second_currency_network_contract.functions.getDebt(A, delegate_address).call()
-        == fees
+        == base_fee
     )
