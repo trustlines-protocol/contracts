@@ -178,8 +178,13 @@ class Delegate:
         """Validates the fields of the meta transaction against the state of
         the identity contract.
 
-        This is equivalent to ``` validate_replay_mechanism(tx)
-        validate_signature(tx) Will raise
+        This is equivalent to:
+        ```
+        validate_replay_mechanism(tx)
+        validate_signature(tx)
+        validate_time_limit(tx)
+        ```
+        Will raise
         UnexpectedIdentityContractException, if it could not find the
         check in the contract.
         """
