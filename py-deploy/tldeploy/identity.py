@@ -17,6 +17,7 @@ from tldeploy.core import deploy, get_contract_interface
 from tldeploy.signing import sign_msg_hash, solidity_keccak
 
 MAX_GAS = 1_000_000
+ZERO_ADDRESS = "0x" + "0" * 40
 
 
 def validate_and_checksum_addresses(addresses):
@@ -33,7 +34,7 @@ def validate_and_checksum_addresses(addresses):
 class MetaTransaction:
 
     from_: Optional[str] = None
-    to: str
+    to: str = ZERO_ADDRESS
     value: int = 0
     data: bytes = bytes()
     base_fee: int = 0
