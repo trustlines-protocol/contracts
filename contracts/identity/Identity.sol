@@ -15,6 +15,7 @@ contract Identity is ProxyStorage {
 
     event TransactionExecution(bytes32 hash, bool status);
     event FeesPaid(uint value, address currencyNetwork);
+    event ContractDeploy(address deployed);
 
     constructor() public {
         // solium-disable-previous-line no-empty-blocks
@@ -75,7 +76,7 @@ contract Identity is ProxyStorage {
             lastNonce++;
         }
 
-        (bool status, ) = to.call.value(value)(data); // solium-disable-line
+        bool status = applyOperation(to, value, data, operationType);
         emit TransactionExecution(hash, status);
 
         uint256 gasSpent = startGas - gasleft();
@@ -152,5 +153,36 @@ contract Identity is ProxyStorage {
             ));
 
         return hash;
+    }
+
+    function applyOperation(address to, uint256 value, bytes memory data, uint8 operationType) internal returns (bool status) {
+        if (operationType == 0) {
+            // regular call
+            (status, ) = to.call.value(value)(data); // solium-disable-line
+        } else if (operationType == 1) {
+            // delegate call
+            require(value == 0, "Cannot transfer value with DELEGATECALL");
+            (status, ) = to.delegatecall(data);
+        } else if (operationType == 2) {
+            // regular crate
+            address deployed;
+            assembly {
+                deployed := create(value, add(data, 0x20), mload(data))
+            }
+            status = (deployed != address(0));
+            if (status) {
+                emit ContractDeploy(deployed);
+            }
+        } else if (operationType == 3) {
+            // create2
+            address deployed;
+            assembly {
+              deployed := create2(value, add(data, 0x20), mload(data), 0)
+            }
+            status = (deployed != address(0));
+            if (status) {
+                emit ContractDeploy(deployed);
+            }
+        }
     }
 }

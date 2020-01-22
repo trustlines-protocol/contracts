@@ -1,5 +1,6 @@
 #! pytest
 import pytest
+import attr
 from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
 from tldeploy.core import deploy_network, deploy_identity
@@ -8,10 +9,12 @@ from tldeploy.identity import (
     Identity,
     Delegate,
     UnexpectedIdentityContractException,
+    build_create2_address,
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
+from deploy_tools.compile import build_initcode
 
 
 def get_transaction_status(web3, tx_id):
@@ -34,16 +37,6 @@ def owner_key(account_keys):
 
 
 @pytest.fixture(scope="session")
-def identity_contract(deploy_contract, web3, owner):
-    identity_contract = deploy_contract("Identity")
-    identity_contract.functions.init(owner).transact({"from": owner})
-    web3.eth.sendTransaction(
-        {"to": identity_contract.address, "from": owner, "value": 1000000}
-    )
-    return identity_contract
-
-
-@pytest.fixture(scope="session")
 def test_identity_contract(deploy_contract, web3, owner):
     test_identity_contract = deploy_contract("TestIdentity")
     test_identity_contract.functions.init(owner).transact({"from": owner})
@@ -54,14 +47,14 @@ def test_identity_contract(deploy_contract, web3, owner):
 
 
 @pytest.fixture(scope="session")
-def identity(identity_contract, owner_key):
-    return Identity(contract=identity_contract, owner_private_key=owner_key)
+def identity(test_identity_contract, owner_key):
+    return Identity(contract=test_identity_contract, owner_private_key=owner_key)
 
 
 @pytest.fixture(scope="session")
-def delegate(identity_contract, delegate_address, web3):
+def delegate(test_identity_contract, delegate_address, web3):
     return Delegate(
-        delegate_address, web3=web3, identity_contract_abi=identity_contract.abi
+        delegate_address, web3=web3, identity_contract_abi=test_identity_contract.abi
     )
 
 
@@ -89,6 +82,20 @@ def currency_network_contract(web3):
 @pytest.fixture(scope="session")
 def second_currency_network_contract(web3):
     return deploy_network(web3, **NETWORK_SETTING)
+
+
+@pytest.fixture(scope="session")
+def test_contract_initcode(contract_assets):
+
+    interface = contract_assets["TestContract"]
+    return build_initcode(
+        contract_abi=interface["abi"], contract_bytecode=interface["bytecode"]
+    )
+
+
+@pytest.fixture(scope="session")
+def test_contract_abi(contract_assets):
+    return contract_assets["TestContract"]["abi"]
 
 
 def test_init_already_init(test_identity_contract, accounts):
@@ -254,7 +261,7 @@ def test_delegated_transaction_same_tx_fails(identity, delegate, accounts, web3)
 
 
 def test_delegated_transaction_wrong_from(
-    identity_contract, delegate_address, accounts, owner_key
+    test_identity_contract, delegate_address, accounts, owner_key
 ):
     from_ = accounts[3]
     to = accounts[2]
@@ -265,7 +272,7 @@ def test_delegated_transaction_wrong_from(
     )
 
     with pytest.raises(TransactionFailed):
-        identity_contract.functions.executeTransaction(
+        test_identity_contract.functions.executeTransaction(
             meta_transaction.from_,
             meta_transaction.to,
             meta_transaction.value,
@@ -723,3 +730,79 @@ def test_meta_transaction_gas_limit(identity, delegate, web3, accounts):
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
     assert get_transaction_status(web3, tx_id) is False
+
+
+def test_meta_transaction_delegate_call(
+    identity, delegate, delegate_address, web3, test_contract
+):
+    to = test_contract.address
+    argument = 123
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
+    meta_transaction = attr.evolve(meta_transaction, operation_type=1)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    execution_event = identity.contract.events.TransactionExecution.createFilter(
+        fromBlock=0
+    ).get_all_entries()[0]["args"]
+
+    # assert that the delegate call was successful
+    assert get_transaction_status(web3, tx_id)
+    assert execution_event["hash"] == meta_transaction.hash
+    assert execution_event["status"] is True
+
+    proxied_test_contract = web3.eth.contract(
+        identity.contract.address, abi=test_contract.abi
+    )
+    test_event = proxied_test_contract.events.TestEvent.createFilter(
+        fromBlock=0
+    ).get_all_entries()[0]["args"]
+
+    # assert that the successful operation was indeed a delegate call
+    # by checking that `from` is delegate_address and not identity_address
+    assert test_event["from"] == delegate_address
+    assert test_event["value"] == 0
+    assert test_event["argument"] == argument
+
+
+@pytest.mark.parametrize("operation_type", [2, 3])
+def test_meta_transaction_create_contract(
+    identity, delegate, test_contract_initcode, test_contract_abi, web3, operation_type
+):
+    deployed_contract_balance = 123
+    meta_transaction = MetaTransaction(
+        operation_type=operation_type,
+        data=test_contract_initcode,
+        value=deployed_contract_balance,
+    )
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    execution_event = identity.contract.events.TransactionExecution.createFilter(
+        fromBlock=0
+    ).get_all_entries()[0]["args"]
+
+    # assert that the create was successful
+    assert get_transaction_status(web3, tx_id)
+    assert execution_event["hash"] == meta_transaction.hash
+    assert execution_event["status"] is True
+
+    deploy_event = identity.contract.events.ContractDeploy.createFilter(
+        fromBlock=0
+    ).get_all_entries()[0]["args"]
+    deployed_contract = web3.eth.contract(
+        deploy_event["deployed"], abi=test_contract_abi
+    )
+
+    # check that the contract was indeed deployed
+    assert deployed_contract.functions.testPublicValue().call() == 123456
+    assert web3.eth.getBalance(deployed_contract.address) == deployed_contract_balance
+
+    if operation_type == 3:
+        # check that create2 was used and we could pre-compute the deployed address
+        create_2_address = build_create2_address(
+            identity.address, test_contract_initcode
+        )
+        assert HexBytes(deployed_contract.address) == create_2_address
