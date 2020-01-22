@@ -709,7 +709,9 @@ def test_meta_transaction_gas_fee(
     B = accounts[3]
     to = currency_network_contract.address
     base_fee = 123
-    gas_price = 1000
+    effective_gas_price = 1000
+    contract_gas_price_divisor = 10 ** 6
+    gas_price = effective_gas_price * contract_gas_price_divisor
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
     meta_transaction = identity.filled_and_signed_meta_transaction(
@@ -723,7 +725,7 @@ def test_meta_transaction_gas_fee(
         A, delegate_address
     ).call()
 
-    assert (effective_fee - base_fee) % gas_price == 0
+    assert (effective_fee - base_fee) % effective_gas_price == 0
     assert effective_fee - base_fee != 0
 
 
