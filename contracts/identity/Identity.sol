@@ -12,6 +12,8 @@ contract Identity is ProxyStorage {
 
     mapping(bytes32 => bool) private hashUsed;
     uint public lastNonce = 0;
+    // Divides the gas price value to allow for finer range of fee price
+    uint public gasPriceDivisor = 1000000;
 
     event TransactionExecution(bytes32 hash, bool status);
     event FeesPaid(uint value, address currencyNetwork);
@@ -85,7 +87,7 @@ contract Identity is ProxyStorage {
         }
 
         if ((gasPrice > 0 || baseFee > 0) && status != false) {
-            uint256 fees = baseFee + gasSpent * gasPrice;
+            uint256 fees = baseFee + gasSpent * gasPrice / gasPriceDivisor;
             require(fees >= baseFee, "Fees addition overflow");
             DebtTracking debtContract = DebtTracking(currencyNetworkOfFees);
             debtContract.increaseDebt(msg.sender, fees);
