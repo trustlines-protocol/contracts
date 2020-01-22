@@ -98,6 +98,14 @@ def test_contract_abi(contract_assets):
     return contract_assets["TestContract"]["abi"]
 
 
+@pytest.fixture(scope="session")
+def non_payable_contract_inticode(contract_assets):
+    interface = contract_assets["Identity"]
+    return build_initcode(
+        contract_abi=interface["abi"], contract_bytecode=interface["bytecode"]
+    )
+
+
 def test_init_already_init(test_identity_contract, accounts):
     with pytest.raises(TransactionFailed):
         test_identity_contract.functions.init(accounts[0]).transact(
@@ -767,6 +775,24 @@ def test_meta_transaction_delegate_call(
     assert test_event["argument"] == argument
 
 
+def test_meta_transaction_delegate_call_fail(identity, delegate, web3, test_contract):
+    to = test_contract.address
+    function_call = test_contract.functions.fails()
+
+    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
+    meta_transaction = attr.evolve(meta_transaction, operation_type=1)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    execution_event = identity.contract.events.TransactionExecution.createFilter(
+        fromBlock=0
+    ).get_all_entries()[0]["args"]
+
+    assert get_transaction_status(web3, tx_id)
+    assert execution_event["hash"] == meta_transaction.hash
+    assert execution_event["status"] is False
+
+
 @pytest.mark.parametrize("operation_type", [2, 3])
 def test_meta_transaction_create_contract(
     identity, delegate, test_contract_initcode, test_contract_abi, web3, operation_type
@@ -806,3 +832,34 @@ def test_meta_transaction_create_contract(
             identity.address, test_contract_initcode
         )
         assert HexBytes(deployed_contract.address) == create_2_address
+
+
+@pytest.mark.parametrize("operation_type", [2, 3])
+def test_meta_transaction_create_contract_fails(
+    identity, delegate, non_payable_contract_inticode, web3, operation_type
+):
+    """Test that the status in the event is False when deployment fails"""
+    # To make the deployment fail we deploy a contract whose constructor is not payable
+    # and transfer it eth during deployment
+    deployed_contract_balance = 123
+    meta_transaction = MetaTransaction(
+        operation_type=operation_type,
+        data=non_payable_contract_inticode,
+        value=deployed_contract_balance,
+    )
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    execution_event = identity.contract.events.TransactionExecution.createFilter(
+        fromBlock=0
+    ).get_all_entries()[0]["args"]
+
+    # assert that the create failed
+    assert get_transaction_status(web3, tx_id)
+    assert execution_event["hash"] == meta_transaction.hash
+    assert execution_event["status"] is False
+
+    deploy_events = identity.contract.events.ContractDeploy.createFilter(
+        fromBlock=0
+    ).get_all_entries()
+    assert len(deploy_events) == 0
