@@ -40,11 +40,11 @@ class MetaTransaction:
     base_fee: int = 0
     gas_price: int = 0
     gas_limit: int = 0
+    fee_recipient: str = ZERO_ADDRESS
     currency_network_of_fees: str = attr.ib()
     nonce: Optional[int] = None
     time_limit: int = 0
     operation_type: int = 0
-    extra_data: bytes = bytes()
     signature: Optional[bytes] = None
 
     @currency_network_of_fees.default
@@ -116,10 +116,10 @@ class MetaTransaction:
                 "uint256",
                 "uint256",
                 "address",
+                "address",
                 "uint256",
                 "uint256",
                 "uint8",
-                "bytes",
             ],
             [
                 "0x19",
@@ -131,11 +131,11 @@ class MetaTransaction:
                 self.base_fee,
                 self.gas_price,
                 self.gas_limit,
+                self.fee_recipient,
                 currency_network_of_fees,
                 self.nonce,
                 self.time_limit,
                 self.operation_type,
-                self.extra_data,
             ],
         )
 
@@ -292,11 +292,11 @@ class Delegate:
             signed_meta_transaction.base_fee,
             signed_meta_transaction.gas_price,
             signed_meta_transaction.gas_limit,
+            signed_meta_transaction.fee_recipient,
             signed_meta_transaction.currency_network_of_fees,
             signed_meta_transaction.nonce,
             signed_meta_transaction.time_limit,
             signed_meta_transaction.operation_type,
-            signed_meta_transaction.extra_data,
             signed_meta_transaction.signature,
         )
 

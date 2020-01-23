@@ -18,11 +18,11 @@ contract TestIdentity is Identity {
         uint256 baseFee,
         uint256 gasPrice,
         uint256 gasLimit,
+        address feeRecipient,
         address currencyNetworkOfFees,
         uint256 nonce,
         uint256 timeLimit,
-        uint8 operationType,
-        bytes memory extraHash
+        uint8 operationType
     )
         public
         pure
@@ -36,11 +36,11 @@ contract TestIdentity is Identity {
             baseFee,
             gasPrice,
             gasLimit,
+            feeRecipient,
             currencyNetworkOfFees,
             nonce,
             timeLimit,
-            operationType,
-            extraHash
+            operationType
         );
     }
 }

@@ -159,8 +159,8 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     base_fee = 1
     gas_price = 123
     gas_limit = 456
+    fee_recipient = "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
     currency_network_of_fees = "0x51a240271AB8AB9f9a21C82d9a85396b704E164d"
-    extra_data = "0x"
     nonce = 1
     time_limit = 123456
 
@@ -172,8 +172,8 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
         base_fee=base_fee,
         gas_price=gas_price,
         gas_limit=gas_limit,
+        fee_recipient=fee_recipient,
         currency_network_of_fees=currency_network_of_fees,
-        extra_data=extra_data,
         nonce=nonce,
         time_limit=time_limit,
     )
@@ -186,8 +186,8 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     )
     assert (
         signature.hex()
-        == "7e01eef30353e36f5e7f142ec16ab549c4f3d41e6992a61a6ed58197b83bb30856"
-        "39ab5737d9058836dd2a1671b276648fde1f4a4b72483bc98c19dc9c0ed3a401"
+        == "a558db2e5282de87128d061dc4fc307d3458791eb0284a318e17609f74928c"
+        "bd03f0793660a42090e9eb12eb74426c98885ce09ddcbea4375f8e48baa273c0e800"
     )
 
 
@@ -209,11 +209,11 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
         meta_transaction.base_fee,
         meta_transaction.gas_price,
         meta_transaction.gas_limit,
+        meta_transaction.fee_recipient,
         meta_transaction.currency_network_of_fees,
         meta_transaction.nonce,
         meta_transaction.time_limit,
         meta_transaction.operation_type,
-        meta_transaction.extra_data,
     ).call()
 
     hash = meta_transaction.hash
@@ -288,11 +288,11 @@ def test_delegated_transaction_wrong_from(
             meta_transaction.base_fee,
             meta_transaction.gas_price,
             meta_transaction.gas_limit,
+            meta_transaction.fee_recipient,
             meta_transaction.currency_network_of_fees,
             meta_transaction.nonce,
             meta_transaction.time_limit,
             meta_transaction.operation_type,
-            meta_transaction.extra_data,
             meta_transaction.signature,
         ).transact({"from": delegate_address})
 
@@ -740,6 +740,31 @@ def test_meta_transaction_gas_limit(identity, delegate, web3, accounts):
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
     assert get_transaction_status(web3, tx_id) is False
+
+
+def test_meta_transaction_fee_recipient(
+    currency_network_contract, identity, delegate, delegate_address, accounts
+):
+    A = identity.address
+    B = accounts[3]
+    to = currency_network_contract.address
+    base_fee = 123
+
+    function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
+    meta_transaction = MetaTransaction.from_function_call(
+        function_call, to=to, base_fee=base_fee
+    )
+    meta_transaction = attr.evolve(meta_transaction, fee_recipient=B)
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    debt_A_B = currency_network_contract.functions.getDebt(A, B).call()
+    debt_A_delegate = currency_network_contract.functions.getDebt(
+        A, delegate_address
+    ).call()
+
+    assert debt_A_B == base_fee
+    assert debt_A_delegate == 0
 
 
 def test_meta_transaction_delegate_call(

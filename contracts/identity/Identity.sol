@@ -33,6 +33,7 @@ contract Identity is ProxyStorage {
         initialised = true;
     }
 
+    // solium-disable-next-line security/no-assign-params
     function executeTransaction(
         address from,
         address payable to,
@@ -41,11 +42,11 @@ contract Identity is ProxyStorage {
         uint256 baseFee,
         uint256 gasPrice,
         uint256 gasLimit,
+        address feeRecipient,
         address currencyNetworkOfFees,
         uint256 nonce,
         uint256 timeLimit,
         uint8 operationType,
-        bytes memory extraData,
         bytes memory signature
     )
         public
@@ -61,11 +62,11 @@ contract Identity is ProxyStorage {
             baseFee,
             gasPrice,
             gasLimit,
+            feeRecipient,
             currencyNetworkOfFees,
             nonce,
             timeLimit,
-            operationType,
-            extraData
+            operationType
         );
 
         require(validateNonce(nonce, hash), "The transaction nonce is invalid");
@@ -90,7 +91,10 @@ contract Identity is ProxyStorage {
             uint256 fees = baseFee + gasSpent * gasPrice / gasPriceDivisor;
             require(fees >= baseFee, "Fees addition overflow");
             DebtTracking debtContract = DebtTracking(currencyNetworkOfFees);
-            debtContract.increaseDebt(msg.sender, fees);
+            if (feeRecipient == address(0)) {
+                feeRecipient = msg.sender;
+            }
+            debtContract.increaseDebt(feeRecipient, fees);
             emit FeePayment(fees, msg.sender, currencyNetworkOfFees);
         }
     }
@@ -125,11 +129,11 @@ contract Identity is ProxyStorage {
         uint256 baseFee,
         uint256 gasPrice,
         uint256 gasLimit,
+        address feeRecipient,
         address currencyNetworkOfFees,
         uint256 nonce,
         uint256 timeLimit,
-        uint8 operationType,
-        bytes memory extraData
+        uint8 operationType
     )
     internal
     pure
@@ -146,12 +150,13 @@ contract Identity is ProxyStorage {
                 baseFee,
                 gasPrice,
                 gasLimit,
+                feeRecipient,
                 currencyNetworkOfFees,
                 nonce,
                 timeLimit,
-                operationType,
-                extraData
-            ));
+                operationType
+            )
+        );
 
         return hash;
     }
