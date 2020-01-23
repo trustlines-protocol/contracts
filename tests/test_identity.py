@@ -817,7 +817,7 @@ def test_meta_transaction_create_contract(
     assert execution_event["hash"] == meta_transaction.hash
     assert execution_event["status"] is True
 
-    deploy_event = identity.contract.events.ContractDeploy.createFilter(
+    deploy_event = identity.contract.events.ContractDeployment.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
     deployed_contract = web3.eth.contract(
@@ -861,7 +861,7 @@ def test_meta_transaction_create_contract_fails(
     assert execution_event["hash"] == meta_transaction.hash
     assert execution_event["status"] is False
 
-    deploy_events = identity.contract.events.ContractDeploy.createFilter(
+    deploy_events = identity.contract.events.ContractDeployment.createFilter(
         fromBlock=0
     ).get_all_entries()
     assert len(deploy_events) == 0
