@@ -16,8 +16,8 @@ contract Identity is ProxyStorage {
     uint public gasPriceDivisor = 1000000;
 
     event TransactionExecution(bytes32 hash, bool status);
-    event FeesPaid(uint value, address currencyNetwork);
-    event ContractDeploy(address deployed);
+    event FeePayment(uint value, address recipient, address currencyNetwork);
+    event ContractDeployment(address deployed);
 
     constructor() public {
         // solium-disable-previous-line no-empty-blocks
@@ -91,7 +91,7 @@ contract Identity is ProxyStorage {
             require(fees >= baseFee, "Fees addition overflow");
             DebtTracking debtContract = DebtTracking(currencyNetworkOfFees);
             debtContract.increaseDebt(msg.sender, fees);
-            emit FeesPaid(fees, currencyNetworkOfFees);
+            emit FeePayment(fees, msg.sender, currencyNetworkOfFees);
         }
     }
 
@@ -135,7 +135,6 @@ contract Identity is ProxyStorage {
     pure
     returns (bytes32)
     {
-        // we need to hash the `data` field before being able to pack it to hash it together with other fields
         bytes32 hash = keccak256(
             abi.encodePacked(
                 byte(0x19),
@@ -166,14 +165,14 @@ contract Identity is ProxyStorage {
             require(value == 0, "Cannot transfer value with DELEGATECALL");
             (status, ) = to.delegatecall(data);
         } else if (operationType == 2) {
-            // regular crate
+            // regular create
             address deployed;
             assembly {
                 deployed := create(value, add(data, 0x20), mload(data))
             }
             status = (deployed != address(0));
             if (status) {
-                emit ContractDeploy(deployed);
+                emit ContractDeployment(deployed);
             }
         } else if (operationType == 3) {
             // create2
@@ -183,7 +182,7 @@ contract Identity is ProxyStorage {
             }
             status = (deployed != address(0));
             if (status) {
-                emit ContractDeploy(deployed);
+                emit ContractDeployment(deployed);
             }
         }
     }
