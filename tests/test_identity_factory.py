@@ -12,11 +12,16 @@ from tldeploy.identity import (
 from eth_tester.exceptions import TransactionFailed
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
-from tldeploy.core import deploy_network
+from tldeploy.core import deploy_network, get_chain_id
 from tldeploy.identity import deploy_proxied_identity, build_create2_address
 
 from deploy_tools.compile import build_initcode
 from deploy_tools.deploy import deploy_compiled_contract
+
+
+@pytest.fixture(scope="session")
+def chain_id(web3):
+    return get_chain_id(web3)
 
 
 @pytest.fixture(scope="session")
@@ -34,7 +39,7 @@ def currency_network_contract(web3):
 
 
 @pytest.fixture(scope="session")
-def proxy_factory(deploy_contract, contract_assets, web3):
+def proxy_factory(deploy_contract, contract_assets, web3, chain_id):
     """Returns a proxy factory deployed at a deterministic address"""
     # We need to create a new account that never sent a transaction
     # to make sure the create1 address of the factory does not depend on other tests or fixtures
@@ -46,6 +51,7 @@ def proxy_factory(deploy_contract, contract_assets, web3):
     proxy_factory = deploy_compiled_contract(
         abi=contract_assets["IdentityProxyFactory"]["abi"],
         bytecode=contract_assets["IdentityProxyFactory"]["bytecode"],
+        constructor_args=(chain_id,),
         web3=web3,
         private_key=new_account.key,
     )

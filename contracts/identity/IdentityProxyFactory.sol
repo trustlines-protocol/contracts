@@ -9,6 +9,12 @@ contract IdentityProxyFactory {
 
     event ProxyDeployment(address owner, address proxyAddress, address implementationAddress);
 
+    uint public chainId;
+
+    constructor(uint _chainId) public {
+        chainId = _chainId;
+    }
+
     function deployProxy(bytes memory initcode, address implementationAddress, bytes memory signature) public {
         // we need to  check a signature there to make sure the owner authorized this implementationAddress
         address owner;
@@ -30,7 +36,7 @@ contract IdentityProxyFactory {
         }
 
         Proxy(proxyAddress).setImplementation(implementationAddress);
-        Identity(proxyAddress).init(owner);
+        Identity(proxyAddress).init(owner, chainId);
 
         emit ProxyDeployment(owner, proxyAddress, implementationAddress);
     }
