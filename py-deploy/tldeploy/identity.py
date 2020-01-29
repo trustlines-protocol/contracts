@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from typing import Dict, Optional
 
 import attr
@@ -32,6 +33,11 @@ def validate_and_checksum_addresses(addresses):
 
 @attr.s(auto_attribs=True, kw_only=True, frozen=True)
 class MetaTransaction:
+    class OperationType(Enum):
+        CALL = 0
+        DELEGATE_CALL = 1
+        CREATE = 2
+        CREATE2 = 3
 
     from_: Optional[str] = None
     to: str = ZERO_ADDRESS
@@ -44,11 +50,11 @@ class MetaTransaction:
     currency_network_of_fees: str = attr.ib()
     nonce: Optional[int] = None
     time_limit: int = 0
-    operation_type: int = 0
+    operation_type: OperationType = OperationType.CALL
     signature: Optional[bytes] = None
 
     @currency_network_of_fees.default
-    def default_for_currency_network_of_fees(self):
+    def _default_for_currency_network_of_fees(self):
         return self.to
 
     @classmethod
@@ -72,32 +78,22 @@ class MetaTransaction:
         """
         data = function_call.buildTransaction(transaction={"gas": MAX_GAS})["data"]
 
-        if currency_network_of_fees is None:
-            # Use default value for currency_network_of_fees
-            return cls(
-                from_=from_,
-                to=to,
-                value=0,
-                data=data,
-                base_fee=base_fee,
-                gas_price=gas_price,
-                gas_limit=gas_limit,
-                nonce=nonce,
-                time_limit=time_limit,
-            )
-        else:
-            return cls(
-                from_=from_,
-                to=to,
-                value=0,
-                data=data,
-                base_fee=base_fee,
-                gas_price=gas_price,
-                gas_limit=gas_limit,
-                currency_network_of_fees=currency_network_of_fees,
-                nonce=nonce,
-                time_limit=time_limit,
-            )
+        meta_transaction_args = {
+            "from_": from_,
+            "to": to,
+            "value": 0,
+            "data": data,
+            "base_fee": base_fee,
+            "gas_price": gas_price,
+            "gas_limit": gas_limit,
+            "nonce": nonce,
+            "time_limit": time_limit,
+        }
+
+        if currency_network_of_fees is not None:
+            meta_transaction_args["currency_network_of_fees"] = currency_network_of_fees
+
+        return cls(**meta_transaction_args)
 
     @property
     def hash(self) -> bytes:
@@ -135,7 +131,7 @@ class MetaTransaction:
                 currency_network_of_fees,
                 self.nonce,
                 self.time_limit,
-                self.operation_type,
+                self.operation_type.value,
             ],
         )
 
@@ -296,7 +292,7 @@ class Delegate:
             signed_meta_transaction.currency_network_of_fees,
             signed_meta_transaction.nonce,
             signed_meta_transaction.time_limit,
-            signed_meta_transaction.operation_type,
+            signed_meta_transaction.operation_type.value,
             signed_meta_transaction.signature,
         )
 
