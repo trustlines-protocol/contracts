@@ -11,7 +11,6 @@ import "../identity/Identity.sol";
 contract TestIdentity is Identity {
 
     function testTransactionHash(
-        address from,
         address to,
         uint256 value,
         bytes memory data,
@@ -25,11 +24,10 @@ contract TestIdentity is Identity {
         uint8 operationType
     )
         public
-        pure
+        view
         returns (bytes32)
     {
         return transactionHash(
-            from,
             to,
             value,
             data,

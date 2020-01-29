@@ -8,6 +8,7 @@ import "./ProxyStorage.sol";
 contract Identity is ProxyStorage {
 
     address public owner;
+    uint public chainId;
     bool public initialised;
 
     mapping(bytes32 => bool) private hashUsed;
@@ -27,15 +28,15 @@ contract Identity is ProxyStorage {
     // This contract can receive ether
     function () external payable {}
 
-    function init(address _owner) public {
+    function init(address _owner, uint _chainId) public {
         require(! initialised, "The contract has already been initialised.");
         owner = _owner;
+        chainId = _chainId;
         initialised = true;
     }
 
     // solium-disable-next-line security/no-assign-params
     function executeTransaction(
-        address from,
         address payable to,
         uint256 value,
         bytes memory data,
@@ -51,10 +52,7 @@ contract Identity is ProxyStorage {
     )
         public
     {
-        require(from == address(this), "The transaction is not meant for this identity contract");
-
         bytes32 hash = transactionHash(
-            from,
             to,
             value,
             data,
@@ -127,7 +125,6 @@ contract Identity is ProxyStorage {
     }
 
     function transactionHash(
-        address from,
         address to,
         uint256 value,
         bytes memory data,
@@ -141,32 +138,46 @@ contract Identity is ProxyStorage {
         uint8 operationType
     )
     internal
-    pure
+    view
     returns (bytes32)
     {
         bytes32 hash = keccak256(
             abi.encodePacked(
-                byte(0x19),
-                byte(0),
-                from,
-                to,
-                value,
-                keccak256(data),
-                baseFee,
-                gasPrice,
-                gasLimit,
-                feeRecipient,
-                currencyNetworkOfFees,
-                nonce,
-                timeLimit,
-                operationType
+                abi.encodePacked(
+                    byte(0x19),
+                    byte(0),
+                    address(this),
+                    chainId
+                ),
+                abi.encodePacked(
+                    to,
+                    value,
+                    keccak256(data),
+                    baseFee,
+                    gasPrice,
+                    gasLimit,
+                    feeRecipient,
+                    currencyNetworkOfFees,
+                    nonce,
+                    timeLimit,
+                    operationType
+                )
             )
         );
 
         return hash;
     }
 
-    function applyOperation(address to, uint256 value, bytes memory data, uint8 operationType, uint gasLimit) internal returns (bool status) {
+    function applyOperation(
+        address to,
+        uint256 value,
+        bytes memory data,
+        uint8 operationType,
+        uint gasLimit
+    )
+    internal
+    returns (bool status)
+    {
         if (operationType == 0) {
             // regular call
             (status, ) = to.call.value(value).gas(gasLimit)(data); // solium-disable-line

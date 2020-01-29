@@ -14,7 +14,7 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.exceptions import BadFunctionCallOutput
 
-from tldeploy.core import deploy, get_contract_interface
+from tldeploy.core import deploy, get_contract_interface, get_chain_id
 from tldeploy.signing import sign_msg_hash, solidity_keccak
 
 MAX_GAS = 1_000_000
@@ -41,6 +41,7 @@ class MetaTransaction:
 
     from_: Optional[str] = None
     to: str = ZERO_ADDRESS
+    chain_id: Optional[int] = None
     value: int = 0
     data: bytes = bytes()
     base_fee: int = 0
@@ -64,12 +65,14 @@ class MetaTransaction:
         *,
         from_: str = None,
         to: str,
+        chain_id: int = None,
         nonce: int = None,
         base_fee: int = 0,
         gas_price: int = 0,
         gas_limit: int = 0,
         currency_network_of_fees: str = None,
         time_limit: int = 0,
+        operation_type: OperationType = OperationType.CALL,
     ):
         """Construct a meta transaction from a web3 function call.
 
@@ -78,9 +81,13 @@ class MetaTransaction:
         """
         data = function_call.buildTransaction(transaction={"gas": MAX_GAS})["data"]
 
+        if chain_id is None:
+            chain_id = get_chain_id(function_call.web3)
+
         meta_transaction_args = {
             "from_": from_,
             "to": to,
+            "chain_id": chain_id,
             "value": 0,
             "data": data,
             "base_fee": base_fee,
@@ -88,6 +95,7 @@ class MetaTransaction:
             "gas_limit": gas_limit,
             "nonce": nonce,
             "time_limit": time_limit,
+            "operation_type": operation_type,
         }
 
         if currency_network_of_fees is not None:
@@ -105,6 +113,7 @@ class MetaTransaction:
                 "bytes1",
                 "bytes1",
                 "address",
+                "uint256",
                 "address",
                 "uint256",
                 "bytes32",
@@ -121,6 +130,7 @@ class MetaTransaction:
                 "0x19",
                 "0x00",
                 from_,
+                self.chain_id,
                 to,
                 self.value,
                 solidity_keccak(["bytes"], [self.data]),
@@ -176,6 +186,7 @@ class Delegate:
 
         This is equivalent to:
         ```
+        validate_chain_id(tx)
         validate_replay_mechanism(tx)
         validate_signature(tx)
         validate_time_limit(tx)
@@ -185,7 +196,8 @@ class Delegate:
         check in the contract.
         """
         return (
-            self.validate_nonce(signed_meta_transaction)
+            self.validate_chain_id(signed_meta_transaction)
+            and self.validate_nonce(signed_meta_transaction)
             and self.validate_signature(signed_meta_transaction)
             and self.validate_time_limit(signed_meta_transaction)
         )
@@ -258,6 +270,13 @@ class Delegate:
 
         return time_limit_valid
 
+    def validate_chain_id(self, meta_transaction: MetaTransaction):
+        """Validates the chain id by checking it against the web3 chain id.
+
+        Returns: True, if the chain id was correct
+        """
+        return meta_transaction.chain_id == get_chain_id(self._web3)
+
     def get_next_nonce(self, identity_address: str):
         """Returns the next usable nonce.
 
@@ -281,7 +300,6 @@ class Delegate:
         contract = self._get_identity_contract(from_)
 
         return contract.functions.executeTransaction(
-            signed_meta_transaction.from_,
             signed_meta_transaction.to,
             signed_meta_transaction.value,
             signed_meta_transaction.data,
@@ -308,14 +326,18 @@ class Identity:
 
     def defaults_filled(self, meta_transaction: MetaTransaction) -> MetaTransaction:
         """Returns a meta transaction where the from field of the transaction
-        is set to the identity address, and the nonce if not set yet is set to
-        the next nonce."""
+        is set to the identity address, the nonce if not set yet is set to
+        the next nonce and the chainId is set"""
 
         meta_transaction = attr.evolve(meta_transaction, from_=self.address)
 
         if meta_transaction.nonce is None:
             meta_transaction = attr.evolve(
                 meta_transaction, nonce=self.get_next_nonce()
+            )
+        if meta_transaction.chain_id is None:
+            meta_transaction = attr.evolve(
+                meta_transaction, chain_id=get_chain_id(self.contract.web3)
             )
 
         return meta_transaction
@@ -342,13 +364,21 @@ def get_pinned_proxy_interface():
 
 
 def deploy_identity_proxy_factory(
-    *, web3: Web3, transaction_options: Dict = None, private_key: bytes = None
+    *,
+    chain_id=None,
+    web3: Web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
 ):
     if transaction_options is None:
         transaction_options = {}
 
+    if chain_id is None:
+        chain_id = get_chain_id(web3)
+
     identity_proxy_factory = deploy(
         "IdentityProxyFactory",
+        constructor_args=(chain_id,),
         web3=web3,
         transaction_options=transaction_options,
         private_key=private_key,

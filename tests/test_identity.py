@@ -3,7 +3,7 @@ import pytest
 import attr
 from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
-from tldeploy.core import deploy_network, deploy_identity
+from tldeploy.core import deploy_network, deploy_identity, get_chain_id
 from tldeploy.identity import (
     MetaTransaction,
     Identity,
@@ -22,6 +22,11 @@ def get_transaction_status(web3, tx_id):
 
 
 @pytest.fixture(scope="session")
+def chain_id(web3):
+    return get_chain_id(web3)
+
+
+@pytest.fixture(scope="session")
 def delegate_address(accounts):
     return accounts[1]
 
@@ -37,9 +42,10 @@ def owner_key(account_keys):
 
 
 @pytest.fixture(scope="session")
-def test_identity_contract(deploy_contract, web3, owner):
+def test_identity_contract(deploy_contract, web3, owner, chain_id):
+
     test_identity_contract = deploy_contract("TestIdentity")
-    test_identity_contract.functions.init(owner).transact({"from": owner})
+    test_identity_contract.functions.init(owner, chain_id).transact({"from": owner})
     web3.eth.sendTransaction(
         {"to": test_identity_contract.address, "from": owner, "value": 1000000}
     )
@@ -108,7 +114,7 @@ def non_payable_contract_inticode(contract_assets):
 
 def test_init_already_init(test_identity_contract, accounts):
     with pytest.raises(TransactionFailed):
-        test_identity_contract.functions.init(accounts[0]).transact(
+        test_identity_contract.functions.init(accounts[0], 0).transact(
             {"from": accounts[0]}
         )
 
@@ -154,6 +160,7 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     # See: clientlib/tests/unit/IdentityWallet.test.ts: 'should sign meta-transaction'
     from_ = "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b"
     to = "0x51a240271AB8AB9f9a21C82d9a85396b704E164d"
+    chain_id = 0
     value = 0
     data = "0x46432830000000000000000000000000000000000000000000000000000000000000000a"
     base_fee = 1
@@ -166,6 +173,7 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
 
     meta_transaction = MetaTransaction(
         from_=from_,
+        chain_id=chain_id,
         to=to,
         value=value,
         data=data,
@@ -193,7 +201,7 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
 
 def test_delegated_transaction_hash(test_identity_contract, test_contract, accounts):
     to = accounts[3]
-    from_ = accounts[1]
+    from_ = test_identity_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
@@ -202,7 +210,6 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
     )
 
     hash_by_contract = test_identity_contract.functions.testTransactionHash(
-        meta_transaction.from_,
         meta_transaction.to,
         meta_transaction.value,
         meta_transaction.data,
@@ -269,19 +276,18 @@ def test_delegated_transaction_same_tx_fails(identity, delegate, accounts, web3)
 
 
 def test_delegated_transaction_wrong_from(
-    test_identity_contract, delegate_address, accounts, owner_key
+    test_identity_contract, delegate_address, accounts, owner_key, chain_id
 ):
     from_ = accounts[3]
     to = accounts[2]
     value = 1000
 
-    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0).signed(
-        owner_key
-    )
+    meta_transaction = MetaTransaction(
+        from_=from_, to=to, value=value, nonce=0, chain_id=chain_id
+    ).signed(owner_key)
 
     with pytest.raises(TransactionFailed):
         test_identity_contract.functions.executeTransaction(
-            meta_transaction.from_,
             meta_transaction.to,
             meta_transaction.value,
             meta_transaction.data,
@@ -298,13 +304,13 @@ def test_delegated_transaction_wrong_from(
 
 
 def test_delegated_transaction_wrong_signature(
-    identity, delegate, accounts, account_keys, web3
+    identity, delegate, accounts, account_keys, web3, chain_id
 ):
     to = accounts[2]
     value = 1000
 
     meta_transaction = MetaTransaction(
-        from_=identity.address, to=to, value=value, nonce=0
+        from_=identity.address, to=to, value=value, nonce=0, chain_id=chain_id
     ).signed(account_keys[3])
 
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
@@ -501,40 +507,40 @@ def test_validate_same_tx(identity, delegate, accounts):
     assert not delegate.validate_meta_transaction(meta_transaction)
 
 
-def test_validate_from_no_code(delegate, accounts, owner_key):
+def test_validate_from_no_code(delegate, accounts, owner_key, chain_id):
     from_ = accounts[3]
     to = accounts[2]
     value = 1000
 
-    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0).signed(
-        owner_key
-    )
+    meta_transaction = MetaTransaction(
+        from_=from_, to=to, value=value, nonce=0, chain_id=chain_id
+    ).signed(owner_key)
 
     with pytest.raises(UnexpectedIdentityContractException):
         delegate.validate_meta_transaction(meta_transaction)
 
 
 def test_validate_from_wrong_contract(
-    delegate, accounts, owner_key, currency_network_contract
+    delegate, accounts, owner_key, currency_network_contract, chain_id
 ):
     from_ = currency_network_contract.address
     to = accounts[2]
     value = 1000
 
-    meta_transaction = MetaTransaction(from_=from_, to=to, value=value, nonce=0).signed(
-        owner_key
-    )
+    meta_transaction = MetaTransaction(
+        from_=from_, to=to, value=value, nonce=0, chain_id=chain_id
+    ).signed(owner_key)
 
     with pytest.raises(UnexpectedIdentityContractException):
         delegate.validate_meta_transaction(meta_transaction)
 
 
-def test_validate_wrong_signature(identity, delegate, accounts, account_keys):
+def test_validate_wrong_signature(identity, delegate, accounts, account_keys, chain_id):
     to = accounts[2]
     value = 1000
 
     meta_transaction = MetaTransaction(
-        from_=identity.address, to=to, value=value, nonce=0
+        from_=identity.address, to=to, value=value, nonce=0, chain_id=chain_id
     ).signed(account_keys[3])
 
     assert not delegate.validate_meta_transaction(meta_transaction)

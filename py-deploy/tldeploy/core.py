@@ -192,9 +192,16 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
     return networks, exchange, unw_eth
 
 
-def deploy_identity(web3, owner_address):
+def deploy_identity(web3, owner_address, chain_id=None):
     identity = deploy("Identity", web3=web3)
-    function_call = identity.functions.init(owner_address)
+
+    if chain_id is None:
+        chain_id = get_chain_id(web3)
+    function_call = identity.functions.init(owner_address, chain_id)
     send_function_call_transaction(function_call, web3=web3)
 
     return identity
+
+
+def get_chain_id(web3):
+    return int(web3.eth.chainId)
