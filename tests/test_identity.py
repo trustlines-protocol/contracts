@@ -455,7 +455,20 @@ def test_meta_transaction_time_limit_valid(identity, delegate, web3, accounts):
     value = 1000
     time_limit = web3.eth.getBlock("latest").timestamp + 1000
 
-    meta_transaction = MetaTransaction(to=to, value=value, gas_limit=time_limit)
+    meta_transaction = MetaTransaction(to=to, value=value, time_limit=time_limit)
+
+    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+
+    assert get_transaction_status(web3, tx_id)
+
+
+def test_meta_transaction_no_limit_valid(identity, delegate, web3, accounts):
+    to = accounts[2]
+    value = 1000
+    time_limit = 0
+
+    meta_transaction = MetaTransaction(to=to, value=value, time_limit=time_limit)
 
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
@@ -466,9 +479,9 @@ def test_meta_transaction_time_limit_valid(identity, delegate, web3, accounts):
 def test_meta_transaction_time_limit_invalid(identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
-    time_limit = 456
+    time_limit = web3.eth.getBlock("latest").timestamp - 1
 
-    meta_transaction = MetaTransaction(to=to, value=value, gas_limit=time_limit)
+    meta_transaction = MetaTransaction(to=to, value=value, time_limit=time_limit)
 
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)

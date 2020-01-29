@@ -112,7 +112,7 @@ contract Identity is ProxyStorage {
         if (timeLimit == 0) {
             return true;
         } else {
-            return timeLimit <= now;
+            return timeLimit >= now;
         }
     }
 
