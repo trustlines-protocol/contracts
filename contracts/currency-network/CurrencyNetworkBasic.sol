@@ -79,7 +79,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     event NetworkFreeze();
 
     // for accounting balance and trustline agreement between two users introducing fees and interests
-    // currently uses 160 + 136 bits, 216 remaining to make two structs
+    // tries to fit into two words to safe gas
     struct Trustline {
         // A < B (A is the lower address)
         TrustlineAgreement agreement;
@@ -132,6 +132,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
      *         intermediaries, unless the transaction exclusively reduces balances
      * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore. Setting
      *         this value to zero disables freezing.
+     * @param _authorizedAddresses addresses which are authorized to call certain functions, like transferFrom
      */
     function init(
         string calldata _name,
@@ -142,7 +143,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         bool _customInterests,
         bool _preventMediatorInterests,
         uint _expirationTime,
-        address[] calldata authorizedAddresses
+        address[] calldata _authorizedAddresses
     )
         external
     {
@@ -176,8 +177,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         preventMediatorInterests = _preventMediatorInterests;
         expirationTime = _expirationTime;
 
-        for (uint i = 0; i < authorizedAddresses.length; i++) {
-            addGlobalAuthorizedAddress(authorizedAddresses[i]);
+        for (uint i = 0; i < _authorizedAddresses.length; i++) {
+            addGlobalAuthorizedAddress(_authorizedAddresses[i]);
         }
     }
 
@@ -258,11 +259,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
     /**
      * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived`
-     * token
-     * Needs to be accepted by the other party, unless we reduce both values.
+     * tokens
+     * Needs to be accepted by the other party, unless we only reduce values.
      * @param _debtor The other party of the trustline agreement
      * @param _creditlineGiven The creditline limit given by msg.sender
-     * @param _creditlineReceived The creditline limit given _debtor
+     * @param _creditlineReceived The creditline limit given by _debtor
      * @param _interestRateGiven The interest given by msg.sender
      * @param _interestRateReceived The interest given by _debtor
      * @param _isFrozen Whether the initiator asks for freezing the trustline
@@ -327,7 +328,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
     /**
      * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived`
-     * token
+     * tokens
      * Needs to be accepted by the other party, unless we reduce both values.
      * @param _debtor The other party of the trustline agreement
      * @param _creditlineGiven The creditline limit given by msg.sender
