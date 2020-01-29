@@ -51,7 +51,6 @@ contract Identity is ProxyStorage {
     )
         public
     {
-        uint startGas = gasleft();
         require(from == address(this), "The transaction is not meant for this identity contract");
 
         bytes32 hash = transactionHash(
@@ -79,13 +78,17 @@ contract Identity is ProxyStorage {
             lastNonce++;
         }
 
-        bool status = applyOperation(to, value, data, operationType);
-        emit TransactionExecution(hash, status);
+        uint startGas = gasleft();
+        require(startGas >= gasLimit, "Not enough gas left for operation");
+        if (gasLimit == 0) {
+            // Unlimited gas
+            gasLimit = uint(-1);
+        }
+
+        bool status = applyOperation(to, value, data, operationType, gasLimit);
 
         uint256 gasSpent = startGas - gasleft();
-        if (gasLimit != 0) {
-            require(gasSpent <= gasLimit, "Gas limit too low");
-        }
+        require(gasSpent <= gasLimit, "Gas limit too low");
 
         if ((gasPrice > 0 || baseFee > 0) && status != false) {
             uint256 fees = baseFee + gasSpent * gasPrice / gasPriceDivisor;
@@ -97,6 +100,8 @@ contract Identity is ProxyStorage {
             debtContract.increaseDebt(feeRecipient, fees);
             emit FeePayment(fees, msg.sender, currencyNetworkOfFees);
         }
+
+        emit TransactionExecution(hash, status);
     }
 
     function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
@@ -161,17 +166,18 @@ contract Identity is ProxyStorage {
         return hash;
     }
 
-    function applyOperation(address to, uint256 value, bytes memory data, uint8 operationType) internal returns (bool status) {
+    function applyOperation(address to, uint256 value, bytes memory data, uint8 operationType, uint gasLimit) internal returns (bool status) {
         if (operationType == 0) {
             // regular call
-            (status, ) = to.call.value(value)(data); // solium-disable-line
+            (status, ) = to.call.value(value).gas(gasLimit)(data); // solium-disable-line
         } else if (operationType == 1) {
             // delegate call
             require(value == 0, "Cannot transfer value with DELEGATECALL");
-            (status, ) = to.delegatecall(data);
+            (status, ) = to.delegatecall.gas(gasLimit)(data);
         } else if (operationType == 2) {
             // regular create
             address deployed;
+            //TODO how to limit gas here?
             assembly {
                 deployed := create(value, add(data, 0x20), mload(data))
             }
@@ -182,6 +188,7 @@ contract Identity is ProxyStorage {
         } else if (operationType == 3) {
             // create2
             address deployed;
+            //TODO how to limit gas here?
             assembly {
               deployed := create2(value, add(data, 0x20), mload(data), 0)
             }
