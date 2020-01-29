@@ -213,7 +213,7 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
         meta_transaction.currency_network_of_fees,
         meta_transaction.nonce,
         meta_transaction.time_limit,
-        meta_transaction.operation_type,
+        meta_transaction.operation_type.value,
     ).call()
 
     hash = meta_transaction.hash
@@ -292,7 +292,7 @@ def test_delegated_transaction_wrong_from(
             meta_transaction.currency_network_of_fees,
             meta_transaction.nonce,
             meta_transaction.time_limit,
-            meta_transaction.operation_type,
+            meta_transaction.operation_type.value,
             meta_transaction.signature,
         ).transact({"from": delegate_address})
 
@@ -788,7 +788,9 @@ def test_meta_transaction_delegate_call(
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = attr.evolve(meta_transaction, operation_type=1)
+    meta_transaction = attr.evolve(
+        meta_transaction, operation_type=MetaTransaction.OperationType.DELEGATE_CALL
+    )
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
@@ -820,7 +822,9 @@ def test_meta_transaction_delegate_call_fail(identity, delegate, web3, test_cont
     function_call = test_contract.functions.fails()
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = attr.evolve(meta_transaction, operation_type=1)
+    meta_transaction = attr.evolve(
+        meta_transaction, operation_type=MetaTransaction.OperationType.DELEGATE_CALL
+    )
     meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
@@ -833,7 +837,10 @@ def test_meta_transaction_delegate_call_fail(identity, delegate, web3, test_cont
     assert execution_event["status"] is False
 
 
-@pytest.mark.parametrize("operation_type", [2, 3])
+@pytest.mark.parametrize(
+    "operation_type",
+    [MetaTransaction.OperationType.CREATE, MetaTransaction.OperationType.CREATE2],
+)
 def test_meta_transaction_create_contract(
     identity, delegate, test_contract_initcode, test_contract_abi, web3, operation_type
 ):
@@ -866,7 +873,7 @@ def test_meta_transaction_create_contract(
     assert deployed_contract.functions.testPublicValue().call() == 123456
     assert web3.eth.getBalance(deployed_contract.address) == deployed_contract_balance
 
-    if operation_type == 3:
+    if operation_type == MetaTransaction.OperationType.CREATE2:
         # check that create2 was used and we could pre-compute the deployed address
         create_2_address = build_create2_address(
             identity.address, test_contract_initcode
@@ -874,7 +881,10 @@ def test_meta_transaction_create_contract(
         assert HexBytes(deployed_contract.address) == create_2_address
 
 
-@pytest.mark.parametrize("operation_type", [2, 3])
+@pytest.mark.parametrize(
+    "operation_type",
+    [MetaTransaction.OperationType.CREATE, MetaTransaction.OperationType.CREATE2],
+)
 def test_meta_transaction_create_contract_fails(
     identity, delegate, non_payable_contract_inticode, web3, operation_type
 ):

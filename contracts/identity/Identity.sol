@@ -16,7 +16,7 @@ contract Identity is ProxyStorage {
     uint public gasPriceDivisor = 1000000;
 
     event TransactionExecution(bytes32 hash, bool status);
-    event FeePayment(uint value, address recipient, address currencyNetwork);
+    event FeePayment(uint value, address indexed recipient, address indexed currencyNetwork);
     event ContractDeployment(address deployed);
 
     constructor() public {
