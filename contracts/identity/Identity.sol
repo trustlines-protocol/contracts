@@ -7,6 +7,8 @@ import "./ProxyStorage.sol";
 
 contract Identity is ProxyStorage {
 
+    uint constant public version  = 1;
+
     address public owner;
     uint public chainId;
     bool public initialised;
@@ -147,7 +149,8 @@ contract Identity is ProxyStorage {
                     byte(0x19),
                     byte(0),
                     address(this),
-                    chainId
+                    chainId,
+                    version
                 ),
                 abi.encodePacked(
                     to,

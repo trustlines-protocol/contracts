@@ -310,7 +310,8 @@ def test_change_identity_implementation(
     meta_transaction = proxied_identity.filled_and_signed_meta_transaction(
         meta_transaction
     )
-    delegate.send_signed_meta_transaction(meta_transaction)
+
+    delegate.send_signed_meta_transaction(meta_transaction, gas=None)
 
     assert (
         proxy_contract_with_owner.functions.implementation().call()
@@ -382,3 +383,7 @@ def test_deploy_identity_proxy(
 
     assert proxy.address == pre_computed_address
     assert proxy.functions.implementation().call() == identity_implementation.address
+
+
+def test_get_version(proxied_identity_contract_with_owner):
+    assert proxied_identity_contract_with_owner.functions.version().call() == 1
