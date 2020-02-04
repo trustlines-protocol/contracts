@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 import attr
 import pkg_resources
@@ -40,8 +40,9 @@ class MetaTransaction:
         CREATE2 = 3
 
     from_: Optional[str] = None
-    to: str = ZERO_ADDRESS
     chain_id: Optional[int] = None
+    version: int = 1
+    to: str = ZERO_ADDRESS
     value: int = 0
     data: bytes = bytes()
     base_fee: int = 0
@@ -64,8 +65,8 @@ class MetaTransaction:
         function_call,
         *,
         from_: str = None,
-        to: str,
         chain_id: int = None,
+        to: str,
         nonce: int = None,
         base_fee: int = 0,
         gas_price: int = 0,
@@ -84,24 +85,27 @@ class MetaTransaction:
         if chain_id is None:
             chain_id = get_chain_id(function_call.web3)
 
-        meta_transaction_args = {
-            "from_": from_,
-            "to": to,
-            "chain_id": chain_id,
-            "value": 0,
-            "data": data,
-            "base_fee": base_fee,
-            "gas_price": gas_price,
-            "gas_limit": gas_limit,
-            "nonce": nonce,
-            "time_limit": time_limit,
-            "operation_type": operation_type,
-        }
+        optional_meta_transaction_args = {}
 
         if currency_network_of_fees is not None:
-            meta_transaction_args["currency_network_of_fees"] = currency_network_of_fees
+            optional_meta_transaction_args[
+                "currency_network_of_fees"
+            ] = currency_network_of_fees
 
-        return cls(**meta_transaction_args)
+        return cls(  # type: ignore
+            from_=from_,
+            to=to,
+            chain_id=chain_id,
+            value=0,
+            data=data,
+            base_fee=base_fee,
+            gas_price=gas_price,
+            gas_limit=gas_limit,
+            nonce=nonce,
+            time_limit=time_limit,
+            operation_type=operation_type,
+            **optional_meta_transaction_args,
+        )
 
     @property
     def hash(self) -> bytes:
@@ -113,6 +117,7 @@ class MetaTransaction:
                 "bytes1",
                 "bytes1",
                 "address",
+                "uint256",
                 "uint256",
                 "address",
                 "uint256",
@@ -131,6 +136,7 @@ class MetaTransaction:
                 "0x00",
                 from_,
                 self.chain_id,
+                self.version,
                 to,
                 self.value,
                 solidity_keccak(["bytes"], [self.data]),
@@ -167,15 +173,20 @@ class Delegate:
         ).estimateGas({"from": self.delegate_address})
 
     def send_signed_meta_transaction(
-        self, signed_meta_transaction: MetaTransaction, gas: int = MAX_GAS
+        self, signed_meta_transaction: MetaTransaction, gas: Optional[int] = MAX_GAS
     ) -> str:
         """
         Sends the meta transaction out inside of an ethereum transaction
         Returns: the hash of the envelop ethereum transaction
         """
 
+        transaction_options: Dict[str, Any] = {"from": self.delegate_address}
+
+        if gas is not None:
+            transaction_options["gas"] = gas
+
         return self._meta_transaction_function_call(signed_meta_transaction).transact(
-            {"from": self.delegate_address, "gas": gas}
+            transaction_options
         )
 
     def validate_meta_transaction(

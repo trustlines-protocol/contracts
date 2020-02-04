@@ -194,8 +194,8 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     )
     assert (
         signature.hex()
-        == "a558db2e5282de87128d061dc4fc307d3458791eb0284a318e17609f74928c"
-        "bd03f0793660a42090e9eb12eb74426c98885ce09ddcbea4375f8e48baa273c0e800"
+        == "639db755a4e0642c2ec76485cf623c58b635c54f9ce375088fad40a128779d7a060"
+        "ceb63129eb9681216a844a0577184b1d3266fc6ac00fbbe23e72b592c33c200"
     )
 
 
@@ -919,3 +919,7 @@ def test_meta_transaction_create_contract_fails(
         fromBlock=0
     ).get_all_entries()
     assert len(deploy_events) == 0
+
+
+def test_get_version(test_identity_contract):
+    assert test_identity_contract.functions.version().call() == 1
