@@ -7,7 +7,7 @@
 import pytest
 from texttable import Texttable
 from web3 import Web3
-from tldeploy.core import deploy_network, deploy_identity
+from tldeploy.core import deploy_network, deploy_identity, get_chain_id
 from tldeploy.identity import deploy_proxied_identity
 
 from .conftest import EXTRA_DATA, EXPIRATION_TIME
@@ -85,7 +85,9 @@ def identity_implementation(deploy_contract, web3):
 @pytest.fixture(scope="session")
 def proxy_factory(deploy_contract, web3):
 
-    proxy_factory = deploy_contract("IdentityProxyFactory")
+    proxy_factory = deploy_contract(
+        "IdentityProxyFactory", constructor_args=(get_chain_id(web3),)
+    )
     return proxy_factory
 
 
@@ -228,7 +230,7 @@ def test_deploy_identity(web3, accounts, table):
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_200_000)
+    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_250_000)
 
 
 def test_deploy_proxied_identity(
@@ -253,4 +255,4 @@ def test_deploy_proxied_identity(
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    report_gas_costs(table, "Deploy Identity", gas_cost, limit=270_000)
+    report_gas_costs(table, "Deploy Proxied Identity", gas_cost, limit=310_000)
