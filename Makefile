@@ -5,6 +5,14 @@ all:: compile
 clean::
 	rm -rf build/contracts.json .requirements-installed
 
+lint: install-requirements
+	flake8 tests py-deploy
+	black --check tests py-deploy
+	mypy --ignore-missing-imports tests py-deploy
+
+test:: install
+	pytest tests
+
 .requirements-installed: constraints.txt requirements.txt
 	@echo "===> Installing requirements in your local virtualenv"
 	pip install -q -c constraints.txt -r requirements.txt
