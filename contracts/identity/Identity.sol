@@ -16,7 +16,7 @@ contract Identity is ProxyStorage {
     mapping(bytes32 => bool) private hashUsed;
     uint public lastNonce = 0;
     // Divides the gas price value to allow for finer range of fee price
-    uint public gasPriceDivisor = 1000000;
+    uint constant public gasPriceDivisor = 1000000;
 
     event TransactionExecution(bytes32 hash, bool status);
     event FeePayment(uint value, address indexed recipient, address indexed currencyNetwork);
