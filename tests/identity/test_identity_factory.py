@@ -243,7 +243,7 @@ def test_change_identity_implementation(
     )
 
     to = proxy_contract_with_owner.address
-    function_call = proxy_contract_with_owner.functions.setImplementation(
+    function_call = proxied_identity.contract.functions.changeImplementation(
         identity_implementation_different_address.address
     )
 
