@@ -8,7 +8,7 @@ from tldeploy.core import deploy_network, deploy_exchange, deploy
 from tldeploy.exchange import Order
 from tldeploy.signing import priv_to_pubkey
 
-from .conftest import EXPIRATION_TIME
+from tests.conftest import EXPIRATION_TIME
 
 
 trustlines = [

@@ -5,7 +5,7 @@ import pytest
 import eth_tester.exceptions
 from tldeploy.core import deploy_network
 
-from .conftest import EXTRA_DATA, EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import EXTRA_DATA, EXPIRATION_TIME, CurrencyNetworkAdapter
 
 
 trustlines = [

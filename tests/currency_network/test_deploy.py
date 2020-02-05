@@ -2,7 +2,7 @@
 
 from tldeploy.core import deploy_networks, deploy_network
 
-from .conftest import EXPIRATION_TIME
+from tests.conftest import EXPIRATION_TIME
 
 
 def test_deploy_networks(web3):

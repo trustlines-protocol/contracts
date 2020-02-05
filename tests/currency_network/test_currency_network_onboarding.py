@@ -1,7 +1,7 @@
 import pytest
 
 from tldeploy.core import deploy_network
-from .conftest import EXPIRATION_TIME
+from tests.conftest import EXPIRATION_TIME
 
 NETWORK_SETTING = {
     "name": "TestCoin",

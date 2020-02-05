@@ -5,7 +5,7 @@ import pytest
 
 from tldeploy.core import deploy_network
 
-from .conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
 
 NETWORK_SETTING: Dict[str, Any] = {
     "name": "TestCoin",

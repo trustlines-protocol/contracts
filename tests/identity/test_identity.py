@@ -3,17 +3,17 @@ import pytest
 import attr
 from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
-from tldeploy.core import deploy_network, deploy_identity, get_chain_id
+from tldeploy.core import deploy_network, deploy_identity
 from tldeploy.identity import (
     MetaTransaction,
     Identity,
-    Delegate,
     UnexpectedIdentityContractException,
     build_create2_address,
+    deploy_proxied_identity,
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
-from .conftest import EXTRA_DATA, EXPIRATION_TIME
+from tests.conftest import EXTRA_DATA, EXPIRATION_TIME
 from deploy_tools.compile import build_initcode
 
 
@@ -22,46 +22,57 @@ def get_transaction_status(web3, tx_id):
 
 
 @pytest.fixture(scope="session")
-def chain_id(web3):
-    return get_chain_id(web3)
+def identity_contract(deploy_contract, web3, owner, chain_id):
 
-
-@pytest.fixture(scope="session")
-def delegate_address(accounts):
-    return accounts[1]
-
-
-@pytest.fixture(scope="session")
-def owner(accounts):
-    return accounts[0]
-
-
-@pytest.fixture(scope="session")
-def owner_key(account_keys):
-    return account_keys[0]
-
-
-@pytest.fixture(scope="session")
-def test_identity_contract(deploy_contract, web3, owner, chain_id):
-
-    test_identity_contract = deploy_contract("TestIdentity")
-    test_identity_contract.functions.init(owner, chain_id).transact({"from": owner})
+    identity_contract = deploy_contract("Identity")
+    identity_contract.functions.init(owner, chain_id).transact({"from": owner})
     web3.eth.sendTransaction(
-        {"to": test_identity_contract.address, "from": owner, "value": 1000000}
+        {"to": identity_contract.address, "from": owner, "value": 1000000}
     )
-    return test_identity_contract
+    return identity_contract
 
 
 @pytest.fixture(scope="session")
-def identity(test_identity_contract, owner_key):
-    return Identity(contract=test_identity_contract, owner_private_key=owner_key)
+def proxied_identity_contract(
+    web3,
+    proxy_factory,
+    identity_implementation,
+    signature_of_owner_on_implementation,
+    owner,
+):
+    proxied_identity_contract = deploy_proxied_identity(
+        web3=web3,
+        factory_address=proxy_factory.address,
+        implementation_address=identity_implementation.address,
+        signature=signature_of_owner_on_implementation,
+    )
+
+    web3.eth.sendTransaction(
+        {"to": proxied_identity_contract.address, "from": owner, "value": 1000000}
+    )
+    return proxied_identity_contract
+
+
+@pytest.fixture(params=range(2))
+def each_identity_contract(request, identity_contract, proxied_identity_contract):
+    """Allows to test against raw identity contract and the proxied identity contract"""
+    return [identity_contract, proxied_identity_contract][request.param]
 
 
 @pytest.fixture(scope="session")
-def delegate(test_identity_contract, delegate_address, web3):
-    return Delegate(
-        delegate_address, web3=web3, identity_contract_abi=test_identity_contract.abi
-    )
+def identity(identity_contract, owner_key):
+    return Identity(contract=identity_contract, owner_private_key=owner_key)
+
+
+@pytest.fixture(scope="session")
+def proxied_identity(proxied_identity_contract, owner_key):
+    return Identity(contract=proxied_identity_contract, owner_private_key=owner_key)
+
+
+@pytest.fixture(params=range(2))
+def each_identity(request, identity, proxied_identity):
+    """Allows to test against raw identity and the proxied identity"""
+    return [identity, proxied_identity][request.param]
 
 
 @pytest.fixture(scope="session")
@@ -112,48 +123,46 @@ def non_payable_contract_inticode(contract_assets):
     )
 
 
-def test_init_already_init(test_identity_contract, accounts):
+def test_init_already_init(identity_contract, accounts):
     with pytest.raises(TransactionFailed):
-        test_identity_contract.functions.init(accounts[0], 0).transact(
-            {"from": accounts[0]}
-        )
+        identity_contract.functions.init(accounts[0], 0).transact({"from": accounts[0]})
 
 
-def test_signature_from_owner(test_identity_contract, owner_key):
+def test_signature_from_owner(each_identity_contract, owner_key):
 
     data_to_sign = (1234).to_bytes(10, byteorder="big")
     hash = solidity_keccak(["bytes"], [data_to_sign])
     signature = sign_msg_hash(hash, owner_key)
 
-    assert test_identity_contract.functions.validateSignature(hash, signature).call()
+    assert each_identity_contract.functions.validateSignature(hash, signature).call()
 
 
-def test_signature_not_owner(test_identity_contract, account_keys):
+def test_signature_not_owner(each_identity_contract, account_keys):
     key = account_keys[1]
 
     data = (1234).to_bytes(10, byteorder="big")
     hash = solidity_keccak(["bytes"], [data])
     signature = sign_msg_hash(hash, key)
 
-    assert not test_identity_contract.functions.validateSignature(
+    assert not each_identity_contract.functions.validateSignature(
         hash, signature
     ).call()
 
 
-def test_wrong_signature_from_owner(test_identity_contract, owner_key):
+def test_wrong_signature_from_owner(each_identity_contract, owner_key):
 
     data = (1234).to_bytes(10, byteorder="big")
     wrong_data = (12345678).to_bytes(10, byteorder="big")
 
     signature = owner_key.sign_msg(data).to_bytes()
 
-    assert not test_identity_contract.functions.validateSignature(
+    assert not each_identity_contract.functions.validateSignature(
         wrong_data, signature
     ).call()
 
 
 def test_meta_transaction_signature_corresponds_to_clientlib_signature(
-    identity, owner_key
+    each_identity, owner_key
 ):
     # Tests that the signature obtained from the contracts and the clientlib implementation match,
     # If this test needs to be changed, the corresponding test in the clientlib should also be changed
@@ -186,7 +195,7 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
         time_limit=time_limit,
     )
 
-    signature = identity.signed_meta_transaction(meta_transaction).signature
+    signature = each_identity.signed_meta_transaction(meta_transaction).signature
 
     assert (
         str(owner_key)
@@ -199,9 +208,9 @@ def test_meta_transaction_signature_corresponds_to_clientlib_signature(
     )
 
 
-def test_delegated_transaction_hash(test_identity_contract, test_contract, accounts):
+def test_delegated_transaction_hash(each_identity_contract, test_contract, accounts):
     to = accounts[3]
-    from_ = test_identity_contract.address
+    from_ = each_identity_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
@@ -209,7 +218,7 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
         function_call, from_=from_, to=to, nonce=0
     )
 
-    hash_by_contract = test_identity_contract.functions.testTransactionHash(
+    hash_by_contract = each_identity_contract.functions.transactionHash(
         meta_transaction.to,
         meta_transaction.value,
         meta_transaction.data,
@@ -228,13 +237,17 @@ def test_delegated_transaction_hash(test_identity_contract, test_contract, accou
     assert hash == HexBytes(hash_by_contract)
 
 
-def test_delegated_transaction_function_call(identity, delegate, test_contract, web3):
+def test_delegated_transaction_function_call(
+    each_identity, delegate, test_contract, web3
+):
     to = test_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
     event = test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()[
@@ -242,19 +255,21 @@ def test_delegated_transaction_function_call(identity, delegate, test_contract, 
     ]["args"]
 
     assert get_transaction_status(web3, tx_id)
-    assert event["from"] == identity.address
+    assert event["from"] == each_identity.address
     assert event["value"] == 0
     assert event["argument"] == argument
 
 
-def test_delegated_transaction_transfer(web3, identity, delegate, accounts):
+def test_delegated_transaction_transfer(web3, each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
     meta_transaction = MetaTransaction(to=to, value=value)
 
     balance_before = web3.eth.getBalance(to)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
     balance_after = web3.eth.getBalance(to)
@@ -263,20 +278,22 @@ def test_delegated_transaction_transfer(web3, identity, delegate, accounts):
     assert balance_after - balance_before == value
 
 
-def test_delegated_transaction_same_tx_fails(identity, delegate, accounts, web3):
+def test_delegated_transaction_same_tx_fails(each_identity, delegate, accounts, web3):
     to = accounts[2]
     value = 1000
 
     meta_transaction = MetaTransaction(to=to, value=value)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     delegate.send_signed_meta_transaction(meta_transaction)
 
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
-    assert get_transaction_status(web3, tx_id) is False
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
 
 
 def test_delegated_transaction_wrong_from(
-    test_identity_contract, delegate_address, accounts, owner_key, chain_id
+    each_identity_contract, delegate_address, accounts, owner_key, chain_id
 ):
     from_ = accounts[3]
     to = accounts[2]
@@ -287,7 +304,7 @@ def test_delegated_transaction_wrong_from(
     ).signed(owner_key)
 
     with pytest.raises(TransactionFailed):
-        test_identity_contract.functions.executeTransaction(
+        each_identity_contract.functions.executeTransaction(
             meta_transaction.to,
             meta_transaction.value,
             meta_transaction.data,
@@ -304,30 +321,30 @@ def test_delegated_transaction_wrong_from(
 
 
 def test_delegated_transaction_wrong_signature(
-    identity, delegate, accounts, account_keys, web3, chain_id
+    each_identity, delegate, accounts, account_keys, web3, chain_id
 ):
     to = accounts[2]
     value = 1000
 
     meta_transaction = MetaTransaction(
-        from_=identity.address, to=to, value=value, nonce=0, chain_id=chain_id
+        from_=each_identity.address, to=to, value=value, nonce=0, chain_id=chain_id
     ).signed(account_keys[3])
 
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
-    assert get_transaction_status(web3, tx_id) is False
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
 
 
-def test_delegated_transaction_success_event(identity, delegate, test_contract):
+def test_delegated_transaction_success_event(each_identity, delegate, test_contract):
     to = test_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
 
-    event = identity.contract.events.TransactionExecution.createFilter(
+    event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
 
@@ -335,16 +352,16 @@ def test_delegated_transaction_success_event(identity, delegate, test_contract):
     assert event["status"] is True
 
 
-def test_delegated_transaction_fail_event(identity, delegate, test_contract):
+def test_delegated_transaction_fail_event(each_identity, delegate, test_contract):
     to = test_contract.address
     function_call = test_contract.functions.fails()
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
 
-    event = identity.contract.events.TransactionExecution.createFilter(
+    event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
 
@@ -353,14 +370,14 @@ def test_delegated_transaction_fail_event(identity, delegate, test_contract):
 
 
 def test_delegated_transaction_trustlines_flow(
-    currency_network_contract, identity, delegate, accounts
+    currency_network_contract, each_identity, delegate, accounts
 ):
-    A = identity.address
+    A = each_identity.address
     B = accounts[3]
     to = currency_network_contract.address
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
@@ -373,23 +390,25 @@ def test_delegated_transaction_trustlines_flow(
         100, 0, [A, B], EXTRA_DATA
     )
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     delegate.send_signed_meta_transaction(meta_transaction)
 
     assert currency_network_contract.functions.balance(A, B).call() == -100
 
 
-def test_delegated_transaction_nonce_zero(identity, delegate, web3, accounts):
+def test_delegated_transaction_nonce_zero(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value1 = 1000
     value2 = 1001
 
     balance_before = web3.eth.getBalance(to)
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value1, nonce=0)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value2, nonce=0)
     )
 
@@ -401,16 +420,16 @@ def test_delegated_transaction_nonce_zero(identity, delegate, web3, accounts):
     assert balance_after - balance_before == value1 + value2
 
 
-def test_delegated_transaction_nonce_increase(identity, delegate, web3, accounts):
+def test_delegated_transaction_nonce_increase(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
 
     balance_before = web3.eth.getBalance(to)
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=2)
     )
 
@@ -422,84 +441,92 @@ def test_delegated_transaction_nonce_increase(identity, delegate, web3, accounts
     assert balance_after - balance_before == value + value
 
 
-def test_delegated_transaction_same_nonce_fails(identity, delegate, web3, accounts):
+def test_delegated_transaction_same_nonce_fails(
+    each_identity, delegate, web3, accounts
+):
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
 
     delegate.send_signed_meta_transaction(meta_transaction1)
 
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction2)
-    assert get_transaction_status(web3, tx_id) is False
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction2)
 
 
-def test_delegated_transaction_nonce_gap_fails(identity, delegate, web3, accounts):
+def test_delegated_transaction_nonce_gap_fails(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=3)
     )
 
     delegate.send_signed_meta_transaction(meta_transaction1)
 
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction2)
-    assert get_transaction_status(web3, tx_id) is False
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction2)
 
 
-def test_meta_transaction_time_limit_valid(identity, delegate, web3, accounts):
+def test_meta_transaction_time_limit_valid(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
     time_limit = web3.eth.getBlock("latest").timestamp + 1000
 
     meta_transaction = MetaTransaction(to=to, value=value, time_limit=time_limit)
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
     assert get_transaction_status(web3, tx_id)
 
 
-def test_meta_transaction_no_limit_valid(identity, delegate, web3, accounts):
+def test_meta_transaction_no_limit_valid(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
     time_limit = 0
 
     meta_transaction = MetaTransaction(to=to, value=value, time_limit=time_limit)
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
     assert get_transaction_status(web3, tx_id)
 
 
-def test_meta_transaction_time_limit_invalid(identity, delegate, web3, accounts):
+def test_meta_transaction_time_limit_invalid(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
     time_limit = web3.eth.getBlock("latest").timestamp - 1
 
     meta_transaction = MetaTransaction(to=to, value=value, time_limit=time_limit)
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
 
-    assert get_transaction_status(web3, tx_id) is False
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
 
 
-def test_validate_same_tx(identity, delegate, accounts):
+def test_validate_same_tx(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
@@ -535,25 +562,27 @@ def test_validate_from_wrong_contract(
         delegate.validate_meta_transaction(meta_transaction)
 
 
-def test_validate_wrong_signature(identity, delegate, accounts, account_keys, chain_id):
+def test_validate_wrong_signature(
+    each_identity, delegate, accounts, account_keys, chain_id
+):
     to = accounts[2]
     value = 1000
 
     meta_transaction = MetaTransaction(
-        from_=identity.address, to=to, value=value, nonce=0, chain_id=chain_id
+        from_=each_identity.address, to=to, value=value, nonce=0, chain_id=chain_id
     ).signed(account_keys[3])
 
     assert not delegate.validate_meta_transaction(meta_transaction)
 
 
-def test_validate_same_nonce_fails(identity, delegate, accounts):
+def test_validate_same_nonce_fails(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
 
@@ -562,14 +591,14 @@ def test_validate_same_nonce_fails(identity, delegate, accounts):
     assert not delegate.validate_meta_transaction(meta_transaction2)
 
 
-def test_validate_nonce_gap_fails(identity, delegate, accounts):
+def test_validate_nonce_gap_fails(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=3)
     )
 
@@ -578,25 +607,25 @@ def test_validate_nonce_gap_fails(identity, delegate, accounts):
     assert not delegate.validate_meta_transaction(meta_transaction2)
 
 
-def test_validate_valid_transfer(identity, delegate, accounts):
+def test_validate_valid_transfer(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value)
     )
 
     assert delegate.validate_meta_transaction(meta_transaction)
 
 
-def test_validate_valid_nonce_increase(identity, delegate, accounts):
+def test_validate_valid_nonce_increase(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=2)
     )
 
@@ -605,11 +634,11 @@ def test_validate_valid_nonce_increase(identity, delegate, accounts):
     assert delegate.validate_meta_transaction(meta_transaction2)
 
 
-def test_estimate_gas(identity, delegate, accounts):
+def test_estimate_gas(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value)
     )
 
@@ -619,14 +648,14 @@ def test_estimate_gas(identity, delegate, accounts):
 
 
 def test_deploy_identity(web3, delegate, owner, owner_key, test_contract):
-    identity_contract = deploy_identity(web3, owner)
+    each_identity_contract = deploy_identity(web3, owner)
 
     to = test_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(
-        function_call, to=to, from_=identity_contract.address, nonce=0
+        function_call, to=to, from_=each_identity_contract.address, nonce=0
     ).signed(owner_key)
     delegate.send_signed_meta_transaction(meta_transaction)
 
@@ -636,33 +665,33 @@ def test_deploy_identity(web3, delegate, owner, owner_key, test_contract):
     )
 
 
-def test_next_nonce(identity, delegate, accounts):
+def test_next_nonce(each_identity, delegate, accounts):
     to = accounts[2]
     value = 1000
 
-    meta_transaction1 = identity.filled_and_signed_meta_transaction(
+    meta_transaction1 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=1)
     )
-    meta_transaction2 = identity.filled_and_signed_meta_transaction(
+    meta_transaction2 = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction(to=to, value=value, nonce=2)
     )
 
     delegate.send_signed_meta_transaction(meta_transaction1)
     delegate.send_signed_meta_transaction(meta_transaction2)
 
-    assert delegate.get_next_nonce(identity.address) == 3
+    assert delegate.get_next_nonce(each_identity.address) == 3
 
 
 def test_meta_transaction_with_fees_increases_debt(
-    currency_network_contract, identity, delegate, delegate_address, accounts
+    currency_network_contract, each_identity, delegate, delegate_address, accounts
 ):
-    A = identity.address
+    A = each_identity.address
     B = accounts[3]
     to = currency_network_contract.address
     base_fee = 123
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to, base_fee=base_fee)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
@@ -674,15 +703,15 @@ def test_meta_transaction_with_fees_increases_debt(
 
 
 def test_failing_meta_transaction_with_fees_does_not_increases_debt(
-    currency_network_contract, identity, delegate, delegate_address, accounts
+    currency_network_contract, each_identity, delegate, delegate_address, accounts
 ):
-    A = identity.address
+    A = each_identity.address
     B = accounts[3]
     to = currency_network_contract.address
     base_fee = 123
 
     function_call = currency_network_contract.functions.transfer(100, 100, [A, B], b"")
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to, base_fee=base_fee)
     )
     delegate.send_signed_meta_transaction(meta_transaction)
@@ -693,18 +722,18 @@ def test_failing_meta_transaction_with_fees_does_not_increases_debt(
 def test_tracking_delegation_fee_in_different_network(
     currency_network_contract,
     second_currency_network_contract,
-    identity,
+    each_identity,
     delegate,
     delegate_address,
     accounts,
 ):
-    A = identity.address
+    A = each_identity.address
     B = accounts[3]
     to = currency_network_contract.address
     base_fee = 123
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(
             function_call,
             to=to,
@@ -722,9 +751,9 @@ def test_tracking_delegation_fee_in_different_network(
 
 
 def test_meta_transaction_gas_fee(
-    currency_network_contract, identity, delegate, delegate_address, accounts
+    currency_network_contract, each_identity, delegate, delegate_address, accounts
 ):
-    A = identity.address
+    A = each_identity.address
     B = accounts[3]
     to = currency_network_contract.address
     base_fee = 123
@@ -733,7 +762,7 @@ def test_meta_transaction_gas_fee(
     gas_price = effective_gas_price * contract_gas_price_divisor
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
-    meta_transaction = identity.filled_and_signed_meta_transaction(
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(
             function_call, to=to, base_fee=base_fee, gas_price=gas_price
         )
@@ -748,23 +777,25 @@ def test_meta_transaction_gas_fee(
     assert effective_fee - base_fee != 0
 
 
-def test_meta_transaction_gas_limit(identity, delegate, web3, accounts):
+def test_meta_transaction_gas_limit(each_identity, delegate, web3, accounts):
     to = accounts[2]
     value = 1000
     gas_limit = 456
 
     meta_transaction = MetaTransaction(to=to, value=value, gas_limit=gas_limit)
 
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
 
-    assert get_transaction_status(web3, tx_id) is False
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
 
 
 def test_meta_transaction_fee_recipient(
-    currency_network_contract, identity, delegate, delegate_address, accounts
+    currency_network_contract, each_identity, delegate, delegate_address, accounts
 ):
-    A = identity.address
+    A = each_identity.address
     B = accounts[3]
     to = currency_network_contract.address
     base_fee = 123
@@ -774,7 +805,9 @@ def test_meta_transaction_fee_recipient(
         function_call, to=to, base_fee=base_fee
     )
     meta_transaction = attr.evolve(meta_transaction, fee_recipient=B)
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     delegate.send_signed_meta_transaction(meta_transaction)
 
     debt_A_B = currency_network_contract.functions.getDebt(A, B).call()
@@ -787,7 +820,7 @@ def test_meta_transaction_fee_recipient(
 
 
 def test_meta_transaction_delegate_call(
-    identity, delegate, delegate_address, web3, test_contract
+    each_identity, delegate, delegate_address, web3, test_contract
 ):
     to = test_contract.address
     argument = 123
@@ -797,10 +830,12 @@ def test_meta_transaction_delegate_call(
     meta_transaction = attr.evolve(
         meta_transaction, operation_type=MetaTransaction.OperationType.DELEGATE_CALL
     )
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
-    execution_event = identity.contract.events.TransactionExecution.createFilter(
+    execution_event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
 
@@ -810,7 +845,7 @@ def test_meta_transaction_delegate_call(
     assert execution_event["status"] is True
 
     proxied_test_contract = web3.eth.contract(
-        identity.contract.address, abi=test_contract.abi
+        each_identity.contract.address, abi=test_contract.abi
     )
     test_event = proxied_test_contract.events.TestEvent.createFilter(
         fromBlock=0
@@ -823,7 +858,9 @@ def test_meta_transaction_delegate_call(
     assert test_event["argument"] == argument
 
 
-def test_meta_transaction_delegate_call_fail(identity, delegate, web3, test_contract):
+def test_meta_transaction_delegate_call_fail(
+    each_identity, delegate, web3, test_contract
+):
     to = test_contract.address
     function_call = test_contract.functions.fails()
 
@@ -831,10 +868,12 @@ def test_meta_transaction_delegate_call_fail(identity, delegate, web3, test_cont
     meta_transaction = attr.evolve(
         meta_transaction, operation_type=MetaTransaction.OperationType.DELEGATE_CALL
     )
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
-    execution_event = identity.contract.events.TransactionExecution.createFilter(
+    execution_event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
 
@@ -848,7 +887,12 @@ def test_meta_transaction_delegate_call_fail(identity, delegate, web3, test_cont
     [MetaTransaction.OperationType.CREATE, MetaTransaction.OperationType.CREATE2],
 )
 def test_meta_transaction_create_contract(
-    identity, delegate, test_contract_initcode, test_contract_abi, web3, operation_type
+    each_identity,
+    delegate,
+    test_contract_initcode,
+    test_contract_abi,
+    web3,
+    operation_type,
 ):
     deployed_contract_balance = 123
     meta_transaction = MetaTransaction(
@@ -856,10 +900,12 @@ def test_meta_transaction_create_contract(
         data=test_contract_initcode,
         value=deployed_contract_balance,
     )
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
-    execution_event = identity.contract.events.TransactionExecution.createFilter(
+    execution_event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
 
@@ -868,7 +914,7 @@ def test_meta_transaction_create_contract(
     assert execution_event["hash"] == meta_transaction.hash
     assert execution_event["status"] is True
 
-    deploy_event = identity.contract.events.ContractDeployment.createFilter(
+    deploy_event = each_identity.contract.events.ContractDeployment.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
     deployed_contract = web3.eth.contract(
@@ -882,9 +928,9 @@ def test_meta_transaction_create_contract(
     if operation_type == MetaTransaction.OperationType.CREATE2:
         # check that create2 was used and we could pre-compute the deployed address
         create_2_address = build_create2_address(
-            identity.address, test_contract_initcode
+            each_identity.address, test_contract_initcode
         )
-        assert HexBytes(deployed_contract.address) == create_2_address
+        assert deployed_contract.address == create_2_address
 
 
 @pytest.mark.parametrize(
@@ -892,7 +938,7 @@ def test_meta_transaction_create_contract(
     [MetaTransaction.OperationType.CREATE, MetaTransaction.OperationType.CREATE2],
 )
 def test_meta_transaction_create_contract_fails(
-    identity, delegate, non_payable_contract_inticode, web3, operation_type
+    each_identity, delegate, non_payable_contract_inticode, web3, operation_type
 ):
     """Test that the status in the event is False when deployment fails"""
     # To make the deployment fail we deploy a contract whose constructor is not payable
@@ -903,10 +949,12 @@ def test_meta_transaction_create_contract_fails(
         data=non_payable_contract_inticode,
         value=deployed_contract_balance,
     )
-    meta_transaction = identity.filled_and_signed_meta_transaction(meta_transaction)
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
     tx_id = delegate.send_signed_meta_transaction(meta_transaction)
 
-    execution_event = identity.contract.events.TransactionExecution.createFilter(
+    execution_event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
     ).get_all_entries()[0]["args"]
 
@@ -915,11 +963,11 @@ def test_meta_transaction_create_contract_fails(
     assert execution_event["hash"] == meta_transaction.hash
     assert execution_event["status"] is False
 
-    deploy_events = identity.contract.events.ContractDeployment.createFilter(
+    deploy_events = each_identity.contract.events.ContractDeployment.createFilter(
         fromBlock=0
     ).get_all_entries()
     assert len(deploy_events) == 0
 
 
-def test_get_version(test_identity_contract):
-    assert test_identity_contract.functions.version().call() == 1
+def test_get_version(each_identity_contract):
+    assert each_identity_contract.functions.version().call() == 1

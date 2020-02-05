@@ -3,7 +3,7 @@
 import pytest
 
 from tldeploy.core import deploy_network
-from .conftest import EXPIRATION_TIME
+from tests.conftest import EXPIRATION_TIME
 
 """
 This file showcases how to get relevant information related to trustlines transfer
