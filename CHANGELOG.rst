@@ -1,8 +1,15 @@
 ==========
 Change Log
 ==========
-`1.0.1`_ (unreleased)
+`1.1.0`_ (unreleased)
 -----------------------
+* Update signature of `executeTransaction` in identity: replaced `fees` with `baseFee`, `gasPrice`, and `gasLimit` (BREAKING)
+* Add `timeLimit`, `operationType`, and `feeRecipient` to signature of `executeTransaction` (BREAKING)
+* Rename `FeesPaid` event of identity to `FeePayment` (BREAKING)
+* Add `chainId` to constructor of `identityProxyFactory` used by identities to verify the chainId of meta-tx (BREAKING)
+* Add `version` to identity contract used to verify the `version` of meta-tx (BREAKING)
+* Update `identity.py` to match new `executeTransaction` signature (BREAKING)
+
 `1.0.0`_ (2019-12-30)
 -----------------------
 * Add function `cancelTrustlineUpdate(address counterparty)` to cancel a trustline update request in between msg.sender and counterparty.
