@@ -3,7 +3,7 @@ version: 2.1
 templates:
   tagged-filter: &tagged-filter
     tags:
-      only: /[0-9]+(\.[0-9]+)*/
+      only: /^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?(\.dev[0-9]+)?/
 
 executors:
   ubuntu-builder:
