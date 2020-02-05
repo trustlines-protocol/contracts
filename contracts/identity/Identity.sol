@@ -139,7 +139,7 @@ contract Identity is ProxyStorage {
         uint256 timeLimit,
         uint8 operationType
     )
-    internal
+    public
     view
     returns (bytes32)
     {
