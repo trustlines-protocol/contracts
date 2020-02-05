@@ -110,6 +110,26 @@ contract Identity is ProxyStorage {
         emit TransactionExecution(hash, status);
     }
 
+    function executeOwnerTransaction(
+        address payable to,
+        uint256 value,
+        bytes memory data,
+        uint8 operationType
+    )
+        public
+    {
+        require(msg.sender == owner, "Only owner can call this");
+        bool status = applyOperation(
+            to,
+            value,
+            data,
+            operationType,
+            gasleft()
+        );
+
+        require(status, "Transaction execution failed");
+    }
+
     function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
         if (nonce == 0) {
             return !hashUsed[hash];
