@@ -14,6 +14,7 @@ contract Identity is ProxyStorage {
     bool public initialised;
 
     mapping(bytes32 => bool) private hashUsed;
+    uint constant public maxNonce = 2 ** 255;
     uint public lastNonce = 0;
     // Divides the gas price value to allow for finer range of fee price
     uint constant public gasPriceDivisor = 1000000;
@@ -78,7 +79,9 @@ contract Identity is ProxyStorage {
         require(validateTimeLimit(timeLimit), "The transaction expired");
         require(validateSignature(hash, signature), "The transaction signature is not valid");
 
-        if (nonce == 0) {
+        // We allow nonce >= maxNonce to be able to change the hash via changing the nonce
+        // This allows for two meta-tx that would have the same hash otherwise
+        if (nonce == 0 || nonce >= maxNonce) {
             hashUsed[hash] = true; // To prevent replaying this meta transaction
         } else {
             lastNonce++;
@@ -134,7 +137,7 @@ contract Identity is ProxyStorage {
     }
 
     function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
-        if (nonce == 0) {
+        if (nonce == 0 || nonce >= maxNonce) {
             return !hashUsed[hash];
         } else {
             return lastNonce + 1 == nonce;
