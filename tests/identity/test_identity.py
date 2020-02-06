@@ -6,10 +6,8 @@ from hexbytes import HexBytes
 from tldeploy.core import deploy_network, deploy_identity
 from tldeploy.identity import (
     MetaTransaction,
-    Identity,
     UnexpectedIdentityContractException,
     build_create2_address,
-    deploy_proxied_identity,
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
@@ -21,52 +19,10 @@ def get_transaction_status(web3, tx_id):
     return bool(web3.eth.getTransactionReceipt(tx_id).get("status"))
 
 
-@pytest.fixture(scope="session")
-def identity_contract(deploy_contract, web3, owner, chain_id):
-
-    identity_contract = deploy_contract("Identity")
-    identity_contract.functions.init(owner, chain_id).transact({"from": owner})
-    web3.eth.sendTransaction(
-        {"to": identity_contract.address, "from": owner, "value": 1000000}
-    )
-    return identity_contract
-
-
-@pytest.fixture(scope="session")
-def proxied_identity_contract(
-    web3,
-    proxy_factory,
-    identity_implementation,
-    signature_of_owner_on_implementation,
-    owner,
-):
-    proxied_identity_contract = deploy_proxied_identity(
-        web3=web3,
-        factory_address=proxy_factory.address,
-        implementation_address=identity_implementation.address,
-        signature=signature_of_owner_on_implementation,
-    )
-
-    web3.eth.sendTransaction(
-        {"to": proxied_identity_contract.address, "from": owner, "value": 1000000}
-    )
-    return proxied_identity_contract
-
-
 @pytest.fixture(params=range(2))
 def each_identity_contract(request, identity_contract, proxied_identity_contract):
     """Allows to test against raw identity contract and the proxied identity contract"""
     return [identity_contract, proxied_identity_contract][request.param]
-
-
-@pytest.fixture(scope="session")
-def identity(identity_contract, owner_key):
-    return Identity(contract=identity_contract, owner_private_key=owner_key)
-
-
-@pytest.fixture(scope="session")
-def proxied_identity(proxied_identity_contract, owner_key):
-    return Identity(contract=proxied_identity_contract, owner_private_key=owner_key)
 
 
 @pytest.fixture(params=range(2))

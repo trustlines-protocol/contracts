@@ -1,6 +1,6 @@
 import pytest
 from deploy_tools import deploy_compiled_contract
-from tldeploy.identity import Delegate
+from tldeploy.identity import Delegate, Identity, deploy_proxied_identity
 from web3 import Web3
 
 from tldeploy.core import get_chain_id
@@ -66,6 +66,22 @@ def delegate(contract_assets, delegate_address, web3):
 
 
 @pytest.fixture(scope="session")
+def identity_contract(deploy_contract, web3, owner, chain_id):
+
+    identity_contract = deploy_contract("Identity")
+    identity_contract.functions.init(owner, chain_id).transact({"from": owner})
+    web3.eth.sendTransaction(
+        {"to": identity_contract.address, "from": owner, "value": 1000000}
+    )
+    return identity_contract
+
+
+@pytest.fixture(scope="session")
+def identity(identity_contract, owner_key):
+    return Identity(contract=identity_contract, owner_private_key=owner_key)
+
+
+@pytest.fixture(scope="session")
 def signature_of_owner_on_implementation(
     owner_key, identity_implementation, proxy_factory
 ):
@@ -73,3 +89,29 @@ def signature_of_owner_on_implementation(
     to_hash = ["0x19", "0x00", proxy_factory.address, identity_implementation.address]
     to_sign = Web3.solidityKeccak(abi_types, to_hash)
     return owner_key.sign_msg_hash(to_sign).to_bytes()
+
+
+@pytest.fixture(scope="session")
+def proxied_identity_contract(
+    web3,
+    proxy_factory,
+    identity_implementation,
+    signature_of_owner_on_implementation,
+    owner,
+):
+    proxied_identity_contract = deploy_proxied_identity(
+        web3=web3,
+        factory_address=proxy_factory.address,
+        implementation_address=identity_implementation.address,
+        signature=signature_of_owner_on_implementation,
+    )
+
+    web3.eth.sendTransaction(
+        {"to": proxied_identity_contract.address, "from": owner, "value": 1000000}
+    )
+    return proxied_identity_contract
+
+
+@pytest.fixture(scope="session")
+def proxied_identity(proxied_identity_contract, owner_key):
+    return Identity(contract=proxied_identity_contract, owner_private_key=owner_key)
