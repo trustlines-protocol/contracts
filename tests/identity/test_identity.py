@@ -1006,3 +1006,38 @@ def test_execute_owner_transaction_expired_time_limit(
         identity_contract.functions.executeOwnerTransaction(
             recipient, transfer_value, b"", time_limit, 0
         ).transact({"from": owner})
+
+
+def test_send_same_function_call_twice_without_nonce_tracking(
+    each_identity, test_contract, delegate, web3
+):
+    """Test that we can send two similar transactions to a contract by selecting a random nonce > 2**255"""
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    max_nonce = 2 ** 255
+    random_gap = 123456
+
+    meta_transaction = MetaTransaction.from_function_call(
+        function_call, to=to, nonce=max_nonce
+    )
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    meta_transaction = MetaTransaction.from_function_call(
+        function_call, to=to, nonce=max_nonce + random_gap
+    )
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    events = test_contract.events.TestEvent.createFilter(fromBlock=0).get_all_entries()
+
+    for event in events:
+        assert event["args"]["from"] == each_identity.address
+        assert event["args"]["value"] == 0
+        assert event["args"]["argument"] == argument
