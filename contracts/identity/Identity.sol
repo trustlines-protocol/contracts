@@ -203,6 +203,11 @@ contract Identity is ProxyStorage {
         return hash;
     }
 
+    function useHash(bytes32 hash) public {
+        require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
+        hashUsed[hash] = true;
+    }
+
     function applyOperation(
         address to,
         uint256 value,
