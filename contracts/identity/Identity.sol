@@ -114,17 +114,20 @@ contract Identity is ProxyStorage {
         address payable to,
         uint256 value,
         bytes memory data,
+        uint256 timeLimit,
         uint8 operationType
     )
         public
     {
         require(msg.sender == owner, "Only owner can call this");
+        require(validateTimeLimit(timeLimit), "The transaction expired");
+
         bool status = applyOperation(
             to,
             value,
             data,
             operationType,
-            gasleft()
+            uint(-1)
         );
 
         require(status, "Transaction execution failed");
