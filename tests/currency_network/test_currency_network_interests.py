@@ -6,7 +6,12 @@ from math import exp
 
 from eth_tester.exceptions import TransactionFailed
 from tldeploy.core import deploy_network
-from .conftest import EXTRA_DATA, EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
+from tests.conftest import (
+    EXTRA_DATA,
+    EXPIRATION_TIME,
+    MAX_UINT_64,
+    CurrencyNetworkAdapter,
+)
 
 trustlines = [
     (0, 1, 2000000000, 2000000000),

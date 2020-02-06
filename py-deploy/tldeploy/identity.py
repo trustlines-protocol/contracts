@@ -10,7 +10,7 @@ from deploy_tools.deploy import (
     send_function_call_transaction,
 )
 from eth_keys.datatypes import PrivateKey
-from hexbytes import HexBytes
+from eth_utils import to_checksum_address
 from web3 import Web3
 from web3.exceptions import BadFunctionCallOutput
 
@@ -160,10 +160,13 @@ class UnexpectedIdentityContractException(Exception):
 
 
 class Delegate:
-    def __init__(self, delegate_address: str, *, web3, identity_contract_abi):
+    def __init__(
+        self, delegate_address: str, *, web3, identity_contract_abi, default_gas=MAX_GAS
+    ):
         self.delegate_address = delegate_address
         self._web3 = web3
         self._identity_contract_abi = identity_contract_abi
+        self.default_gas = default_gas
 
     def estimate_gas_signed_meta_transaction(
         self, signed_meta_transaction: MetaTransaction
@@ -173,7 +176,7 @@ class Delegate:
         ).estimateGas({"from": self.delegate_address})
 
     def send_signed_meta_transaction(
-        self, signed_meta_transaction: MetaTransaction, gas: Optional[int] = MAX_GAS
+        self, signed_meta_transaction: MetaTransaction, gas: Optional[int] = None
     ) -> str:
         """
         Sends the meta transaction out inside of an ethereum transaction
@@ -184,6 +187,8 @@ class Delegate:
 
         if gas is not None:
             transaction_options["gas"] = gas
+        elif self.default_gas is not None:
+            transaction_options["gas"] = self.default_gas
 
         return self._meta_transaction_function_call(signed_meta_transaction).transact(
             transaction_options
@@ -435,7 +440,7 @@ def deploy_proxied_identity(web3, factory_address, implementation_address, signa
     receipt = send_function_call_transaction(function_call, web3=web3)
 
     deployment_event = factory.events.ProxyDeployment().processReceipt(receipt)
-    proxy_address = HexBytes(deployment_event[0]["args"]["proxyAddress"])
+    proxy_address = deployment_event[0]["args"]["proxyAddress"]
 
     computed_proxy_address = build_create2_address(factory_address, initcode)
     assert (
@@ -444,9 +449,7 @@ def deploy_proxied_identity(web3, factory_address, implementation_address, signa
 
     identity_interface = get_contract_interface("Identity")
     proxied_identity = web3.eth.contract(
-        address=proxy_address,
-        abi=identity_interface["abi"],
-        bytecode=identity_interface["bytecode"],
+        address=proxy_address, abi=identity_interface["abi"]
     )
     return proxied_identity
 
@@ -466,4 +469,4 @@ def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
     to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
     abi_types = ["bytes1", "address", "bytes32", "bytes32"]
 
-    return Web3.solidityKeccak(abi_types, to_hash)[12:]
+    return to_checksum_address(Web3.solidityKeccak(abi_types, to_hash)[12:])

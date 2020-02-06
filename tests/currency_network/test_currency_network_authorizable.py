@@ -5,7 +5,7 @@ import pytest
 import eth_tester.exceptions
 
 from tldeploy.core import deploy_network
-from .conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
 NETWORK_SETTING = {

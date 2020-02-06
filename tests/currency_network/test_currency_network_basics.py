@@ -5,7 +5,12 @@ import pytest
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-from .conftest import EXTRA_DATA, EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
+from tests.conftest import (
+    EXTRA_DATA,
+    EXPIRATION_TIME,
+    MAX_UINT_64,
+    CurrencyNetworkAdapter,
+)
 
 MAX_CREDITLINE = MAX_UINT_64
 
