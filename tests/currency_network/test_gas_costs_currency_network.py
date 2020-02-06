@@ -5,12 +5,9 @@
  They are not meant to enforce a limit.
  """
 import pytest
-from texttable import Texttable
-from web3 import Web3
-from tldeploy.core import deploy_network, deploy_identity, get_chain_id
-from tldeploy.identity import deploy_proxied_identity
+from tldeploy.core import deploy_network
 
-from .conftest import EXTRA_DATA, EXPIRATION_TIME
+from ..conftest import EXTRA_DATA, EXPIRATION_TIME, get_gas_costs, report_gas_costs
 
 trustlines = [
     (0, 1, 100, 150),
@@ -19,29 +16,6 @@ trustlines = [
     (3, 4, 400, 450),
     (0, 4, 500, 550),
 ]  # (A, B, clAB, clBA)
-
-
-def get_gas_costs(web3, tx_hash):
-    tx_receipt = web3.eth.getTransactionReceipt(tx_hash)
-    return tx_receipt.gasUsed
-
-
-def report_gas_costs(table: Texttable, topic: str, gas_cost: int, limit: int) -> None:
-    table.add_row([topic, gas_cost])
-    assert (
-        gas_cost <= limit
-    ), "Cost for {} were {} gas and exceeded the limit {}".format(
-        topic, gas_cost, limit
-    )
-
-
-@pytest.fixture(scope="session")
-def table():
-    table = Texttable()
-    table.add_row(["Topic", "Gas cost"])
-    yield table
-    print()
-    print(table.draw())
 
 
 @pytest.fixture(scope="session")
@@ -73,32 +47,6 @@ def currency_network_contract_with_trustlines(web3, accounts):
             accounts[A], accounts[B], clAB, clBA, 0, 0, False, 1, 1
         ).transact()
     return contract
-
-
-@pytest.fixture(scope="session")
-def identity_implementation(deploy_contract, web3):
-
-    identity_implementation = deploy_contract("Identity")
-    return identity_implementation
-
-
-@pytest.fixture(scope="session")
-def proxy_factory(deploy_contract, web3):
-
-    proxy_factory = deploy_contract(
-        "IdentityProxyFactory", constructor_args=(get_chain_id(web3),)
-    )
-    return proxy_factory
-
-
-@pytest.fixture(scope="session")
-def signature_of_owner_on_implementation(
-    account_keys, identity_implementation, proxy_factory
-):
-    abi_types = ["bytes1", "bytes1", "address", "address"]
-    to_hash = ["0x19", "0x00", proxy_factory.address, identity_implementation.address]
-    to_sign = Web3.solidityKeccak(abi_types, to_hash)
-    return account_keys[3].sign_msg_hash(to_sign).to_bytes()
 
 
 def test_cost_transfer_0_mediators(
@@ -215,44 +163,3 @@ def test_cost_close_trustline(
     tx_hash = contract.functions.closeTrustline(B).transact({"from": A})
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, "Close Trustline", gas_cost, limit=55000)
-
-
-def test_deploy_identity(web3, accounts, table):
-    A, *rest = accounts
-
-    block_number_before = web3.eth.blockNumber
-
-    deploy_identity(web3, A)
-
-    block_number_after = web3.eth.blockNumber
-
-    gas_cost = 0
-    for block_number in range(block_number_after, block_number_before, -1):
-        gas_cost += web3.eth.getBlock(block_number).gasUsed
-
-    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_500_000)
-
-
-def test_deploy_proxied_identity(
-    web3,
-    table,
-    proxy_factory,
-    identity_implementation,
-    signature_of_owner_on_implementation,
-):
-    block_number_before = web3.eth.blockNumber
-
-    deploy_proxied_identity(
-        web3,
-        proxy_factory.address,
-        identity_implementation.address,
-        signature_of_owner_on_implementation,
-    )
-
-    block_number_after = web3.eth.blockNumber
-
-    gas_cost = 0
-    for block_number in range(block_number_after, block_number_before, -1):
-        gas_cost += web3.eth.getBlock(block_number).gasUsed
-
-    report_gas_costs(table, "Deploy Proxied Identity", gas_cost, limit=310_000)

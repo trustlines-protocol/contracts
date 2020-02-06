@@ -1,5 +1,6 @@
 import pytest
 import eth_tester.backends.pyevm.main
+from texttable import Texttable
 
 import tldeploy.core
 
@@ -177,3 +178,26 @@ class CurrencyNetworkAdapter:
 
     def events(self, event_name: str):
         return list(getattr(self.contract.events, event_name).getLogs(fromBlock=0))
+
+
+@pytest.fixture(scope="session")
+def table():
+    table = Texttable()
+    table.add_row(["Topic", "Gas cost"])
+    yield table
+    print()
+    print(table.draw())
+
+
+def get_gas_costs(web3, tx_hash):
+    tx_receipt = web3.eth.getTransactionReceipt(tx_hash)
+    return tx_receipt.gasUsed
+
+
+def report_gas_costs(table: Texttable, topic: str, gas_cost: int, limit: int) -> None:
+    table.add_row([topic, gas_cost])
+    assert (
+        gas_cost <= limit
+    ), "Cost for {} were {} gas and exceeded the limit {}".format(
+        topic, gas_cost, limit
+    )
