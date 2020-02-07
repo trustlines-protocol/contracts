@@ -58,7 +58,9 @@ def test_deploy_proxied_identity(
     report_gas_costs(table, "Deploy Proxied Identity", gas_cost, limit=310_000)
 
 
-def test_meta_tx_overhead(web3, table, test_contract, identity, delegate):
+def test_meta_tx_over_regular_tx_overhead(
+    web3, table, test_contract, identity, delegate
+):
     """Tests the overhead of using a meta-tx compared to a regular tx"""
     # The test sends two meta-tx as the first meta-tx of an identity is more expensive than all the next ones
     # due to storage allocation
@@ -85,7 +87,7 @@ def test_meta_tx_overhead(web3, table, test_contract, identity, delegate):
     overhead = gas_cost_meta_tx - gas_cost_regular_tx
 
     report_gas_costs(
-        table, "Overhead of meta-tx on test transaction", overhead, limit=26_500
+        table, "Overhead of unproxied meta-tx over regular tx", overhead, limit=26_500
     )
 
 
@@ -116,5 +118,72 @@ def test_proxy_overhead(
     overhead = gas_cost_proxied_meta_tx - gas_cost_not_proxied_tx
 
     report_gas_costs(
-        table, "Overhead of a proxy on test transaction", overhead, limit=1_500
+        table, "Overhead of a proxy over non-proxy meta-tx", overhead, limit=1_500
+    )
+
+
+def test_meta_tx_over_own_identity_tx_overhead(
+    web3, table, test_contract, identity, owner, delegate
+):
+    """Tests the overhead of using a meta-tx compared to an owned identity tx"""
+    # The test sends two meta-tx as the first meta-tx of an identity is more expensive than all the next ones
+    # due to storage allocation
+
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    # first meta-tx
+    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
+    filled_meta_tx = identity.filled_and_signed_meta_transaction(meta_transaction)
+    delegate.send_signed_meta_transaction(filled_meta_tx)
+
+    # second meta-tx we meter
+    second_filled_meta_transaction = identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
+    meta_tx_id = delegate.send_signed_meta_transaction(second_filled_meta_transaction)
+    owner_tx_id = identity.contract.functions.executeOwnerTransaction(
+        to, 0, meta_transaction.data, 0, 0
+    ).transact({"from": owner})
+
+    gas_cost_meta_tx = get_gas_costs(web3, meta_tx_id)
+    gas_cost_owner_tx = get_gas_costs(web3, owner_tx_id)
+
+    overhead = gas_cost_meta_tx - gas_cost_owner_tx
+
+    report_gas_costs(
+        table,
+        "Overhead of unproxied meta-tx over owned transaction",
+        overhead,
+        limit=22_000,
+    )
+
+
+def test_own_identity_meta_tx_overhead(
+    web3, table, test_contract, identity, owner, delegate
+):
+    """Tests the overhead of using an owned meta-tx compared to a regular tx"""
+
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
+    owner_tx_id = identity.contract.functions.executeOwnerTransaction(
+        to, 0, meta_transaction.data, 0, 0
+    ).transact({"from": owner})
+
+    regular_tx_id = test_contract.functions.testFunction(argument).transact()
+
+    gas_cost_owner_meta_tx = get_gas_costs(web3, owner_tx_id)
+    gas_cost_regular_tx = get_gas_costs(web3, regular_tx_id)
+
+    overhead = gas_cost_owner_meta_tx - gas_cost_regular_tx
+
+    report_gas_costs(
+        table,
+        "Overhead of owned unproxied meta-tx over regular transaction",
+        overhead,
+        limit=5_000,
     )
