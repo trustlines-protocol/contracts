@@ -20,6 +20,7 @@ contract Identity is ProxyStorage {
     uint constant public gasPriceDivisor = 1000000;
 
     event TransactionExecution(bytes32 hash, bool status);
+    event TransactionCancellation(bytes32 hash);
     event FeePayment(uint value, address indexed recipient, address indexed currencyNetwork);
     event ContractDeployment(address deployed);
 
@@ -116,6 +117,7 @@ contract Identity is ProxyStorage {
     function cancelTransaction(bytes32 hash) public {
         require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
         hashUsed[hash] = true;
+        emit TransactionCancellation(hash);
     }
 
     function executeOwnerTransaction(
