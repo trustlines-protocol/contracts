@@ -929,7 +929,8 @@ def test_get_version(each_identity_contract):
     assert each_identity_contract.functions.version().call() == 1
 
 
-def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract):
+def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract, web3):
+    """Test that we can revoke a meta-tx that uses hash anti-replay mechanism via canceling the hash"""
     to = test_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
@@ -937,7 +938,7 @@ def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract):
     meta_transaction = each_identity.filled_and_signed_meta_transaction(
         MetaTransaction.from_function_call(function_call, to=to, nonce=0)
     )
-    revoke_function_call = each_identity.contract.functions.useHash(
+    revoke_function_call = each_identity.contract.functions.cancelTransaction(
         meta_transaction.hash
     )
     revoke_meta_transaction = each_identity.filled_and_signed_meta_transaction(
@@ -948,9 +949,12 @@ def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract):
     delegate.send_signed_meta_transaction(revoke_meta_transaction)
 
     assert not delegate.validate_meta_transaction(meta_transaction)
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
 
 
 def test_revoke_meta_transaction_nonce(each_identity, delegate, test_contract):
+    """Test that we can revoke a meta-tx that uses nonce anti-replay mechanism via using the nonce"""
     to = test_contract.address
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
@@ -965,6 +969,35 @@ def test_revoke_meta_transaction_nonce(each_identity, delegate, test_contract):
     delegate.send_signed_meta_transaction(revoke_meta_transaction)
 
     assert not delegate.validate_meta_transaction(meta_transaction)
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
+
+
+def test_reveoke_meta_transaction_nonce_via_hash(
+    each_identity, delegate, test_contract
+):
+    """Test that we can revoke a meta-tx that uses nonce anti-replay mechanism via canceling the hash"""
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to)
+    )
+
+    revoke_function_call = each_identity.contract.functions.cancelTransaction(
+        meta_transaction.hash
+    )
+    revoke_meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(
+            revoke_function_call, to=each_identity.address
+        )
+    )
+    delegate.send_signed_meta_transaction(revoke_meta_transaction)
+
+    assert not delegate.validate_meta_transaction(meta_transaction)
+    with pytest.raises(TransactionFailed):
+        delegate.send_signed_meta_transaction(meta_transaction)
 
 
 def test_execute_owner_transaction(owner, accounts, identity_contract, web3):

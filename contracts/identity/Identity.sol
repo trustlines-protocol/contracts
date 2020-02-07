@@ -113,6 +113,11 @@ contract Identity is ProxyStorage {
         emit TransactionExecution(hash, status);
     }
 
+    function cancelTransaction(bytes32 hash) public {
+        require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
+        hashUsed[hash] = true;
+    }
+
     function executeOwnerTransaction(
         address payable to,
         uint256 value,
@@ -136,11 +141,12 @@ contract Identity is ProxyStorage {
         require(status, "Transaction execution failed");
     }
 
+
     function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
         if (nonce == 0 || nonce >= maxNonce) {
             return !hashUsed[hash];
         } else {
-            return lastNonce + 1 == nonce;
+            return !hashUsed[hash] && lastNonce + 1 == nonce;
         }
 
     }
@@ -201,11 +207,6 @@ contract Identity is ProxyStorage {
         );
 
         return hash;
-    }
-
-    function useHash(bytes32 hash) public {
-        require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
-        hashUsed[hash] = true;
     }
 
     function applyOperation(
