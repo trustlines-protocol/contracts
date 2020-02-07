@@ -231,7 +231,6 @@ contract Identity is ProxyStorage {
         } else if (operationType == 2) {
             // regular create
             address deployed;
-            //TODO how to limit gas here?
             assembly {
                 deployed := create(value, add(data, 0x20), mload(data))
             }
@@ -242,7 +241,6 @@ contract Identity is ProxyStorage {
         } else if (operationType == 3) {
             // create2
             address deployed;
-            //TODO how to limit gas here?
             assembly {
               deployed := create2(value, add(data, 0x20), mload(data), 0)
             }
