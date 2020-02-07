@@ -948,6 +948,11 @@ def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract, we
     )
     delegate.send_signed_meta_transaction(revoke_meta_transaction)
 
+    events = each_identity.contract.events.TransactionCancellation().getLogs()
+
+    assert len(events) == 1
+    assert events[0]["args"]["hash"] == meta_transaction.hash
+
     assert not delegate.validate_meta_transaction(meta_transaction)
     with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
