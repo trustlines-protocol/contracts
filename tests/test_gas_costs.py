@@ -230,7 +230,7 @@ def test_deploy_identity(web3, accounts, table):
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_300_000)
+    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_400_000)
 
 
 def test_deploy_proxied_identity(

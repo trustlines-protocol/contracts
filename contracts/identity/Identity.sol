@@ -37,6 +37,12 @@ contract Identity is ProxyStorage {
         initialised = true;
     }
 
+    function changeImplementation(address _implementation) public {
+        require(msg.sender == address(this), "The implementation can only be changed by the contract itself");
+        implementation = _implementation;
+        emit ImplementationChange(_implementation);
+    }
+
     // solium-disable-next-line security/no-assign-params
     function executeTransaction(
         address payable to,

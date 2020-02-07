@@ -243,7 +243,7 @@ def test_change_identity_implementation(
     )
 
     to = proxy_contract_with_owner.address
-    function_call = proxy_contract_with_owner.functions.setImplementation(
+    function_call = proxied_identity.contract.functions.changeImplementation(
         identity_implementation_different_address.address
     )
 
@@ -271,7 +271,7 @@ def test_clientlib_calculate_proxy_address(proxy_factory, get_proxy_initcode):
     pre_computed_address = build_create2_address(
         proxy_factory.address, identity_proxy_initcode
     )
-    assert pre_computed_address == "0xFc22014081799F6eb79feCca92486EbDd276229b"
+    assert pre_computed_address == "0x7025175Ac3537be29f764bbeAB26d5f89b0F49aC"
 
 
 def test_deploy_identity_proxy(
@@ -296,3 +296,17 @@ def test_deploy_identity_proxy(
 
     assert proxy.address == pre_computed_address
     assert proxy.functions.implementation().call() == identity_implementation.address
+
+
+def remove_meta_data_hash(bytecode):
+    # According to https://solidity.readthedocs.io/en/v0.5.8/metadata.html?highlight=metadata
+    # the length of the meta data is 43 bytes
+    return bytecode[: -43 * 2]
+
+
+def test_correct_proxy_pinned(contract_assets):
+    """Test that the pinned proxy is the correct one.
+    Changes to the proxy contract will require to update the pinned proxy contract"""
+    assert remove_meta_data_hash(
+        contract_assets["Proxy"]["bytecode"]
+    ) == remove_meta_data_hash(get_pinned_proxy_interface()["bytecode"])

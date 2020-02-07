@@ -36,12 +36,8 @@ contract Proxy is ProxyStorage {
     }
 
     function setImplementation(address _implementation) public {
-        if (implementation == address(0)) {
-            implementation = _implementation;
-        } else {
-            require(msg.sender == address(this), "The implementation can only be changed by the contract itself");
-            implementation = _implementation;
-        }
+        require(implementation == address(0), "Implementation already set");
+        implementation = _implementation;
         emit ImplementationChange(_implementation);
     }
 }

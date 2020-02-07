@@ -7,4 +7,6 @@ contract ProxyStorage {
 
     address public implementation;
 
+    event ImplementationChange(address implementation);
+
 }
