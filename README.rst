@@ -4,8 +4,9 @@ Trustlines Smart Contract Platform
 ==================================
 
 This documentation explains how to deploy Trustlines smart contracts,
-for creating your own currency network and trustlines exchange. The
-current documentation is written for an Ubuntu Linux system.
+for creating your own currency network and trustlines exchange.
+The exchange functionality is not fully supported at this point.
+The current documentation is written for an Ubuntu Linux system.
 
 Prerequisites
 -------------
@@ -41,10 +42,10 @@ contracts.
 Ethereum client
 ~~~~~~~~~~~~~~~
 
-To deploy the Trustlines smart contracts, you need an ethereum client,
+To deploy the Trustlines smart contracts, you need access to an ethereum client,
 e.g. geth or parity, which is synced to the chain you want to use. The
 client needs to expose the JSON RPC endpoint. Additionally you need an
-unlocked account with enough ether to pay for the contract deployment.
+account with enough ether to pay for the contract deployment.
 
 Deployment setup
 ~~~~~~~~~~~~~~~~
@@ -69,14 +70,13 @@ with ``pip install -c constraints.txt -r requirements.txt``
 Download and install the solidity compiler solc into bin for compiling the
 contracts
 
-   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux && chmod +x $HOME/bin/solc``
+   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.5.8/solc-static-linux && chmod +x $HOME/bin/solc``
 
 Compiling
 ~~~~~~~~~
 
 The contracts can be compiled with ``make compile``. This will create a
-virtualenv `venv-populus` containing the populus program, which is used for
-compilation.
+file `contracts.json` with all the compiled contracts.
 
 
 Testing
@@ -88,6 +88,7 @@ automatically, there's no need to call ``make compile`` manually.
 
 Installation
 ~~~~~~~~~~~~
+
 Please run `make install` to install the trustlines-contracts-bin and
 trustlines-contracts-deploy tool from the git checkout.
 
