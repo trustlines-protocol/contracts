@@ -30,7 +30,7 @@ def test_deploy_identity(web3, accounts, table):
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_500_000)
+    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_600_000)
 
 
 def test_deploy_proxied_identity(
@@ -87,7 +87,7 @@ def test_meta_tx_over_regular_tx_overhead(
     overhead = gas_cost_meta_tx - gas_cost_regular_tx
 
     report_gas_costs(
-        table, "Overhead of unproxied meta-tx over regular tx", overhead, limit=26_500
+        table, "Overhead of unproxied meta-tx over regular tx", overhead, limit=26700
     )
 
 
@@ -118,7 +118,7 @@ def test_proxy_overhead(
     overhead = gas_cost_proxied_meta_tx - gas_cost_not_proxied_tx
 
     report_gas_costs(
-        table, "Overhead of a proxy over non-proxy meta-tx", overhead, limit=1_500
+        table, "Overhead of a proxy over non-proxy meta-tx", overhead, limit=1500
     )
 
 
@@ -156,7 +156,7 @@ def test_meta_tx_over_own_identity_tx_overhead(
         table,
         "Overhead of unproxied meta-tx over owned transaction",
         overhead,
-        limit=22_000,
+        limit=22000,
     )
 
 
@@ -185,5 +185,5 @@ def test_own_identity_meta_tx_overhead(
         table,
         "Overhead of owned unproxied meta-tx over regular transaction",
         overhead,
-        limit=5_000,
+        limit=5000,
     )
