@@ -281,7 +281,7 @@ class Delegate:
             ).call()
         except BadFunctionCallOutput:
             raise UnexpectedIdentityContractException(
-                "validateSignature function not found"
+                "validateTimeLimit function not found"
             )
 
         return time_limit_valid
