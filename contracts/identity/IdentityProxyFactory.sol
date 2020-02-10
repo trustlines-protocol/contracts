@@ -5,6 +5,10 @@ import "./Proxy.sol";
 import "./Identity.sol";
 
 
+/**
+ * @title Factory to create proxy contracts
+ **/
+
 contract IdentityProxyFactory {
 
     event ProxyDeployment(address owner, address proxyAddress, address implementationAddress);
@@ -15,7 +19,14 @@ contract IdentityProxyFactory {
         chainId = _chainId;
     }
 
-    function deployProxy(bytes memory initcode, address implementationAddress, bytes memory signature) public {
+    /**
+     * @notice Deploys a proxy contract by executing `initcode` and set the implementation at `implementation`
+     * @dev Deploys a proxy contract. Checks the given signature to make sure the right implementation address is set.
+     * @param initcode The initcode to be executed for contract creation
+     * @param implementation The address of the implementation to set
+     * @param signature Signature of owner of the used implementation address
+     **/
+    function deployProxy(bytes memory initcode, address implementation, bytes memory signature) public {
         // we need to  check a signature there to make sure the owner authorized this implementationAddress
         address owner;
         assembly {
@@ -24,7 +35,7 @@ contract IdentityProxyFactory {
             owner := mload(add(initcode, mload(initcode)))
         }
         require(
-            verifySignature(implementationAddress, owner, signature),
+            verifySignature(implementation, owner, signature),
             "The given signature does not match the owner from the given initcode.");
 
         address payable proxyAddress;
@@ -35,10 +46,10 @@ contract IdentityProxyFactory {
           }
         }
 
-        Proxy(proxyAddress).setImplementation(implementationAddress);
+        Proxy(proxyAddress).setImplementation(implementation);
         Identity(proxyAddress).init(owner, chainId);
 
-        emit ProxyDeployment(owner, proxyAddress, implementationAddress);
+        emit ProxyDeployment(owner, proxyAddress, implementation);
     }
 
     function verifySignature(address implementationAddress, address owner, bytes memory signature) internal view returns (bool) {
