@@ -5,11 +5,20 @@ import "../currency-network/DebtTracking.sol";
 import "./ProxyStorage.sol";
 
 
+/**
+ * @title On-chain identity and meta-transaction executing contract
+ * @dev Represents a users on-chain identity and allows to execute meta-transactions where the gas of the ethereum transaction
+        is not payed by the owner of the identity, but a delegate. The delegate can be payed in form of a debt
+        within a Trustlines Currency Network.
+ **/
 contract Identity is ProxyStorage {
 
+    /// Supported version of the meta transaction protocol
     uint constant public version  = 1;
 
+    /// Owner of the contract who controls what can be done with it
     address public owner;
+    /// ChainId where this contract is deployed for replay protection
     uint public chainId;
     bool public initialised;
 
@@ -39,12 +48,42 @@ contract Identity is ProxyStorage {
         initialised = true;
     }
 
+
+    /**
+     * @notice Changes the implementation contract address to `_implementation`
+     * @dev Changes the implementation contract if this identity uses a proxy. This allows to upgrade the
+            functionality of a proxied identity contract to a newer protocol.
+     *      Only works, if called via a proxy contract.
+     * @param _implementation Address of the new identity implementation contract.
+     **/
     function changeImplementation(address _implementation) public {
         require(msg.sender == address(this), "The implementation can only be changed by the contract itself");
         implementation = _implementation;
         emit ImplementationChange(_implementation);
     }
 
+    /**
+     * @notice Executes the given meta-transaction
+     * @param to Address where data should be executed and that will receive `value` coins
+     * @param value Amount of coins to be sent to `to`
+     * @param data Encoded function call to be executed at `to`
+     * @param baseFee Fixed base fee in the selected currency network to be payed by this identity to
+              `feeRecipient` if set, or `msg.sender`. Only has to be payed, if the meta-transaction succeeds.
+     * @param gasPrice Price per 1M gas in the selected currency network to be payed by this contract to
+              `feeRecipient` if set, or `msg.sender`. Only has to be payed, if the meta-transaction succeeds.
+     * @param gasLimit Maximum amount of gas the meta-transaction can consume and the sender is willing to pay.
+     * @param feeRecipient Recipient of the meta-transaction fee, or the zero address. If set to the zero address
+              the fee goes to msg.sender.
+     * @param currencyNetworkOfFees CurrencyNetwork in which to pay the fees.
+     * @param nonce Number used once for replay protection. Can either be an increasing number to enforce the order
+              of meta-transactions, and then must be equal to lastNonce + 1,
+              or can be a random number >= `maxNonce` or 0 if the order does not matter. In the second case the hash of
+              the meta-transaction is used for replay protection and the nonce can be used to generate a unique hash.
+     * @param timeLimit Timestamp until when the meta transaction can be executed.
+     * @param operationType How to apply `data` to `to`. Valid operation types are CALL(0), DELEGATECALL(1),
+              CREATE(2) and CREATE2(3)
+     * @param signature Signature of the meta transaction.
+     **/
     // solium-disable-next-line security/no-assign-params
     function executeTransaction(
         address payable to,
@@ -114,12 +153,28 @@ contract Identity is ProxyStorage {
         emit TransactionExecution(hash, status);
     }
 
-    function cancelTransaction(bytes32 hash) public {
+    /**
+     * @notice Cancels the meta-transaction with hash `txHash`
+     * @dev Cancels a meta-transaction by invalidating the transaction hash
+     * @param txHash hash of the meta-transaction to be cancelled
+     **/
+    function cancelTransaction(bytes32 txHash) public {
         require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
-        hashUsed[hash] = true;
-        emit TransactionCancellation(hash);
+        hashUsed[txHash] = true;
+        emit TransactionCancellation(txHash);
     }
 
+    /**
+     * Executes the given function call `data` at `to` and sends `value` coins
+     * @dev Executes a function in the name of this identity. Reverts if the function call fails. Can only be called
+               by the owner of this identity.
+     * @param to The address where to execute the function and where to send `value` coins
+     * @param value The amount of coins to send to `to`
+     * @param data The encoded function call to be executed at `to`
+     * @param timeLimit Timestamp until which this function call is allowed to be executed, afterwards it will revert
+     * @param operationType How to apply `data` to `to`. Valid operation types are CALL(0), DELEGATECALL(1),
+              CREATE(2) and CREATE2(3)
+     **/
     function executeOwnerTransaction(
         address payable to,
         uint256 value,
@@ -144,15 +199,26 @@ contract Identity is ProxyStorage {
     }
 
 
-    function validateNonce(uint nonce, bytes32 hash) public view returns (bool) {
+    /**
+     * @dev Validates the used nonce for replay protection and the transaction hash
+     * @param nonce The nonce to be used
+     * @param txHash The hash of the meta-transaction
+     * @return True, if the nonce is correct and the txHash is unused, false otherwise
+     **/
+    function validateNonce(uint nonce, bytes32 txHash) public view returns (bool) {
         if (nonce == 0 || nonce >= maxNonce) {
-            return !hashUsed[hash];
+            return !hashUsed[txHash];
         } else {
-            return !hashUsed[hash] && lastNonce + 1 == nonce;
+            return !hashUsed[txHash] && lastNonce + 1 == nonce;
         }
 
     }
 
+    /**
+     * @dev Validates if the timeLimit is still valid
+     * @param timeLimit The timestamp to check. A zero timestamp will disable the timeLimit, and thus always succeed
+     * @return True, if the timestamp is valid, false otherwise
+     **/
     function validateTimeLimit(uint timeLimit) public view returns (bool) {
         if (timeLimit == 0) {
             return true;
@@ -161,11 +227,19 @@ contract Identity is ProxyStorage {
         }
     }
 
+    /**
+     * @dev Validates the signature on a given hash
+     **/
     function validateSignature(bytes32 hash, bytes memory _signature) public view returns (bool) {
         address signer = ECDSA.recover(hash, _signature);
         return owner == signer;
     }
 
+    /**
+     * @dev Calculates the meta-transaction hash from the meta-transaction fields and the identity fields
+               For a description of the parameters, see executeTransaction
+     * @return The transaction hash
+     **/
     function transactionHash(
         address to,
         uint256 value,

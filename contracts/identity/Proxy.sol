@@ -3,9 +3,10 @@ pragma solidity ^0.5.8;
 import "./ProxyStorage.sol";
 
 
+/**
+ * @title Proxy contract that forwards all calls to the implementation contract via a DELEGATECALL
+ **/
 contract Proxy is ProxyStorage {
-
-    event ImplementationChange(address implementation);
 
     constructor(address owner) public {
         // solium-disable-previous-line no-empty-blocks
