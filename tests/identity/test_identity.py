@@ -1005,43 +1005,39 @@ def test_reveoke_meta_transaction_nonce_via_hash(
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
-def test_execute_owner_transaction(owner, accounts, identity_contract, web3):
+def test_execute(owner, accounts, identity_contract, web3):
     recipient = accounts[1]
     transfer_value = 123
     initial_recipient_balance = web3.eth.getBalance(recipient)
-    identity_contract.functions.executeOwnerTransaction(
-        recipient, transfer_value, b"", 0, 0
-    ).transact({"from": owner})
+    identity_contract.functions.execute(recipient, transfer_value, b"", 0, 0).transact(
+        {"from": owner}
+    )
     post_recipient_balance = web3.eth.getBalance(recipient)
 
     assert post_recipient_balance - initial_recipient_balance == transfer_value
 
 
-def test_execute_owner_transaction_below_time_limit(
-    owner, accounts, identity_contract, web3
-):
+def test_execute_below_time_limit(owner, accounts, identity_contract, web3):
     recipient = accounts[1]
     transfer_value = 123
     time_limit = web3.eth.getBlock("latest").timestamp + 100
-    identity_contract.functions.executeOwnerTransaction(
+    identity_contract.functions.execute(
         recipient, transfer_value, b"", time_limit, 0
     ).transact({"from": owner})
 
 
-def test_execute_owner_transaction_expired_time_limit(
-    owner, accounts, identity_contract, web3
-):
+def test_execute_expired_time_limit(owner, accounts, identity_contract, web3):
     recipient = accounts[1]
     transfer_value = 123
     time_limit = web3.eth.getBlock("latest").timestamp - 1
     with pytest.raises(TransactionFailed):
-        identity_contract.functions.executeOwnerTransaction(
+        identity_contract.functions.execute(
             recipient, transfer_value, b"", time_limit, 0
         ).transact({"from": owner})
 
 
 def test_send_same_function_call_twice_without_nonce_tracking(
-    each_identity, test_contract, delegate, web3
+    each_identity, test_contract, delegate
 ):
     """Test that we can send two similar transactions to a contract by selecting a random nonce > 2**255"""
     to = test_contract.address

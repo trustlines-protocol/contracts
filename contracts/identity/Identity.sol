@@ -175,7 +175,7 @@ contract Identity is ProxyStorage {
      * @param operationType How to apply `data` to `to`. Valid operation types are CALL(0), DELEGATECALL(1),
               CREATE(2) and CREATE2(3)
      **/
-    function executeOwnerTransaction(
+    function execute(
         address payable to,
         uint256 value,
         bytes memory data,
