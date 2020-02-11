@@ -929,7 +929,7 @@ def test_get_version(each_identity_contract):
     assert each_identity_contract.functions.version().call() == 1
 
 
-def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract, web3):
+def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract):
     """Test that we can revoke a meta-tx that uses hash anti-replay mechanism via canceling the hash"""
     to = test_contract.address
     argument = 10
@@ -956,6 +956,30 @@ def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract, we
     assert not delegate.validate_meta_transaction(meta_transaction)
     with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
+
+
+def test_cannot_revoke_executed_transaction(each_identity, delegate, test_contract):
+    """Test that we can not revoke a meta-tx that was already executed"""
+    to = test_contract.address
+    argument = 10
+    function_call = test_contract.functions.testFunction(argument)
+
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(function_call, to=to, nonce=0)
+    )
+    delegate.send_signed_meta_transaction(meta_transaction)
+    revoke_function_call = each_identity.contract.functions.cancelTransaction(
+        meta_transaction.hash
+    )
+    revoke_meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction.from_function_call(
+            revoke_function_call, to=each_identity.address
+        )
+    )
+    delegate.send_signed_meta_transaction(revoke_meta_transaction)
+
+    events = each_identity.contract.events.TransactionCancellation().getLogs()
+    assert len(events) == 0
 
 
 def test_revoke_meta_transaction_nonce(each_identity, delegate, test_contract):
