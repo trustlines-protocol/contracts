@@ -160,6 +160,7 @@ contract Identity is ProxyStorage {
      **/
     function cancelTransaction(bytes32 txHash) public {
         require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
+        require(!hashUsed[txHash], "Transaction already executed or cancelled");
         hashUsed[txHash] = true;
         emit TransactionCancellation(txHash);
     }
