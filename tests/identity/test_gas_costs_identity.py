@@ -143,7 +143,7 @@ def test_meta_tx_over_own_identity_tx_overhead(
         meta_transaction
     )
     meta_tx_id = delegate.send_signed_meta_transaction(second_filled_meta_transaction)
-    owner_tx_id = identity.contract.functions.executeOwnerTransaction(
+    owner_tx_id = identity.contract.functions.execute(
         to, 0, meta_transaction.data, 0, 0
     ).transact({"from": owner})
 
@@ -170,7 +170,7 @@ def test_own_identity_meta_tx_overhead(
     function_call = test_contract.functions.testFunction(argument)
 
     meta_transaction = MetaTransaction.from_function_call(function_call, to=to)
-    owner_tx_id = identity.contract.functions.executeOwnerTransaction(
+    owner_tx_id = identity.contract.functions.execute(
         to, 0, meta_transaction.data, 0, 0
     ).transact({"from": owner})
 
