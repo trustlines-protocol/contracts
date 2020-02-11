@@ -79,9 +79,11 @@ def non_payable_contract_inticode(contract_assets):
     )
 
 
-def test_init_already_init(identity_contract, accounts):
+def test_init_already_init(each_identity_contract, accounts):
     with pytest.raises(TransactionFailed):
-        identity_contract.functions.init(accounts[0], 0).transact({"from": accounts[0]})
+        each_identity_contract.functions.init(accounts[0], 0).transact(
+            {"from": accounts[0]}
+        )
 
 
 def test_signature_from_owner(each_identity_contract, owner_key):
@@ -1029,33 +1031,33 @@ def test_reveoke_meta_transaction_nonce_via_hash(
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
-def test_execute(owner, accounts, identity_contract, web3):
+def test_execute(owner, accounts, each_identity_contract, web3):
     recipient = accounts[1]
     transfer_value = 123
     initial_recipient_balance = web3.eth.getBalance(recipient)
-    identity_contract.functions.execute(recipient, transfer_value, b"", 0, 0).transact(
-        {"from": owner}
-    )
+    each_identity_contract.functions.execute(
+        recipient, transfer_value, b"", 0, 0
+    ).transact({"from": owner})
     post_recipient_balance = web3.eth.getBalance(recipient)
 
     assert post_recipient_balance - initial_recipient_balance == transfer_value
 
 
-def test_execute_below_time_limit(owner, accounts, identity_contract, web3):
+def test_execute_below_time_limit(owner, accounts, each_identity_contract, web3):
     recipient = accounts[1]
     transfer_value = 123
     time_limit = web3.eth.getBlock("latest").timestamp + 100
-    identity_contract.functions.execute(
+    each_identity_contract.functions.execute(
         recipient, transfer_value, b"", time_limit, 0
     ).transact({"from": owner})
 
 
-def test_execute_expired_time_limit(owner, accounts, identity_contract, web3):
+def test_execute_expired_time_limit(owner, accounts, each_identity_contract, web3):
     recipient = accounts[1]
     transfer_value = 123
     time_limit = web3.eth.getBlock("latest").timestamp - 1
     with pytest.raises(TransactionFailed):
-        identity_contract.functions.execute(
+        each_identity_contract.functions.execute(
             recipient, transfer_value, b"", time_limit, 0
         ).transact({"from": owner})
 
