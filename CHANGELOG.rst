@@ -9,6 +9,10 @@ Change Log
 * Add `chainId` to constructor of `identityProxyFactory` used by identities to verify the chainId of meta-tx (BREAKING)
 * Add `version` to identity contract used to verify the `version` of meta-tx (BREAKING)
 * Update `identity.py` to match new `executeTransaction` signature (BREAKING)
+* Add function `execute()` in identity to execute a transaction from the owner without having to check a signature and account for fees
+* Add function `cancelTransaction(txHash)` in identity to invalidate meta-transactions with hash `txHash`
+* Update `validateNonce()` in identity to also validate if the hash was used
+* Add mechanism to accept every `nonce > 2**255` to allow for replaying transactions that would otherwise have the same hash
 
 `1.0.0`_ (2019-12-30)
 -----------------------
