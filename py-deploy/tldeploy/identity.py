@@ -159,6 +159,22 @@ class UnexpectedIdentityContractException(Exception):
     pass
 
 
+class ValidateTimeLimitNotFound(UnexpectedIdentityContractException):
+    pass
+
+
+class ValidateNonceNotFound(UnexpectedIdentityContractException):
+    pass
+
+
+class ValidateSignatureNotFound(UnexpectedIdentityContractException):
+    pass
+
+
+class LastNonceFunctionNotFound(UnexpectedIdentityContractException):
+    pass
+
+
 class Delegate:
     def __init__(
         self, delegate_address: str, *, web3, identity_contract_abi, default_gas=MAX_GAS
@@ -234,9 +250,7 @@ class Delegate:
                 signed_meta_transaction.nonce, signed_meta_transaction.hash
             ).call()
         except BadFunctionCallOutput:
-            raise UnexpectedIdentityContractException(
-                "validateNonce function not found"
-            )
+            raise ValidateNonceNotFound
 
         return nonce_valid
 
@@ -257,9 +271,7 @@ class Delegate:
                 signed_meta_transaction.hash, signed_meta_transaction.signature
             ).call()
         except BadFunctionCallOutput:
-            raise UnexpectedIdentityContractException(
-                "validateSignature function not found"
-            )
+            raise ValidateSignatureNotFound
 
         return signature_valid
 
@@ -280,9 +292,7 @@ class Delegate:
                 meta_transaction.time_limit
             ).call()
         except BadFunctionCallOutput:
-            raise UnexpectedIdentityContractException(
-                "validateTimeLimit function not found"
-            )
+            raise ValidateTimeLimitNotFound
 
         return time_limit_valid
 
@@ -303,7 +313,7 @@ class Delegate:
         try:
             next_nonce = contract.functions.lastNonce().call() + 1
         except BadFunctionCallOutput:
-            raise UnexpectedIdentityContractException("lastNonce function not found")
+            raise LastNonceFunctionNotFound
         return next_nonce
 
     def _get_identity_contract(self, address: str):
