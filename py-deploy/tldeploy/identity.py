@@ -13,6 +13,7 @@ from eth_keys.datatypes import PrivateKey
 from eth_utils import to_checksum_address
 from web3 import Web3
 from web3.exceptions import BadFunctionCallOutput
+from hexbytes import HexBytes
 
 from tldeploy.core import deploy, get_contract_interface, get_chain_id
 from tldeploy.signing import sign_msg_hash, solidity_keccak
@@ -29,6 +30,13 @@ def validate_and_checksum_addresses(addresses):
         else:
             raise ValueError(f"Given input {address} is not a valid address.")
     return formatted_addresses
+
+
+class MetaTransactionStatus(Enum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    PENDING = "pending"
+    NOT_FOUND = "not found"
 
 
 @attr.s(auto_attribs=True, kw_only=True, frozen=True)
@@ -339,6 +347,26 @@ class Delegate:
             signed_meta_transaction.operation_type.value,
             signed_meta_transaction.signature,
         )
+
+    def get_meta_transaction_status(
+        self, identity_address, hash, *, from_block=0, to_block="latest"
+    ):
+        identity_contract = self._get_identity_contract(identity_address)
+
+        # the filter cannot handle bytes32 values as hex strings, use HexBytes()
+        meta_tx_execution_logs = identity_contract.events.TransactionExecution.getLogs(
+            fromBlock=from_block,
+            toBlock=to_block,
+            argument_filters={"hash": HexBytes(hash)},
+        )
+        assert len(meta_tx_execution_logs) <= 1
+        if len(meta_tx_execution_logs) == 1:
+            meta_tx_status = meta_tx_execution_logs[0]["args"]["status"]
+            if meta_tx_status:
+                return MetaTransactionStatus.SUCCESS
+            else:
+                return MetaTransactionStatus.FAILURE
+        return MetaTransactionStatus.NOT_FOUND
 
 
 class Identity:
