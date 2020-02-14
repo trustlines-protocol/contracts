@@ -8,6 +8,7 @@ from tldeploy.identity import (
     MetaTransaction,
     UnexpectedIdentityContractException,
     build_create2_address,
+    MetaTransactionStatus,
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
@@ -1095,3 +1096,47 @@ def test_send_same_function_call_twice_without_nonce_tracking(
         assert event["args"]["from"] == each_identity.address
         assert event["args"]["value"] == 0
         assert event["args"]["argument"] == argument
+
+
+def test_get_successful_meta_transaction_status(each_identity, delegate):
+
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=each_identity.address)
+    )
+
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    meta_tx_status = delegate.get_meta_transaction_status(
+        each_identity.address, meta_transaction.hash
+    )
+    assert meta_tx_status == MetaTransactionStatus.SUCCESS
+
+
+def test_get_failed_meta_transaction_status(each_identity, delegate, test_contract):
+
+    meta_transaction = MetaTransaction.from_function_call(
+        test_contract.functions.fails(), to=test_contract.address
+    )
+
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        meta_transaction
+    )
+
+    delegate.send_signed_meta_transaction(meta_transaction)
+
+    meta_tx_status = delegate.get_meta_transaction_status(
+        each_identity.address, meta_transaction.hash
+    )
+    assert meta_tx_status == MetaTransactionStatus.FAILURE
+
+
+def test_get_not_found_meta_transaction_status(each_identity, delegate):
+
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=each_identity.address)
+    )
+
+    meta_tx_status = delegate.get_meta_transaction_status(
+        each_identity.address, meta_transaction.hash
+    )
+    assert meta_tx_status == MetaTransactionStatus.NOT_FOUND
