@@ -28,8 +28,8 @@ contract Identity is ProxyStorage {
     // Divides the gas price value to allow for finer range of fee price
     uint constant public gasPriceDivisor = 1000000;
 
-    event TransactionExecution(bytes32 hash, bool status);
-    event TransactionCancellation(bytes32 hash);
+    event TransactionExecution(bytes32 indexed hash, bool status);
+    event TransactionCancellation(bytes32 indexed hash);
     event FeePayment(uint value, address indexed recipient, address indexed currencyNetwork);
     event ContractDeployment(address deployed);
 
@@ -43,9 +43,10 @@ contract Identity is ProxyStorage {
 
     function init(address _owner, uint _chainId) public {
         require(! initialised, "The contract has already been initialised.");
+        initialised = true;
+
         owner = _owner;
         chainId = _chainId;
-        initialised = true;
     }
 
 
