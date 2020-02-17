@@ -1,18 +1,18 @@
 ==========
 Change Log
 ==========
-`1.1.0`_ (unreleased)
+`1.1.0`_ (2020-02-17)
 -----------------------
-* Update signature of `executeTransaction` in identity: replaced `fees` with `baseFee`, `gasPrice`, and `gasLimit` (BREAKING)
 * Add `timeLimit`, `operationType`, and `feeRecipient` to signature of `executeTransaction` (BREAKING)
-* Rename `FeesPaid` event of identity to `FeePayment` (BREAKING)
 * Add `chainId` to constructor of `identityProxyFactory` used by identities to verify the chainId of meta-tx (BREAKING)
 * Add `version` to identity contract used to verify the `version` of meta-tx (BREAKING)
-* Update `identity.py` to match new `executeTransaction` signature (BREAKING)
 * Add function `execute()` in identity to execute a transaction from the owner without having to check a signature and account for fees
 * Add function `cancelTransaction(txHash)` in identity to invalidate meta-transactions with hash `txHash`
-* Update `validateNonce()` in identity to also validate if the hash was used
 * Add mechanism to accept every `nonce > 2**255` to allow for replaying transactions that would otherwise have the same hash
+* Update `validateNonce()` in identity to also validate if the hash was used
+* Update signature of `executeTransaction` in identity: replaced `fees` with `baseFee`, `gasPrice`, and `gasLimit` (BREAKING)
+* Update `identity.py` to match new `executeTransaction` signature (BREAKING)
+* Rename `FeesPaid` event of identity to `FeePayment` (BREAKING)
 
 `1.0.0`_ (2019-12-30)
 -----------------------
@@ -226,4 +226,4 @@ The rest of the changes are only interesting for developers:
 .. _0.10.0: https://github.com/trustlines-protocol/contracts/compare/0.9.3...0.10.0
 .. _0.10.1: https://github.com/trustlines-protocol/contracts/compare/0.10.0...0.10.1
 .. _1.0.0: https://github.com/trustlines-protocol/contracts/compare/0.10.1...1.0.0
-.. _1.0.1: https://github.com/trustlines-protocol/contracts/compare/1.0.0...master
+.. _1.1.0: https://github.com/trustlines-protocol/contracts/compare/1.0.0...master
