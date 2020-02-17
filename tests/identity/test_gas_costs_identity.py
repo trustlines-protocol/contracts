@@ -87,7 +87,7 @@ def test_meta_tx_over_regular_tx_overhead(
     overhead = gas_cost_meta_tx - gas_cost_regular_tx
 
     report_gas_costs(
-        table, "Overhead of unproxied meta-tx over regular tx", overhead, limit=26700
+        table, "Overhead of unproxied meta-tx over regular tx", overhead, limit=26750
     )
 
 
