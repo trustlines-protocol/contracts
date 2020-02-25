@@ -1,6 +1,11 @@
 ==========
 Change Log
 ==========
+`1.1.1`_ (2020-02-25)
+-----------------------
+* Add function of Delegate `get_meta_transaction_status`
+
+
 `1.1.0`_ (2020-02-17)
 -----------------------
 * Add `timeLimit`, `operationType`, and `feeRecipient` to signature of `executeTransaction` (BREAKING)
@@ -226,4 +231,5 @@ The rest of the changes are only interesting for developers:
 .. _0.10.0: https://github.com/trustlines-protocol/contracts/compare/0.9.3...0.10.0
 .. _0.10.1: https://github.com/trustlines-protocol/contracts/compare/0.10.0...0.10.1
 .. _1.0.0: https://github.com/trustlines-protocol/contracts/compare/0.10.1...1.0.0
-.. _1.1.0: https://github.com/trustlines-protocol/contracts/compare/1.0.0...master
+.. _1.1.0: https://github.com/trustlines-protocol/contracts/compare/1.0.0...1.1.0
+.. _1.1.1: https://github.com/trustlines-protocol/contracts/compare/1.1.0...master
