@@ -163,3 +163,12 @@ def test_cost_close_trustline(
     tx_hash = contract.functions.closeTrustline(B).transact({"from": A})
     gas_cost = get_gas_costs(web3, tx_hash)
     report_gas_costs(table, "Close Trustline", gas_cost, limit=55000)
+
+
+def test_cancel_trustline_update(web3, currency_network_contract, accounts, table):
+    contract = currency_network_contract
+    A, B, *rest = accounts
+    contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
+    tx_hash = contract.functions.cancelTrustlineUpdate(B).transact({"from": A})
+    gas_cost = get_gas_costs(web3, tx_hash)
+    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=19000)
