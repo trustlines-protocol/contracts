@@ -1140,3 +1140,23 @@ def test_get_not_found_meta_transaction_status(each_identity, delegate):
         each_identity.address, meta_transaction.hash
     )
     assert meta_tx_status == MetaTransactionStatus.NOT_FOUND
+
+
+def test_set_delegate_transaction_params(web3, each_identity, delegate, accounts):
+
+    meta_transaction = each_identity.filled_and_signed_meta_transaction(
+        MetaTransaction(to=each_identity.address)
+    )
+
+    transaction_options = {"gasPrice": 10000, "gas": 1000000, "from": accounts[2]}
+
+    assert transaction_options["from"] != delegate.delegate_address
+    tx_hash = delegate.send_signed_meta_transaction(
+        meta_transaction, transaction_options=transaction_options.copy()
+    )
+
+    tx = web3.eth.getTransaction(tx_hash)
+
+    assert tx["from"] == transaction_options["from"]
+    assert tx["gas"] == transaction_options["gas"]
+    assert tx["gasPrice"] == transaction_options["gasPrice"]

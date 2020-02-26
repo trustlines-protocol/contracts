@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, MutableMapping
 
 import attr
 import pkg_resources
@@ -200,18 +200,27 @@ class Delegate:
         ).estimateGas({"from": self.delegate_address})
 
     def send_signed_meta_transaction(
-        self, signed_meta_transaction: MetaTransaction, gas: Optional[int] = None
+        self,
+        signed_meta_transaction: MetaTransaction,
+        *,
+        transaction_options: MutableMapping[str, Any] = None,
     ) -> str:
         """
         Sends the meta transaction out inside of an ethereum transaction
-        Returns: the hash of the envelop ethereum transaction
+        Args:
+            signed_meta_transaction: The signed meta transaction to be sent
+            transaction_options: additional options for the envelop ethereum transaction.
+                                 Some default will be set if not provided in here.
+        Returns:
+            the hash of the envelop ethereum transaction
         """
+        if transaction_options is None:
+            transaction_options = {}
 
-        transaction_options: Dict[str, Any] = {"from": self.delegate_address}
+        if "from" not in transaction_options:
+            transaction_options["from"] = self.delegate_address
 
-        if gas is not None:
-            transaction_options["gas"] = gas
-        elif self.default_gas is not None:
+        if "gas" not in transaction_options and self.default_gas is not None:
             transaction_options["gas"] = self.default_gas
 
         return self._meta_transaction_function_call(signed_meta_transaction).transact(
