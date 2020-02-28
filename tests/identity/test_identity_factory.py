@@ -310,3 +310,30 @@ def test_correct_proxy_pinned(contract_assets):
     assert remove_meta_data_hash(
         contract_assets["Proxy"]["bytecode"]
     ) == remove_meta_data_hash(get_pinned_proxy_interface()["bytecode"])
+
+
+def test_set_deploy_proxied_identity_transaction_params(
+    web3,
+    proxy_factory,
+    identity_implementation,
+    signature_of_owner_on_implementation,
+    accounts,
+):
+
+    transaction_options = {"gasPrice": 1000, "gas": 1000000, "from": accounts[2]}
+
+    deploy_proxied_identity(
+        web3=web3,
+        factory_address=proxy_factory.address,
+        implementation_address=identity_implementation.address,
+        signature=signature_of_owner_on_implementation,
+        transaction_options=transaction_options,
+    )
+
+    block = web3.eth.getBlock("latest")
+    tx_hash = block.transactions[0]
+    tx = web3.eth.getTransaction(tx_hash)
+
+    assert tx["from"] == transaction_options["from"]
+    assert tx["gas"] == transaction_options["gas"]
+    assert tx["gasPrice"] == transaction_options["gasPrice"]
