@@ -201,6 +201,8 @@ def deploy_networks(
 def deploy_identity(
     web3, owner_address, chain_id=None, transaction_options: Dict = None
 ):
+    if transaction_options is None:
+        transaction_options = {}
     identity = deploy("Identity", web3=web3, transaction_options=transaction_options)
     increase_transaction_options_nonce(transaction_options)
     if chain_id is None:
