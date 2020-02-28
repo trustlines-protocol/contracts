@@ -4,6 +4,9 @@ Change Log
 `next`_ (unreleased)
 -----------------------
 
+`1.1.3`_ (2020-02-28)
+-----------------------
+* Allow to set transaction options like gasLimit and gasPrice when deploying identity contracts
 `1.1.2`_ (2020-02-26)
 -----------------------
 * Allow to set transaction options like gasLimit and gasPrice when sending a meta transaction
@@ -240,4 +243,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.0: https://github.com/trustlines-protocol/contracts/compare/1.0.0...1.1.0
 .. _1.1.1: https://github.com/trustlines-protocol/contracts/compare/1.1.0...1.1.1
 .. _1.1.2: https://github.com/trustlines-protocol/contracts/compare/1.1.1...1.1.2
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.2...master
+.. _1.1.3: https://github.com/trustlines-protocol/contracts/compare/1.1.2...1.1.3
+.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.3...master
