@@ -175,7 +175,12 @@ def deploy_network(
     return currency_network
 
 
-def deploy_networks(web3, network_settings, currency_network_contract_name=None):
+def deploy_networks(
+    web3,
+    network_settings,
+    currency_network_contract_name=None,
+    transaction_options: Dict = None,
+):
     exchange = deploy_exchange(web3=web3)
     unw_eth = deploy_unw_eth(web3=web3, exchange_address=exchange.address)
 
@@ -184,6 +189,7 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
             web3,
             exchange_address=exchange.address,
             currency_network_contract_name=currency_network_contract_name,
+            transaction_options=transaction_options,
             **network_setting,
         )
         for network_setting in network_settings
@@ -192,13 +198,18 @@ def deploy_networks(web3, network_settings, currency_network_contract_name=None)
     return networks, exchange, unw_eth
 
 
-def deploy_identity(web3, owner_address, chain_id=None):
-    identity = deploy("Identity", web3=web3)
-
+def deploy_identity(
+    web3, owner_address, chain_id=None, transaction_options: Dict = None
+):
+    identity = deploy("Identity", web3=web3, transaction_options=transaction_options)
+    increase_transaction_options_nonce(transaction_options)
     if chain_id is None:
         chain_id = get_chain_id(web3)
     function_call = identity.functions.init(owner_address, chain_id)
-    send_function_call_transaction(function_call, web3=web3)
+    send_function_call_transaction(
+        function_call, web3=web3, transaction_options=transaction_options
+    )
+    increase_transaction_options_nonce(transaction_options)
 
     return identity
 

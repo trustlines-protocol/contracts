@@ -466,7 +466,18 @@ def deploy_identity_implementation(
     return indentity_implementation
 
 
-def deploy_proxied_identity(web3, factory_address, implementation_address, signature):
+def deploy_proxied_identity(
+    web3,
+    factory_address,
+    implementation_address,
+    signature,
+    *,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
     owner = recover_proxy_deployment_signature_owner(
         web3, factory_address, implementation_address, signature
     )
@@ -484,7 +495,13 @@ def deploy_proxied_identity(web3, factory_address, implementation_address, signa
     function_call = factory.functions.deployProxy(
         initcode, implementation_address, signature
     )
-    receipt = send_function_call_transaction(function_call, web3=web3)
+    receipt = send_function_call_transaction(
+        function_call,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
 
     deployment_event = factory.events.ProxyDeployment().processReceipt(receipt)
     proxy_address = deployment_event[0]["args"]["proxyAddress"]
