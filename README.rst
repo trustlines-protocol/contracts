@@ -16,22 +16,7 @@ Prerequisites
 -  git
 
 Run
-``apt install build-essential python3-dev python3-virtualenv virtualenv pkg-config libssl-dev automake autoconf libtool git make``
-
-One of the dependencies used is the secp256k1 library. If you're using
-python 3.5 on linux you can skip the following step, since pypi contains
-binary packages for secp256k1. If not, you'll have to run the following
-to install the secp256k1 C library:
-
-::
-
-    git clone https://github.com/bitcoin-core/secp256k1.git
-    cd secp256k1
-    ./autogen.sh
-    ./configure --enable-module-recovery
-    make
-    sudo make install
-    sudo ldconfig
+``apt install build-essential python3-dev python3-virtualenv virtualenv pkg-config libssl-dev automake autoconf libtool git make libsecp256k1-dev``
 
 Deployment tools
 ----------------
