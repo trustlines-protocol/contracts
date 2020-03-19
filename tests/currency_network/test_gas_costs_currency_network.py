@@ -3,11 +3,47 @@
  for example because of a different solidity version.
  The tests are meant to exhibit unexpected increase in gas costs.
  They are not meant to enforce a limit.
+
+ The tests also show what gas limit could be used for certain transactions
+ These values differ from the gas costs as some gas can be reimbursed at the end of a transaction
+ e.g. for freeing storage.
+ These values are to be used in the clientlib for gas limit of transactions.
+
+ Every values are rounded up to the thousands
  """
 import pytest
 from tldeploy.core import deploy_network
 
 from ..conftest import EXTRA_DATA, EXPIRATION_TIME, get_gas_costs, report_gas_costs
+
+GAS_COST_TRANSFER_0_MEDIATOR = 61_000
+GAS_COST_TRANSFER_1_MEDIATOR = 94_000
+GAS_COST_TRANSFER_2_MEDIATORS = 128_000
+GAS_COST_TRANSFER_3_MEDIATORS = 162_000
+GAS_COST_FIRST_TL_REQUEST = 79_000
+GAS_COST_SECOND_TL_REQUEST = 45_000
+GAS_COST_FIRST_TL = 331_000
+GAS_COST_UPDATE_TL = 40_000
+GAS_COST_REDUCE_TL_LIMITS = 66_000
+GAS_COST_CLOSE_TL_NO_TRANSFER = 55_000
+GAS_COST_CLOSE_TL_TRIANGULAR_TRANSFER_2_MEDIATORS = 114_000
+GAS_COST_CLOSE_TL_TRIANGULAR_TRANSFER_4_MEDIATORS = 181_000
+GAS_COST_CANCEL_TL_UPDATE = 20_000
+
+GAS_LIMIT_TRANSFER_0_MEDIATOR = GAS_COST_TRANSFER_0_MEDIATOR
+GAS_LIMIT_TRANSFER_1_MEDIATOR = GAS_COST_TRANSFER_1_MEDIATOR
+GAS_LIMIT_TRANSFER_2_MEDIATORS = GAS_COST_TRANSFER_2_MEDIATORS
+GAS_LIMIT_TRANSFER_3_MEDIATORS = GAS_COST_TRANSFER_3_MEDIATORS
+GAS_LIMIT_FIRST_TL_REQUEST = GAS_COST_FIRST_TL_REQUEST
+GAS_LIMIT_SECOND_TL_REQUEST = GAS_COST_SECOND_TL_REQUEST
+GAS_LIMIT_FIRST_TL = 361_000
+GAS_LIMIT_UPDATE_TL = 70_000
+GAS_LIMIT_REDUCE_TL_LIMITS = GAS_COST_REDUCE_TL_LIMITS
+GAS_LIMIT_CLOSE_TL_NO_TRANSFER = 107_000
+GAS_LIMIT_CLOSE_TL_TRIANGULAR_TRANSFER_2_MEDIATORS = 204_000
+GAS_LIMIT_CLOSE_TL_TRIANGULAR_TRANSFER_4_MEDIATORS = 271_000
+GAS_LIMIT_CANCEL_TL_UPDATE = 40_000
+
 
 trustlines = [
     (0, 1, 100, 150),
@@ -15,6 +51,8 @@ trustlines = [
     (2, 3, 300, 350),
     (3, 4, 400, 450),
     (0, 4, 500, 550),
+    (1, 5, 100, 100),
+    (5, 0, 100, 100),
 ]  # (A, B, clAB, clBA)
 
 
@@ -25,6 +63,7 @@ def currency_network_contract(web3):
         name="Teuro",
         symbol="TEUR",
         decimals=2,
+        custom_interests=True,
         fee_divisor=100,
         currency_network_contract_name="TestCurrencyNetwork",
         expiration_time=EXPIRATION_TIME,
@@ -39,14 +78,22 @@ def currency_network_contract_with_trustlines(web3, accounts):
         symbol="TEUR",
         decimals=2,
         fee_divisor=100,
-        currency_network_contract_name="TestCurrencyNetwork",
+        currency_network_contract_name="CurrencyNetwork",
         expiration_time=EXPIRATION_TIME,
     )
     for (A, B, clAB, clBA) in trustlines:
-        contract.functions.setAccount(
-            accounts[A], accounts[B], clAB, clBA, 0, 0, False, 1, 1
-        ).transact()
+        contract.functions.updateTrustline(
+            accounts[B], clAB, clBA, 0, 0, False
+        ).transact({"from": accounts[A]})
+        contract.functions.updateTrustline(
+            accounts[A], clBA, clAB, 0, 0, False
+        ).transact({"from": accounts[B]})
     return contract
+
+
+def assert_transaction_successful(web3, tx_hash):
+    tx_receipt = web3.eth.waitForTransactionReceipt(tx_hash, 5)
+    assert tx_receipt.status == 1, "Transaction failed, check gas limit"
 
 
 def test_cost_transfer_0_mediators(
@@ -54,11 +101,16 @@ def test_cost_transfer_0_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
+    # Verify that we test the most gas expensive case where we change the balance from 0 to non-zero
+    assert contract.functions.balance(A, B).call() == 0
     tx_hash = contract.functions.transfer(100, 2, [A, B], EXTRA_DATA).transact(
-        {"from": A}
+        {"from": A, "gas": GAS_LIMIT_TRANSFER_0_MEDIATOR}
     )
+    assert_transaction_successful(web3, tx_hash)
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "0 hop transfer", gas_cost, limit=48000)
+    report_gas_costs(
+        table, "0 hop transfer", gas_cost, limit=GAS_COST_TRANSFER_0_MEDIATOR
+    )
 
 
 def test_cost_transfer_1_mediators(
@@ -67,10 +119,13 @@ def test_cost_transfer_1_mediators(
     contract = currency_network_contract_with_trustlines
     A, B, C, *rest = accounts
     tx_hash = contract.functions.transfer(50, 4, [A, B, C], EXTRA_DATA).transact(
-        {"from": A}
+        {"from": A, "gas": GAS_LIMIT_TRANSFER_1_MEDIATOR}
     )
+    assert_transaction_successful(web3, tx_hash)
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "1 hop transfer", gas_cost, limit=65000)
+    report_gas_costs(
+        table, "1 hop transfer", gas_cost, limit=GAS_COST_TRANSFER_1_MEDIATOR
+    )
 
 
 def test_cost_transfer_2_mediators(
@@ -79,10 +134,13 @@ def test_cost_transfer_2_mediators(
     contract = currency_network_contract_with_trustlines
     A, B, C, D, *rest = accounts
     tx_hash = contract.functions.transfer(50, 6, [A, B, C, D], EXTRA_DATA).transact(
-        {"from": A}
+        {"from": A, "gas": GAS_LIMIT_TRANSFER_2_MEDIATORS}
     )
+    assert_transaction_successful(web3, tx_hash)
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "2 hop transfer", gas_cost, limit=83500)
+    report_gas_costs(
+        table, "2 hop transfer", gas_cost, limit=GAS_COST_TRANSFER_2_MEDIATORS
+    )
 
 
 def test_cost_transfer_3_mediators(
@@ -91,18 +149,29 @@ def test_cost_transfer_3_mediators(
     contract = currency_network_contract_with_trustlines
     A, B, C, D, E, *rest = accounts
     tx_hash = contract.functions.transfer(50, 8, [A, B, C, D, E], EXTRA_DATA).transact(
-        {"from": A}
+        {"from": A, "gas": GAS_LIMIT_TRANSFER_3_MEDIATORS}
     )
+    assert_transaction_successful(web3, tx_hash)
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "3 hop transfer", gas_cost, limit=101_500)
+    report_gas_costs(
+        table, "3 hop transfer", gas_cost, limit=GAS_COST_TRANSFER_3_MEDIATORS
+    )
 
 
 def test_cost_first_trustline_request(web3, currency_network_contract, accounts, table):
     contract = currency_network_contract
     A, B, *rest = accounts
-    tx_hash = contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
+    tx_hash = contract.functions.updateTrustline(
+        B, 150, 150, 1000, 1000, False
+    ).transact({"from": A, "gas": GAS_LIMIT_FIRST_TL_REQUEST})
+    assert_transaction_successful(web3, tx_hash)
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=78500)
+    report_gas_costs(
+        table,
+        "First Trustline Update Request",
+        gas_cost,
+        limit=GAS_COST_FIRST_TL_REQUEST,
+    )
 
 
 def test_cost_second_trustline_request(
@@ -110,21 +179,38 @@ def test_cost_second_trustline_request(
 ):
     contract = currency_network_contract
     A, B, *rest = accounts
-    contract.functions.updateCreditlimits(B, 149, 149).transact({"from": A})
-    tx_hash = contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
+    contract.functions.updateTrustline(B, 149, 149, 1000, 1000, False).transact(
+        {"from": A}
+    )
+    tx_hash = contract.functions.updateTrustline(
+        B, 150, 150, 2000, 2000, False
+    ).transact({"from": A, "gas": GAS_LIMIT_SECOND_TL_REQUEST})
+    assert_transaction_successful(web3, tx_hash)
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "Second Trustline Update Request", gas_cost, limit=47000)
+    report_gas_costs(
+        table,
+        "Second Trustline Update Request",
+        gas_cost,
+        limit=GAS_COST_SECOND_TL_REQUEST,
+    )
 
 
 def test_cost_first_trustline(web3, currency_network_contract, accounts, table):
     contract = currency_network_contract
     A, B, *rest = accounts
     assert contract.functions.creditline(A, B).call() == 0
-    contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
-    tx_hash = contract.functions.updateCreditlimits(A, 150, 150).transact({"from": B})
+
+    contract.functions.updateTrustline(B, 150, 150, 1000, 1000, False).transact(
+        {"from": A}
+    )
+    tx_hash = contract.functions.updateTrustline(
+        A, 150, 150, 1000, 1000, False
+    ).transact({"from": B, "gas": GAS_LIMIT_FIRST_TL})
+    assert_transaction_successful(web3, tx_hash)
     assert contract.functions.creditline(A, B).call() == 150
+
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "First Trustline", gas_cost, limit=315_000)
+    report_gas_costs(table, "First Trustline", gas_cost, limit=GAS_COST_FIRST_TL)
 
 
 def test_cost_update_trustline(
@@ -133,11 +219,18 @@ def test_cost_update_trustline(
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
     assert contract.functions.creditline(A, B).call() == 100
-    contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
-    tx_hash = contract.functions.updateCreditlimits(A, 150, 150).transact({"from": B})
+
+    contract.functions.updateTrustline(B, 150, 150, 1000, 1000, False).transact(
+        {"from": A}
+    )
+    tx_hash = contract.functions.updateTrustline(
+        A, 150, 150, 1000, 1000, False
+    ).transact({"from": B, "gas": GAS_LIMIT_UPDATE_TL})
+    assert_transaction_successful(web3, tx_hash)
     assert contract.functions.creditline(A, B).call() == 150
+
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "Update Trustline", gas_cost, limit=56000)
+    report_gas_costs(table, "Update Trustline", gas_cost, limit=GAS_COST_UPDATE_TL)
 
 
 def test_cost_update_reduce_need_no_accept_trustline(
@@ -146,29 +239,94 @@ def test_cost_update_reduce_need_no_accept_trustline(
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
     assert contract.functions.creditline(A, B).call() == 100
-    tx_hash = contract.functions.updateCreditlimits(B, 99, 150).transact({"from": A})
+    tx_hash = contract.functions.updateCreditlimits(B, 99, 150).transact(
+        {"from": A, "gas": GAS_LIMIT_REDUCE_TL_LIMITS}
+    )
     assert contract.functions.creditline(A, B).call() == 99
+    assert_transaction_successful(web3, tx_hash)
+
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "Reduce Trustline", gas_cost, limit=66000)
+    report_gas_costs(
+        table, "Reduce Trustline", gas_cost, limit=GAS_COST_REDUCE_TL_LIMITS
+    )
 
 
-def test_cost_close_trustline(
+def test_cost_close_trustline_no_transfer(
+    web3, currency_network_contract_with_trustlines, accounts, table
+):
+    contract = currency_network_contract_with_trustlines
+    A, B, C, *rest = accounts
+    assert contract.functions.balance(B, C).call() == 0
+
+    tx_hash = contract.functions.closeTrustline(B).transact(
+        {"from": C, "gas": GAS_LIMIT_CLOSE_TL_NO_TRANSFER}
+    )
+    assert_transaction_successful(web3, tx_hash)
+
+    gas_cost = get_gas_costs(web3, tx_hash)
+    report_gas_costs(
+        table,
+        "Close Trustline no transfer",
+        gas_cost,
+        limit=GAS_COST_CLOSE_TL_NO_TRANSFER,
+    )
+
+
+def test_cost_close_trustline_triangular_transfer_2_mediators(
     web3, currency_network_contract_with_trustlines, accounts, table
 ):
     contract = currency_network_contract_with_trustlines
     A, B, *rest = accounts
-    contract.functions.transfer(1, 0, [A, B], EXTRA_DATA).transact({"from": A})
-    assert contract.functions.balance(A, B).call() == 0
+    C = accounts[5]
+    contract.functions.transfer(1, 1, [B, A], EXTRA_DATA).transact({"from": B})
+    assert contract.functions.balance(A, B).call() > 0
 
-    tx_hash = contract.functions.closeTrustline(B).transact({"from": A})
+    tx_hash = contract.functions.closeTrustlineByTriangularTransfer(
+        B, 10, [A, B, C, A]
+    ).transact({"from": A, "gas": GAS_LIMIT_CLOSE_TL_TRIANGULAR_TRANSFER_2_MEDIATORS})
+    assert_transaction_successful(web3, tx_hash)
+
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "Close Trustline", gas_cost, limit=55000)
+    report_gas_costs(
+        table,
+        "Close Trustline triangular 2 hops",
+        gas_cost,
+        limit=GAS_COST_CLOSE_TL_TRIANGULAR_TRANSFER_2_MEDIATORS,
+    )
+
+
+def test_cost_close_trustline_triangular_transfer_4_mediators(
+    web3, currency_network_contract_with_trustlines, accounts, table
+):
+    contract = currency_network_contract_with_trustlines
+    A, B, C, D, E, *rest = accounts
+    contract.functions.transfer(1, 1, [B, A], EXTRA_DATA).transact({"from": B})
+    assert contract.functions.balance(A, B).call() > 0
+
+    tx_hash = contract.functions.closeTrustlineByTriangularTransfer(
+        B, 10, [A, B, C, D, E, A]
+    ).transact({"from": A, "gas": GAS_LIMIT_CLOSE_TL_TRIANGULAR_TRANSFER_4_MEDIATORS})
+    assert_transaction_successful(web3, tx_hash)
+
+    gas_cost = get_gas_costs(web3, tx_hash)
+    report_gas_costs(
+        table,
+        "Close Trustline triangular 4 hops",
+        gas_cost,
+        limit=GAS_COST_CLOSE_TL_TRIANGULAR_TRANSFER_4_MEDIATORS,
+    )
 
 
 def test_cancel_trustline_update(web3, currency_network_contract, accounts, table):
     contract = currency_network_contract
     A, B, *rest = accounts
     contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
-    tx_hash = contract.functions.cancelTrustlineUpdate(B).transact({"from": A})
+    tx_hash = contract.functions.cancelTrustlineUpdate(B).transact(
+        {"from": A, "gas": GAS_LIMIT_CANCEL_TL_UPDATE}
+    )
+    assert_transaction_successful(web3, tx_hash)
+
     gas_cost = get_gas_costs(web3, tx_hash)
-    report_gas_costs(table, "First Trustline Update Request", gas_cost, limit=19000)
+    report_gas_costs(
+        table, "Cancel trustline update", gas_cost, limit=GAS_COST_CANCEL_TL_UPDATE
+    )
