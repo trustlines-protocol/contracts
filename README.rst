@@ -77,6 +77,17 @@ Installation
 Please run `make install` to install the trustlines-contracts-bin and
 trustlines-contracts-deploy tool from the git checkout.
 
+Dependencies
+~~~~~~~~~~~~
+To manage and pin the (sub)dependencies we use pip-tools. We create two requirements files,
+one for the production environment (:code:`py-deploy/requirements.txt`) and one for all
+development requirements (:code:`dev-requirements.txt`). The production dependencies are derived
+from the dependencies defined in :code:`py-deploy/setup.py`. To add new dependencies, add them
+to :code:`py-deploy/setup.py` and then run :code:`./compile-requirements`. The development requirements
+are derived from :code:`dev-requirements.in`. To add new development dependencies, add them to this file and
+then rerun :code:`./compile-requirements.sh`. To upgrade the dependencies in the created requirement files,
+check out the available options for pip-tools and pass them to the compile script.
+To update all dependencies, run :code:`./compile-requirements.sh --upgrade`.
 
 Change log
 ----------
