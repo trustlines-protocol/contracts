@@ -13,9 +13,9 @@ lint: install-requirements
 test:: install
 	pytest tests
 
-.requirements-installed: constraints.txt requirements.txt
+.requirements-installed: dev-requirements.txt
 	@echo "===> Installing requirements in your local virtualenv"
-	pip install -q -c constraints.txt -r requirements.txt
+	pip install -q -r dev-requirements.txt
 	@echo "This file controls for make if the requirements in your virtual env are up to date" > $@
 
 install-requirements:: .requirements-installed

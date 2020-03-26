@@ -28,13 +28,11 @@ RUN apt-get -y update && \
 RUN python3 -m venv /opt/contracts
 WORKDIR /contracts
 ENV PATH "/opt/contracts/bin:${PATH}"
-COPY ./constraints.txt /contracts/constraints.txt
+COPY ./dev-requirements.txt /contracts/constraints.txt
 RUN pip install -c constraints.txt pip wheel setuptools
-COPY ./requirements.txt /contracts/requirements.txt
+COPY ./py-deploy/requirements.txt /contracts/requirements.txt
 
-# remove development dependencies from the end of the file and install requierements
-RUN sed -i -e '/development dependencies/q' requirements.txt && \
-    pip install -c constraints.txt -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY . /contracts
 RUN pip install -c constraints.txt setuptools_scm

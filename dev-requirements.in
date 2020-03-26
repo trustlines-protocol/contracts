@@ -1,9 +1,5 @@
-web3
-click
-attrs>=18.2
+-r ./py-deploy/requirements.txt
 contract-deploy-tools
-setuptools
-# --- development dependencies, i.e. dependencies not needed for running contracts
 flake8
 mypy
 pytest
@@ -14,3 +10,5 @@ setuptools_scm
 pip>=18.1
 black
 pre-commit
+setuptools
+pip-tools
