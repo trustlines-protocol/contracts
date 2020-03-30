@@ -114,7 +114,7 @@ def test_freeze_too_soon(currency_network_contract):
 
 
 def test_cannot_freeze_with_disabled_expiration(
-    currency_network_contract_without_expiration
+    currency_network_contract_without_expiration,
 ):
     assert (
         currency_network_contract_without_expiration.functions.expirationTime().call()

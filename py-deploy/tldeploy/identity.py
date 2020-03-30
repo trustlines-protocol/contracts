@@ -100,7 +100,7 @@ class MetaTransaction:
                 "currency_network_of_fees"
             ] = currency_network_of_fees
 
-        return cls(  # type: ignore
+        return cls(
             from_=from_,
             to=to,
             chain_id=chain_id,
@@ -112,7 +112,7 @@ class MetaTransaction:
             nonce=nonce,
             time_limit=time_limit,
             operation_type=operation_type,
-            **optional_meta_transaction_args,
+            **optional_meta_transaction_args,  # type: ignore
         )
 
     @property
