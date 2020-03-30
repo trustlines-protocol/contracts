@@ -4,7 +4,7 @@ from eth_tester.exceptions import TransactionFailed
 
 MAX_UINT_64 = 2 ** 64 - 1
 MAX_INT_72 = 2 ** 71 - 1
-MIN_INT_72 = -2 ** 71
+MIN_INT_72 = -(2 ** 71)
 
 
 @pytest.fixture(scope="session")
