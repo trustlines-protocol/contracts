@@ -1200,6 +1200,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
                 newBalance = MIN_BALANCE;
             }
         }
+        // If sign flipped because of wrong calculation, the best thing we can do is to assume the result should be 0
+        if (newBalance * _balance < 0) {
+            newBalance = 0;
+        }
 
         return int72(newBalance);
     }

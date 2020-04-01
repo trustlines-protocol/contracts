@@ -14,7 +14,7 @@ from tests.conftest import (
 )
 
 trustlines = [
-    (0, 1, 2000000000, 2000000000),
+    (0, 1, 2_000_000_000, 2_000_000_000),
     (1, 2, 200, 250),
     (2, 3, 300, 350),
     (3, 4, 400, 450),
@@ -22,6 +22,14 @@ trustlines = [
 ]  # (A, B, clAB, clBA)
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
+
+MAX_BALANCE = MAX_UINT_64
+MIN_BALANCE = -MAX_BALANCE
+
+
+def years_to_seconds(years):
+    """compute duration in years to seconds"""
+    return int(years * SECONDS_PER_YEAR)
 
 
 @pytest.fixture(scope="session")
@@ -180,13 +188,13 @@ def test_interests_positive_balance(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2000000000,
-        2000000000,
+        2_000_000_000,
+        2_000_000_000,
         100,
         100,
         False,
         current_time,
-        100000000,
+        100_000_000,
     ).transact()
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
@@ -197,7 +205,7 @@ def test_interests_positive_balance(
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
     # for small balances and interests not more than the smallest unit
-    assert balance + 1 == pytest.approx(100000000 * exp(0.01), abs=1)
+    assert balance + 1 == pytest.approx(100_000_000 * exp(0.01), abs=1)
 
 
 def test_interests_high_value(
@@ -215,13 +223,13 @@ def test_interests_high_value(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2000000000,
-        2000000000,
+        2_000_000_000,
+        2_000_000_000,
         2000,
         2000,
         False,
         current_time,
-        1000000000000000000,
+        1_000_000_000_000_000_000,
     ).transact()
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
@@ -232,7 +240,9 @@ def test_interests_high_value(
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
     # for big balances and interests not more than 1%
-    assert balance + 1 == pytest.approx(1000000000000000000 * exp(0.20), rel=0.01)  # 1%
+    assert balance + 1 == pytest.approx(
+        1_000_000_000_000_000_000 * exp(0.20), rel=0.01
+    )  # 1%
 
 
 def test_interests_negative_balance(
@@ -246,13 +256,13 @@ def test_interests_negative_balance(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2000000000,
-        2000000000,
+        2_000_000_000,
+        2_000_000_000,
         100,
         100,
         False,
         current_time,
-        -100000000,
+        -100_000_000,
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -264,7 +274,7 @@ def test_interests_negative_balance(
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
     # for big balances and interests not more than 1%
-    assert balance + 1 == pytest.approx(-100000000 * exp(0.01), abs=1)
+    assert balance + 1 == pytest.approx(-100_000_000 * exp(0.01), abs=1)
 
 
 def test_no_interests(
@@ -278,13 +288,13 @@ def test_no_interests(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2000000000,
-        2000000000,
+        2_000_000_000,
+        2_000_000_000,
         0,
         0,
         False,
         current_time,
-        100000000,
+        100_000_000,
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -295,7 +305,7 @@ def test_no_interests(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance == 100000000 - 1
+    assert balance == 100_000_000 - 1
 
 
 def test_custom_interests(
@@ -308,12 +318,12 @@ def test_custom_interests(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     contract.functions.setAccount(
-        accounts[0], accounts[1], 0, 2000000000, 0, 1234, False, 0, 0
+        accounts[0], accounts[1], 0, 2_000_000_000, 0, 1234, False, 0, 0
     ).transact()
     current_time = int(time.time())
     chain.time_travel(current_time + SECONDS_PER_YEAR)
     getattr(contract.functions, transfer_function_name)(
-        100000000, 2000000, [accounts[0], accounts[1]], EXTRA_DATA
+        100_000_000, 2_000_000, [accounts[0], accounts[1]], EXTRA_DATA
     ).transact({"from": accounts[0]})
 
     chain.time_travel(current_time + 2 * SECONDS_PER_YEAR)
@@ -323,7 +333,7 @@ def test_custom_interests(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == pytest.approx(-100000000 * exp(0.1234), rel=0.01)  # 1%
+    assert balance + 1 == pytest.approx(-100_000_000 * exp(0.1234), rel=0.01)  # 1%
 
 
 def test_custom_interests_postive_balance(
@@ -338,7 +348,15 @@ def test_custom_interests_postive_balance(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0], accounts[1], 0, 2000000000, 1234, 0, False, current_time, 100000000
+        accounts[0],
+        accounts[1],
+        0,
+        2_000_000_000,
+        1234,
+        0,
+        False,
+        current_time,
+        100_000_000,
     ).transact()
 
     chain.time_travel(current_time + SECONDS_PER_YEAR)
@@ -348,7 +366,7 @@ def test_custom_interests_postive_balance(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == pytest.approx(100000000 * exp(0.1234), rel=0.01)  # 1%
+    assert balance + 1 == pytest.approx(100_000_000 * exp(0.1234), rel=0.01)  # 1%
 
 
 def test_setting_default_and_custom_interests_fails(web3):
@@ -375,7 +393,7 @@ def test_safe_interest_allows_direct_transactions(
 
     contract = currency_network_contract_custom_interests_safe_ripple
     contract.functions.setAccount(
-        accounts[0], accounts[1], 1000000, 2000000, 100, 200, False, 0, 0
+        accounts[0], accounts[1], 1_000_000, 2_000_000, 100, 200, False, 0, 0
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -396,10 +414,10 @@ def test_safe_interest_allows_transactions_mediated(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0], accounts[1], 1000000, 2000000, 100, 200, False, current_time, 0
+        accounts[0], accounts[1], 1_000_000, 2_000_000, 100, 200, False, current_time, 0
     ).transact()
     contract.functions.setAccount(
-        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 0
+        accounts[1], accounts[2], 1_000_000, 2_000_000, 100, 200, False, current_time, 0
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -421,10 +439,10 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0], accounts[1], 1000000, 2000000, 200, 100, False, current_time, 0
+        accounts[0], accounts[1], 1_000_000, 2_000_000, 200, 100, False, current_time, 0
     ).transact()
     contract.functions.setAccount(
-        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 0
+        accounts[1], accounts[2], 1_000_000, 2_000_000, 100, 200, False, current_time, 0
     ).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
@@ -445,10 +463,26 @@ def test_safe_interest_allows_transactions_mediated_solves_imbalance(
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0], accounts[1], 1000000, 2000000, 200, 100, False, current_time, 100
+        accounts[0],
+        accounts[1],
+        1_000_000,
+        2_000_000,
+        200,
+        100,
+        False,
+        current_time,
+        100,
     ).transact()
     contract.functions.setAccount(
-        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 100
+        accounts[1],
+        accounts[2],
+        1_000_000,
+        2_000_000,
+        100,
+        200,
+        False,
+        current_time,
+        100,
     ).transact()
 
     getattr(contract.functions, transfer_function_name)(
@@ -468,10 +502,26 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
     contract.functions.setAccount(
-        accounts[0], accounts[1], 1000000, 2000000, 200, 100, False, current_time, 100
+        accounts[0],
+        accounts[1],
+        1_000_000,
+        2_000_000,
+        200,
+        100,
+        False,
+        current_time,
+        100,
     ).transact()
     contract.functions.setAccount(
-        accounts[1], accounts[2], 1000000, 2000000, 100, 200, False, current_time, 100
+        accounts[1],
+        accounts[2],
+        1_000_000,
+        2_000_000,
+        100,
+        200,
+        False,
+        current_time,
+        100,
     ).transact()
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
@@ -494,13 +544,13 @@ def test_negative_interests_default_positive_balance(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2000000000,
-        2000000000,
+        2_000_000_000,
+        2_000_000_000,
         -100,
         -100,
         False,
         current_time,
-        100000000,
+        100_000_000,
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -511,7 +561,7 @@ def test_negative_interests_default_positive_balance(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == pytest.approx(100000000 * exp(-0.01), abs=1)
+    assert balance + 1 == pytest.approx(100_000_000 * exp(-0.01), abs=1)
 
 
 def test_negative_interests_default_negative_balance(
@@ -528,13 +578,13 @@ def test_negative_interests_default_negative_balance(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2000000000,
-        2000000000,
+        2_000_000_000,
+        2_000_000_000,
         -100,
         -100,
         False,
         current_time,
-        -100000000,
+        -100_000_000,
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -545,7 +595,7 @@ def test_negative_interests_default_negative_balance(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == pytest.approx(-100000000 * exp(-0.01), abs=1)
+    assert balance + 1 == pytest.approx(-100_000_000 * exp(-0.01), abs=1)
 
 
 CREDITLINE_WIDTH = 64
@@ -626,10 +676,10 @@ def test_interests_over_change_in_trustline(
     chain.time_travel(current_time + 10)
 
     contract.functions.updateTrustline(
-        accounts[0], 100000, 100000, 0, 0, False
+        accounts[0], 100_000, 100_000, 0, 0, False
     ).transact({"from": accounts[1]})
     contract.functions.updateTrustline(
-        accounts[1], 100000, 100000, 0, 0, False
+        accounts[1], 100_000, 100_000, 0, 0, False
     ).transact({"from": accounts[0]})
     contract.functions.transfer(
         10000, 0, [accounts[0], accounts[1]], EXTRA_DATA
@@ -638,10 +688,10 @@ def test_interests_over_change_in_trustline(
     chain.time_travel(current_time + SECONDS_PER_YEAR)
 
     contract.functions.updateTrustline(
-        accounts[0], 100000, 100000, 1000, 1000, False
+        accounts[0], 100_000, 100_000, 1000, 1000, False
     ).transact({"from": accounts[1]})
     contract.functions.updateTrustline(
-        accounts[1], 100000, 100000, 1000, 1000, False
+        accounts[1], 100_000, 100_000, 1000, 1000, False
     ).transact({"from": accounts[0]})
 
     contract.functions.transfer(1, 0, [accounts[0], accounts[1]], EXTRA_DATA).transact(
@@ -750,7 +800,7 @@ def test_correct_balance_update_event_on_interest_rate_change(
     assert contract.functions.balance(from_, to).call() == value
 
 
-@pytest.mark.parametrize("value", [10, 100000, -10, -10000])
+@pytest.mark.parametrize("value", [10, 100_000, -10, -10000])
 @pytest.mark.parametrize("rate", [0, 10, 200])
 def test_apply_interests(
     currency_network_contract_custom_interests_safe_ripple, chain, accounts, value, rate
@@ -805,3 +855,96 @@ def test_apply_interests_not_possible_when_frozen(
     adapter.update_trustline(A, B, is_frozen=True, accept=True)
     with pytest.raises(TransactionFailed):
         adapter.contract.functions.applyInterests(B).transact({"from": A})
+
+
+@pytest.mark.parametrize("rate_percent", [-1, -10, -50, -100, -327.68])
+@pytest.mark.parametrize("duration_years", [1, 5, 10, 100])
+@pytest.mark.parametrize(
+    "balance",
+    [
+        1,
+        10 ** 12,
+        MAX_BALANCE - 1,
+        MAX_BALANCE,
+        MAX_BALANCE + 1,
+        10 ** 20,
+        -1,
+        -(10 ** 12),
+        MIN_BALANCE + 1,
+        MIN_BALANCE,
+        MIN_BALANCE - 1,
+    ],
+)
+def test_interest_calculation_sane(
+    test_currency_network_contract, rate_percent, duration_years, balance
+):
+    """
+    Test that interest calculations are sane
+
+    Test are based on findings by Ralfs currency network review
+    (https://github.com/trustlines-protocol/contracts/pull/305)
+    The tests check that we never accidentally swap the sign of the balance
+    and we never increase/decrease the balance in the wrong direction.
+    """
+    raw_rate = int(rate_percent * 100)
+    assert raw_rate / 100 == rate_percent, "Not correctly representable rate"
+
+    new_balance = test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+        balance, 0, years_to_seconds(duration_years), raw_rate, raw_rate
+    ).call()
+
+    assert balance * new_balance >= 0, "Balance has switched signs"
+    assert abs(new_balance) <= abs(
+        balance
+    ), f"Absolute Balance has become bigger: |{new_balance}| > |{balance}|"
+
+
+# Above these we should warn users that interest calculation can be inaccurate
+# The value are arbitrary chosen, but are checked below to be correct
+YEAR_WARNING = 1
+RATE_WARNING = 50
+ALLOWED_PERCENTAGE = 1
+
+
+@pytest.mark.parametrize(
+    "rate_percent", [0, 1, 10, RATE_WARNING, -1, -10, -RATE_WARNING]
+)
+@pytest.mark.parametrize("duration_years", [0, 0.2, 0.5, YEAR_WARNING])
+@pytest.mark.parametrize(
+    "balance",
+    [
+        1,
+        1000,
+        10 ** 12,
+        MAX_BALANCE - 1,
+        MAX_BALANCE,
+        -1,
+        -1000,
+        -(10 ** 12),
+        MIN_BALANCE + 1,
+        MIN_BALANCE,
+    ],
+)
+def test_interest_calculation_accuracy(
+    test_currency_network_contract, rate_percent, duration_years, balance
+):
+    raw_rate = int(rate_percent * 100)
+    assert raw_rate / 100 == rate_percent, "Not correctly representable rate"
+
+    new_balance = test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+        balance, 0, years_to_seconds(duration_years), raw_rate, raw_rate
+    ).call()
+    # within the allowed boundaries the balance change should not be more off than
+    # ALLOWED_PERCENTAGE% of the correct balance change
+    correct_balance = min(
+        max(MIN_BALANCE, round(balance * exp(rate_percent / 100 * duration_years))),
+        MAX_BALANCE,
+    )
+    correct_balance_change = balance - correct_balance
+    balance_change = balance - new_balance
+    allowed_change_delta = max(
+        ALLOWED_PERCENTAGE / 100 * abs(correct_balance_change), 1
+    )  # allow a minimum of += 1
+    assert balance_change == pytest.approx(
+        correct_balance_change, abs=allowed_change_delta
+    ), f"New balance is too far off: {new_balance} instead of {correct_balance}"
