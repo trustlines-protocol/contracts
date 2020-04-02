@@ -1,8 +1,18 @@
+import pathlib
+
 import pytest
 import eth_tester.backends.pyevm.main
-from texttable import Texttable
 
 import tldeploy.core
+
+from tests.utils import (
+    find_gas_values_for_call,
+    assert_gas_values_for_call,
+    read_test_data,
+    GasValues,
+    write_test_data,
+    assert_gas_costs,
+)
 
 # increase eth_tester's GAS_LIMIT
 # Otherwise we can't deploy our contract
@@ -16,6 +26,14 @@ EXPIRATION_TIME = 4_102_444_800  # 01/01/2100
 
 MAX_UINT_64 = 2 ** 64 - 1
 MAX_FEE = MAX_UINT_64
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        UPDATE_GAS_VALUES_OPTION,
+        help="Update the gas values snapshot",
+        action="store_true",
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -180,24 +198,64 @@ class CurrencyNetworkAdapter:
         return list(getattr(self.contract.events, event_name).getLogs(fromBlock=0))
 
 
+UPDATE_GAS_VALUES_OPTION = "--update-gas-values"
+
+
 @pytest.fixture(scope="session")
-def table():
-    table = Texttable()
-    table.add_row(["Topic", "Gas cost"])
-    yield table
-    print()
-    print(table.draw())
+def gas_values_snapshot(pytestconfig):
+    """Returns a GasValueSnapshoter, an object to assert gas values based on created snapshots"""
+    snapshot_filename = "gas_values.csv"
 
+    class GasValueSnapshoter:
+        UNKNOWN = -1
 
-def get_gas_costs(web3, tx_hash):
-    tx_receipt = web3.eth.getTransactionReceipt(tx_hash)
-    return tx_receipt.gasUsed
+        def __init__(self, data, *, update=False):
+            """
+            Creates gas values snapshots and let assert that the values did not change
+            Snapshot data is updated when it does not exist, or when  `update` is set. In this case
+            tests always succeed.
+            :param data: The snapshot data
+            :param update: True, if existing values should be updated or not
+            """
+            self.update = update
+            self.data = data
 
+        def assert_gas_values_for_call(
+            self, key, web3, contract_call, transaction_options=None
+        ):
+            """
+            Assert that the gas values of a contract call are correct and did not change.
+            This will execute the contract call once.
+            """
+            if key not in self.data or self.update:
+                gas_values = find_gas_values_for_call(
+                    web3, contract_call, transaction_options=transaction_options
+                )
+                self.data[key] = gas_values
+            else:
+                assert_gas_values_for_call(
+                    web3,
+                    contract_call,
+                    transaction_options=transaction_options,
+                    gas_cost_estimation=self.data[key].cost,
+                    gas_limit=self.data[key].limit,
+                )
 
-def report_gas_costs(table: Texttable, topic: str, gas_cost: int, limit: int) -> None:
-    table.add_row([topic, gas_cost])
-    assert (
-        gas_cost <= limit
-    ), "Cost for {} were {} gas and exceeded the limit {}".format(
-        topic, gas_cost, limit
+        def assert_gas_costs(self, key, gas_cost, *, abs_delta=0):
+            """Assert that the gas cost did not change within the allowed delta.
+            This will not execute any transaction and can thus not check
+            the gas limit."""
+            if key not in self.data or self.update:
+                self.data[key] = GasValues(gas_cost, self.UNKNOWN)
+            else:
+                assert_gas_costs(gas_cost, self.data[key].cost, abs_delta=abs_delta)
+
+    snapshot_path = pathlib.Path(__file__).parent.absolute() / snapshot_filename
+    snapshoter = GasValueSnapshoter(
+        data=read_test_data(snapshot_path, data_class=GasValues),
+        update=pytestconfig.getoption(UPDATE_GAS_VALUES_OPTION, default=False),
     )
+
+    yield snapshoter
+
+    write_test_data(snapshot_path, ["KEY", "GAS_COST", "GAS_LIMIT"], snapshoter.data)

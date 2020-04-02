@@ -1,15 +1,15 @@
 #! pytest
 """This file contains tests so that there is no regression in the gas costs,
  for example because of a different solidity version.
- The tests are meant to exhibit unexpected increase in gas costs.
- They are not meant to enforce a limit.
+ The tests are meant to exhibit unexpected changes in gas costs.
+ If the values are fine, you can update them with the --update-gas-values option for pytest
  """
 import pytest
 from tldeploy.core import deploy_identity
 
 from tldeploy.identity import MetaTransaction, deploy_proxied_identity
 
-from ..conftest import report_gas_costs, get_gas_costs
+from tests.utils import get_gas_costs
 
 
 @pytest.fixture(scope="session")
@@ -17,7 +17,7 @@ def test_contract(deploy_contract):
     return deploy_contract("TestContract")
 
 
-def test_deploy_identity(web3, accounts, table):
+def test_deploy_identity(web3, accounts, gas_values_snapshot):
     A, *rest = accounts
 
     block_number_before = web3.eth.blockNumber
@@ -30,12 +30,12 @@ def test_deploy_identity(web3, accounts, table):
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    report_gas_costs(table, "Deploy Identity", gas_cost, limit=1_650_000)
+    gas_values_snapshot.assert_gas_costs("DEPLOY_IDENTITY", gas_cost)
 
 
 def test_deploy_proxied_identity(
     web3,
-    table,
+    gas_values_snapshot,
     proxy_factory,
     identity_implementation,
     signature_of_owner_on_implementation,
@@ -55,11 +55,15 @@ def test_deploy_proxied_identity(
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    report_gas_costs(table, "Deploy Proxied Identity", gas_cost, limit=310_000)
+    gas_values_snapshot.assert_gas_costs(
+        "DEPLOY_PROXIED_IDENTITY",
+        gas_cost,
+        abs_delta=100,  # TODO this test sometimes produces different gas costs based on execution order
+    )
 
 
 def test_meta_tx_over_regular_tx_overhead(
-    web3, table, test_contract, identity, delegate
+    web3, gas_values_snapshot, test_contract, identity, delegate
 ):
     """Tests the overhead of using a meta-tx compared to a regular tx"""
     # The test sends two meta-tx as the first meta-tx of an identity is more expensive than all the next ones
@@ -86,13 +90,13 @@ def test_meta_tx_over_regular_tx_overhead(
 
     overhead = gas_cost_meta_tx - gas_cost_regular_tx
 
-    report_gas_costs(
-        table, "Overhead of unproxied meta-tx over regular tx", overhead, limit=26750
+    gas_values_snapshot.assert_gas_costs(
+        "UNPROXIED_META_TRANSACTION_OVERHEAD", overhead
     )
 
 
 def test_proxy_overhead(
-    web3, table, test_contract, proxied_identity, identity, delegate
+    web3, gas_values_snapshot, test_contract, proxied_identity, identity, delegate
 ):
     """Tests the overhead of using an identity proxy compared to a regular identity"""
 
@@ -117,13 +121,15 @@ def test_proxy_overhead(
 
     overhead = gas_cost_proxied_meta_tx - gas_cost_not_proxied_tx
 
-    report_gas_costs(
-        table, "Overhead of a proxy over non-proxy meta-tx", overhead, limit=1500
+    gas_values_snapshot.assert_gas_costs(
+        "PROXIED_META_TRANSACTION_OVERHEAD_OVER_NONPROXY_METATRANSACTION",
+        overhead,
+        abs_delta=100,  # TODO this test sometimes produces different gas costs based on execution order
     )
 
 
 def test_meta_tx_over_own_identity_tx_overhead(
-    web3, table, test_contract, identity, owner, delegate
+    web3, gas_values_snapshot, test_contract, identity, owner, delegate
 ):
     """Tests the overhead of using a meta-tx compared to an owned identity tx"""
     # The test sends two meta-tx as the first meta-tx of an identity is more expensive than all the next ones
@@ -152,16 +158,13 @@ def test_meta_tx_over_own_identity_tx_overhead(
 
     overhead = gas_cost_meta_tx - gas_cost_owner_tx
 
-    report_gas_costs(
-        table,
-        "Overhead of unproxied meta-tx over owned transaction",
-        overhead,
-        limit=22000,
+    gas_values_snapshot.assert_gas_costs(
+        "UNPROXIED_META_TRANSACTION_OVERHEAD_OVER_OWNED", overhead
     )
 
 
 def test_own_identity_meta_tx_overhead(
-    web3, table, test_contract, identity, owner, delegate
+    web3, gas_values_snapshot, test_contract, identity, owner, delegate
 ):
     """Tests the overhead of using an owned meta-tx compared to a regular tx"""
 
@@ -181,9 +184,6 @@ def test_own_identity_meta_tx_overhead(
 
     overhead = gas_cost_owner_meta_tx - gas_cost_regular_tx
 
-    report_gas_costs(
-        table,
-        "Overhead of owned unproxied meta-tx over regular transaction",
-        overhead,
-        limit=5000,
+    gas_values_snapshot.assert_gas_costs(
+        "UNPROXIED_OWNED_TRANSACTION_OVERHEAD_OVER_REGULAR_TRANSACTION", overhead
     )
