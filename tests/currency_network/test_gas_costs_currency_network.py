@@ -73,7 +73,7 @@ def test_cost_transfer_0_mediators(
     A, B, *rest = accounts
     # Verify that we test the most gas expensive case where we change the balance from 0 to non-zero
     assert contract.functions.balance(A, B).call() == 0
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "TRANSFER_0_MEDIATOR",
         web3,
         contract.functions.transfer(100, 2, [A, B], EXTRA_DATA),
@@ -86,7 +86,7 @@ def test_cost_transfer_1_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, C, *rest = accounts
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "TRANSFER_1_MEDIATOR",
         web3,
         contract.functions.transfer(50, 4, [A, B, C], EXTRA_DATA),
@@ -99,7 +99,7 @@ def test_cost_transfer_2_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, C, D, *rest = accounts
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "TRANSFER_2_MEDIATORS",
         web3,
         contract.functions.transfer(50, 6, [A, B, C, D], EXTRA_DATA),
@@ -112,7 +112,7 @@ def test_cost_transfer_3_mediators(
 ):
     contract = currency_network_contract_with_trustlines
     A, B, C, D, E, *rest = accounts
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "TRANSFER_3_MEDIATORS",
         web3,
         contract.functions.transfer(50, 8, [A, B, C, D, E], EXTRA_DATA),
@@ -125,7 +125,7 @@ def test_cost_first_trustline_request(
 ):
     contract = currency_network_contract
     A, B, *rest = accounts
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "FIRST_TL_REQUEST",
         web3,
         contract.functions.updateTrustline(B, 150, 150, 1000, 1000, False),
@@ -141,7 +141,7 @@ def test_cost_second_trustline_request(
     contract.functions.updateTrustline(B, 149, 149, 1000, 1000, False).transact(
         {"from": A}
     )
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "SECOND_TL_REQUEST",
         web3,
         contract.functions.updateTrustline(B, 150, 150, 2000, 2000, False),
@@ -159,7 +159,7 @@ def test_cost_first_trustline(
         {"from": A}
     )
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "FIRST_TL",
         web3,
         contract.functions.updateTrustline(A, 150, 150, 1000, 1000, False),
@@ -177,7 +177,7 @@ def test_cost_update_trustline(
         {"from": A}
     )
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "UPDATE_TL",
         web3,
         contract.functions.updateTrustline(A, 150, 150, 1000, 1000, False),
@@ -192,7 +192,7 @@ def test_cost_update_reduce_need_no_accept_trustline(
     A, B, *rest = accounts
     assert contract.functions.creditline(A, B).call() == 100
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "REDUCE_TL_LIMITS",
         web3,
         contract.functions.updateCreditlimits(B, 99, 150),
@@ -207,7 +207,7 @@ def test_cost_close_trustline_no_transfer(
     A, B, C, *rest = accounts
     assert contract.functions.balance(B, C).call() == 0
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "CLOSE_TL_NO_TRANSFER",
         web3,
         contract.functions.closeTrustline(B),
@@ -226,7 +226,7 @@ def test_cost_close_trustline_triangular_transfer_2_mediators(
 
     call = contract.functions.closeTrustlineByTriangularTransfer(B, 10, [A, B, C, A])
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "CLOSE_TL_TRIANGULAR_TRANSFER_2_MEDIATORS",
         web3,
         call,
@@ -246,7 +246,7 @@ def test_cost_close_trustline_triangular_transfer_4_mediators(
         B, 10, [A, B, C, D, E, A]
     )
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "CLOSE_TL_TRIANGULAR_TRANSFER_4_MEDIATORS",
         web3,
         call,
@@ -262,6 +262,6 @@ def test_cancel_trustline_update(
     contract.functions.updateCreditlimits(B, 150, 150).transact({"from": A})
     call = contract.functions.cancelTrustlineUpdate(B)
 
-    gas_values_snapshot.assert_gas_values_for_call(
+    gas_values_snapshot.assert_gas_values_match_for_call(
         "CANCEL_TL_UPDATE", web3, call, transaction_options={"from": A}
     )
