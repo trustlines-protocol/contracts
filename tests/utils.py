@@ -30,6 +30,12 @@ def assert_gas_values_for_call(
 ):
     """Executes the contract call and asserts the gas values
 
+    It checks that the gas usage matches the `gas_cost_estimation` and it checks
+    that the gas limit is within [`gas_limit` - `abs_gas_delta`, `gas_limit`].
+    It does so by first trying the contract call with a gas limit reduced by `abs_gas_delta`
+    and asserts that it fails, and then checks that the call
+    with `gas_limits` succeeds. If `gas_limit` is not given, `gas_cost_estimation` will be used as gas
+    limit.
     """
     if transaction_options is None:
         transaction_options = {}
@@ -38,17 +44,20 @@ def assert_gas_values_for_call(
         gas_limit = gas_cost_estimation
 
     transaction_options.update({"gas": gas_limit - abs_gas_delta})
-    tx_hash = contract_call.transact(transaction_options)
-    assert_transaction_failed(
+    assert_contract_call_fails(
         web3,
-        tx_hash,
-        "The transaction did not fail with reduced gas, gas limit to high?",
+        contract_call,
+        transaction_options=transaction_options,
+        message="The transaction did not fail with reduced gas, gas limit to high?",
     )
 
     transaction_options.update({"gas": gas_limit})
-    tx_hash = contract_call.transact(transaction_options)
-    assert_transaction_successful(
-        web3, tx_hash, message="Transaction failed, gas limit to low?"
+
+    tx_hash = assert_contract_call_succeeds(
+        web3,
+        contract_call,
+        transaction_options=transaction_options,
+        message="Transaction failed, gas limit to low?",
     )
 
     gas_cost = get_gas_costs(web3, tx_hash)
@@ -56,18 +65,49 @@ def assert_gas_values_for_call(
     assert_gas_costs(gas_cost, gas_cost_estimation)
 
 
-def assert_transaction_successful(web3, tx_hash, message=None):
-    tx_receipt = web3.eth.waitForTransactionReceipt(tx_hash, 5)
+def assert_contract_call_status(
+    web3, contract_call, status, *, transaction_options, message
+):
+
+    tx_hash = None
+    try:
+        tx_hash = contract_call.transact(transaction_options)
+        tx_success = web3.eth.waitForTransactionReceipt(tx_hash, 5).status == 1
+    except ValidationError as e:
+        if "Insufficient gas" not in e.args:
+            raise e
+        else:
+            tx_success = False
+    assert tx_success == status, message
+    return tx_hash
+
+
+def assert_contract_call_succeeds(
+    web3, contract_call, *, transaction_options, message=None
+):
     if message is None:
         message = "Transaction failed"
-    assert tx_receipt.status == 1, message
+    return assert_contract_call_status(
+        web3,
+        contract_call,
+        status=True,
+        transaction_options=transaction_options,
+        message=message,
+    )
 
 
-def assert_transaction_failed(web3, tx_hash, message=None):
-    tx_receipt = web3.eth.waitForTransactionReceipt(tx_hash, 5)
+def assert_contract_call_fails(
+    web3, contract_call, *, transaction_options, message=None
+):
     if message is None:
         message = "Transaction did not fail."
-    assert tx_receipt.status == 0, message
+    return assert_contract_call_status(
+        web3,
+        contract_call,
+        status=False,
+        transaction_options=transaction_options,
+        message=message,
+    )
 
 
 def get_gas_costs(web3, tx_hash):
