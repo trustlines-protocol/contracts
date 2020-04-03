@@ -220,7 +220,7 @@ def gas_values_snapshot(pytestconfig):
             self.update = update
             self.data = data
 
-        def assert_gas_values_for_call(
+        def assert_gas_values_match_for_call(
             self, key, web3, contract_call, transaction_options=None
         ):
             """
@@ -241,7 +241,7 @@ def gas_values_snapshot(pytestconfig):
                     gas_limit=self.data[key].limit,
                 )
 
-        def assert_gas_costs(self, key, gas_cost, *, abs_delta=0):
+        def assert_gas_costs_match(self, key, gas_cost, *, abs_delta=0):
             """Assert that the gas cost did not change within the allowed delta.
             This will not execute any transaction and can thus not check
             the gas limit."""
