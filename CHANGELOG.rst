@@ -4,6 +4,11 @@ Change Log
 `next`_ (unreleased)
 -----------------------
 
+`1.1.4`_ (2020-04-15)
+-----------------------
+* Fix bug in interests calculations that would cause the balance to flip sign for big values of negative interests.
+Set the balance to 0 when this should happen instead.
+
 `1.1.3`_ (2020-02-28)
 -----------------------
 * Allow to set transaction options like gasLimit and gasPrice when deploying identity contracts
@@ -244,4 +249,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.1: https://github.com/trustlines-protocol/contracts/compare/1.1.0...1.1.1
 .. _1.1.2: https://github.com/trustlines-protocol/contracts/compare/1.1.1...1.1.2
 .. _1.1.3: https://github.com/trustlines-protocol/contracts/compare/1.1.2...1.1.3
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.3...master
+.. _1.1.4: https://github.com/trustlines-protocol/contracts/compare/1.1.3...1.1.4
+.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.4...master
