@@ -12,6 +12,7 @@ from deploy_tools.deploy import (
 from eth_keys.datatypes import PrivateKey
 from eth_utils import to_checksum_address
 from web3 import Web3
+from web3._utils.events import EventLogErrorFlags
 from web3.exceptions import BadFunctionCallOutput
 from hexbytes import HexBytes
 
@@ -503,7 +504,11 @@ def deploy_proxied_identity(
     )
     increase_transaction_options_nonce(transaction_options)
 
-    deployment_event = factory.events.ProxyDeployment().processReceipt(receipt)
+    # We know there are events in the receipt that do not correspond to the factory contract
+    # for which web3 will raise a warning. So we use `errors=EventLogErrorFlags.Discard`
+    deployment_event = factory.events.ProxyDeployment().processReceipt(
+        receipt, errors=EventLogErrorFlags.Discard
+    )
     proxy_address = deployment_event[0]["args"]["proxyAddress"]
 
     computed_proxy_address = build_create2_address(factory_address, initcode)
