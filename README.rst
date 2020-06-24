@@ -2,80 +2,129 @@
 
 Trustlines Smart Contract Platform
 ==================================
+Introduction
+------------
 
-This documentation explains how to deploy Trustlines smart contracts,
-for creating your own currency network and trustlines exchange.
-The exchange functionality is not fully supported at this point.
-The current documentation is written for an Ubuntu Linux system.
+This repository contains the smart contracts implementing the Trustlines logic.
+This includes:
 
-Prerequisites
--------------
+- Currency Networks
+- Exchanges
+- Identity implementation, proxy, and proxy factory
+
+It also includes deploy tools that can be used to deploy these contracts.
+The deploy tools can be used via cli or as a python package to be built on top of.
+The package tl-deploy used for deployment of the contracts additionally provides
+an abstraction layer to identities and meta-transactions for delegates to use.
+
+To have more information about trustlines in general, visit the `Trustlines Foundation website
+<https://trustlines.network/>`__
+
+Currency Networks
+~~~~~~~~~~~~~~~~~
+
+The currency network contracts represent the core logic of Trustlines.
+They dictate how trustlines are opened, updated, and closed.
+They also implement transfers in between users and how fees and interests are calculated.
+
+Exchange
+~~~~~~~~
+
+The exchanges contracts are implementing an exchange which could be used to trade
+the currency of a network for the currency of another network, an ERC20 token, or wrapped ether.
+Their features are not currently fully supported by the protocol.
+
+Identity
+~~~~~~~~
+
+The identity implementation contract allows to represent a user as a contract on a blockchain.
+It enables the use of meta-transactions where a delegate pays the blockchain fee of a transaction
+for a user. To reduce the costs of deploying an identity for a new user, we instead deploy a
+proxy contract that points to a reference identity implementation.
+This deployment is done by the identity proxy factory contract.
+
+Installation
+------------
+
+The installation requires the following to be installed:
 
 -  Python 3.6 or up and dev dependencies
 -  `pip <https://pip.pypa.io/en/stable/>`__
 -  git
 
-Run
-``apt install build-essential python3-dev python3-virtualenv virtualenv pkg-config libssl-dev automake autoconf libtool git make libsecp256k1-dev``
+To install them on Ubuntu, run::
 
-Deployment tools
-----------------
+    apt install build-essential python3-dev \
+    python3-virtualenv virtualenv pkg-config libssl-dev \
+    automake autoconf libtool git make libsecp256k1-dev
 
-This section runs through the tooling necessary for deploying the
-contracts.
+You can then install the deployment tool with::
 
-Ethereum client
-~~~~~~~~~~~~~~~
+    pip install trustlines-contracts-deploy
 
-To deploy the Trustlines smart contracts, you need access to an ethereum client,
-e.g. geth or parity, which is synced to the chain you want to use. The
-client needs to expose the JSON RPC endpoint. Additionally you need an
-account with enough ether to pay for the contract deployment.
-
-Deployment setup
-~~~~~~~~~~~~~~~~
-
-Please run ``pip install trustlines-contracts-deploy`` to install the ``tl-deploy``
-tool from PyPI. Solidity itself isn't needed anymore.
-
-tl-deploy
-~~~~~~~~~
-
-The tool ``tl-deploy`` allows you to deploy the relevant contracts.
-
-Use ``tl-deploy --help`` to find out about the relevant commands or read
+After that, you can run :code:`tl-deploy --help` to see the list of available
+commands for deploying Trustlines contracts or read
 further in the `deploy documentation <https://github.com/trustlines-protocol/contracts/blob/master/docs/deploy.md>`__
 
-Development
------------
+Start developing
+----------------
 
-To start developing install the development dependencies into a venv
-with ``pip install -c constraints.txt -r requirements.txt``
+To start developing on the smart contracts, you will need the solidity compiler solc version 0.5.8.
+To download it into bin, run::
 
-Download and install the solidity compiler solc into bin for compiling the
-contracts
+   curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.5.8/solc-static-linux && chmod +x $HOME/bin/solc
 
-   ``curl -L -o $HOME/bin/solc https://github.com/ethereum/solidity/releases/download/v0.5.8/solc-static-linux && chmod +x $HOME/bin/solc``
+You can then clone the repository::
 
-Compiling
-~~~~~~~~~
+    git clone https://github.com/trustlines-protocol/contracts.git
+    cd contracts
 
-The contracts can be compiled with ``make compile``. This will create a
-file `contracts.json` with all the compiled contracts.
+Then create and activate a fresh virtualenv::
 
+    virtualenv -p python3 venv
+    source venv/bin/activate
+
+Finally, to install all needed dependencies and compiling the contracts use the following command::
+
+    make install
+
+Contributing
+------------
+
+When opening a PR on the contracts repository, make sure:
+
+- The contracts tests and end2end tests are passing.
+- The :code:`unreleased` section of the changelog has been updated with the change.
+- The documentation has been updated if impacted by the change.
+- The code is formatted with black.
+- Commit messages are written following these
+  `guidelines
+  <https://chris.beams.io/posts/git-commit/>`__
+
+Pre-commit hooks
+~~~~~~~~~~~~~~~~
+
+You should consider initializing the pre-commit hooks. The
+installed git pre-commit hooks run flake8 and black among other things
+when committing changes to the git repository ::
+
+    pre-commit install
+    pre-commit run -a
 
 Testing
 ~~~~~~~
 
 For testing we use pytest with an ethereum tester plugin. The tests can
-be run with ``pytest``. Please not that this will recompile all contracts
+be run with ``pytest``. Please note that this will recompile all contracts
 automatically, there's no need to call ``make compile`` manually.
 
-Installation
-~~~~~~~~~~~~
-
-Please run `make install` to install the trustlines-contracts-bin and
-trustlines-contracts-deploy tool from the git checkout.
+You can also run end2end tests that will test how the contracts, `relay
+<https://github.com/trustlines-protocol/relay>`__
+, and `clientlib
+<https://github.com/trustlines-protocol/clientlib>`__
+work together. For more information about the end2end tests, see
+`the end2end repository
+<https://github.com/trustlines-protocol/end2end>`__
 
 Dependencies
 ~~~~~~~~~~~~
@@ -88,6 +137,11 @@ are derived from :code:`dev-requirements.in`. To add new development dependencie
 then rerun :code:`./compile-requirements.sh`. To upgrade the dependencies in the created requirement files,
 check out the available options for pip-tools and pass them to the compile script.
 To update all dependencies, run :code:`./compile-requirements.sh --upgrade`.
+
+Release
+~~~~~~~
+
+How to release new contracts versions.
 
 Change log
 ----------

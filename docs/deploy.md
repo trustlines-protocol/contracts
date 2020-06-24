@@ -2,7 +2,7 @@
 
 The command line tool `tl-deploy` allows you to deploy the Trustlines contracts
 for creating a new currency network, a trustlines exchange or identity proxies.
-Make sure that you have a running ethereum client with enough funds as described [here](../README.md).
+Make sure that you have a running ethereum client with enough funds to deploy the contracts.
 
 Use `tl-deploy --help` to find out about the relevant commands:
 
@@ -12,14 +12,15 @@ Usage: tl-deploy [OPTIONS] COMMAND [ARGS]...
   Commandline tool to deploy the Trustlines contracts
 
 Options:
-  --help  Show this message and exit.
+  --version  Prints the version of the software
+  --help     Show this message and exit.
 
 Commands:
-  currencynetwork           Deploy a currency network contract.
-  exchange                  Deploy an exchange contract.
-  identity-implementation   Deploy an identity implementation contract.
-  identity-proxy-factory    Deploy an identity proxy factory.
-  test                      Deploy contracts for testing.
+  currencynetwork          Deploy a currency network contract.
+  exchange                 Deploy an exchange contract.
+  identity-implementation  Deploy an identity implementation contract.
+  identity-proxy-factory   Deploy an identity proxy factory.
+  test                     Deploy contracts for testing.
 ```
 
 To get help about a specific command use `tl-deploy COMMAND --help`.
