@@ -45,7 +45,7 @@ library ECDSA {
 
         // Check the signature length
         if (signature.length != 65) {
-            return (address(0));
+            revert("ECDSA: invalid signature length");
         }
 
         // Divide the signature in r, s and v variables
@@ -65,10 +65,12 @@ library ECDSA {
 
         // If the version is correct return the signer address
         if (v != 27 && v != 28) {
-            return (address(0));
+            revert("ECDSA: incorrect signature version");
         } else {
             // solium-disable-next-line arg-overflow
-            return ecrecover(hash, v, r, s);
+            address signer = ecrecover(hash, v, r, s);
+            require(signer != address(0), "ECDSA: invalid signature");
+            return signer;
         }
     }
 
