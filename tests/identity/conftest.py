@@ -91,7 +91,7 @@ def signature_of_owner_on_implementation(
     return owner_key.sign_msg_hash(to_sign).to_bytes()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def proxied_identity_contract(
     web3,
     proxy_factory,
@@ -112,6 +112,6 @@ def proxied_identity_contract(
     return proxied_identity_contract
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def proxied_identity(proxied_identity_contract, owner_key):
     return Identity(contract=proxied_identity_contract, owner_private_key=owner_key)
