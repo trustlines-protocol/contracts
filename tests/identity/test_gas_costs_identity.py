@@ -55,11 +55,7 @@ def test_deploy_proxied_identity(
     for block_number in range(block_number_after, block_number_before, -1):
         gas_cost += web3.eth.getBlock(block_number).gasUsed
 
-    gas_values_snapshot.assert_gas_costs_match(
-        "DEPLOY_PROXIED_IDENTITY",
-        gas_cost,
-        abs_delta=100,  # TODO this test sometimes produces different gas costs based on execution order
-    )
+    gas_values_snapshot.assert_gas_costs_match("DEPLOY_PROXIED_IDENTITY", gas_cost)
 
 
 def test_meta_tx_over_regular_tx_overhead(
@@ -122,9 +118,7 @@ def test_proxy_overhead(
     overhead = gas_cost_proxied_meta_tx - gas_cost_not_proxied_tx
 
     gas_values_snapshot.assert_gas_costs_match(
-        "PROXIED_META_TRANSACTION_OVERHEAD_OVER_NONPROXY_METATRANSACTION",
-        overhead,
-        abs_delta=100,  # TODO this test sometimes produces different gas costs based on execution order
+        "PROXIED_META_TRANSACTION_OVERHEAD_OVER_NONPROXY_METATRANSACTION", overhead
     )
 
 
@@ -164,7 +158,7 @@ def test_meta_tx_over_own_identity_tx_overhead(
 
 
 def test_own_identity_meta_tx_overhead(
-    web3, gas_values_snapshot, test_contract, identity, owner, delegate
+    web3, gas_values_snapshot, test_contract, identity, owner
 ):
     """Tests the overhead of using an owned meta-tx compared to a regular tx"""
 
