@@ -1,4 +1,11 @@
-|Code style: black|
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+
+.. image:: https://circleci.com/gh/trustlines-protocol/contracts.svg?style=svg
+    :target: https://circleci.com/gh/trustlines-protocol/contracts
+
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+    :target: https://gitter.im/trustlines/community
 
 Trustlines Smart Contract Platform
 ==================================
@@ -91,15 +98,15 @@ Finally, to install all needed dependencies and compiling the contracts use the 
 Contributing
 ------------
 
-When opening a PR on the contracts repository, make sure:
+Contributions are highly appreciated, but please check our `contributing guidelines </CONTRIBUTING.md>`__.
 
-- The contracts tests and end2end tests are passing.
-- The :code:`unreleased` section of the changelog has been updated with the change.
-- The documentation has been updated if impacted by the change.
-- The code is formatted with black.
-- Commit messages are written following these
-  `guidelines
-  <https://chris.beams.io/posts/git-commit/>`__
+Release
+-------
+
+For versioning we use `setuptools-scm <https://pypi.org/project/setuptools-scm/>`_. This means the version number is
+derived from git tags. To release a new version of the contracts on PyPI or Docker Hub, simply tag a commit with a valid version
+number either via git, or from `github <https://github.com/trustlines-protocol/contracts/releases/new>`_.
+Make sure to update the changelog accordingly and add all changes since the last released version.
 
 Pre-commit hooks
 ~~~~~~~~~~~~~~~~
@@ -115,7 +122,7 @@ Testing
 ~~~~~~~
 
 For testing we use pytest with an ethereum tester plugin. The tests can
-be run with ``pytest``. Please note that this will recompile all contracts
+be run with ``make test``. Please note that this will recompile all contracts
 automatically, there's no need to call ``make compile`` manually.
 
 You can also run end2end tests that will test how the contracts, `relay
@@ -147,6 +154,3 @@ Change log
 ----------
 
 See `CHANGELOG <https://github.com/trustlines-protocol/contracts/blob/master/CHANGELOG.rst>`_.
-
-.. |Code style: black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-   :target: https://github.com/ambv/black
