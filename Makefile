@@ -24,6 +24,8 @@ compile:: setup-venv install-requirements
 	@echo "==> Compiling contracts"
 	$(VIRTUAL_ENV)/bin/deploy-tools compile --optimize
 	cp -p build/contracts.json py-bin/
+	cp -p build/contracts.json $(VIRTUAL_ENV)/trustlines-contracts/build/
+
 
 install0:: SETUPTOOLS_SCM_PRETEND_VERSION = $(shell python3 -c 'from setuptools_scm import get_version; print(get_version())')
 install0:: setup-venv compile
