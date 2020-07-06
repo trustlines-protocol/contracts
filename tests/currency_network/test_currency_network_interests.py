@@ -848,7 +848,6 @@ def test_apply_interests_not_possible_when_frozen(
     )
     A, B, *rest = accounts
 
-    adapter.update_trustline(A, B, accept=True)
     # should be fine
     adapter.contract.functions.applyInterests(B).transact({"from": A})
 

@@ -1,4 +1,5 @@
 import pytest
+from eth_tester.exceptions import TransactionFailed
 
 from tldeploy.core import deploy_network
 from tests.conftest import EXPIRATION_TIME
@@ -128,9 +129,11 @@ def test_onboarding_event_with_onboarder(currency_network_contract, web3, accoun
 def test_onboarding_no_accept_tl(currency_network_contract, accounts):
     """Test that users cannot attempt to open a TL with (0, 0, 0, 0) to onboard someone"""
     open_trustline(currency_network_contract, accounts[1], accounts[2])
-    currency_network_contract.functions.updateCreditlimits(accounts[3], 0, 0).transact(
-        {"from": accounts[1]}
-    )
+
+    with pytest.raises(TransactionFailed):
+        currency_network_contract.functions.updateCreditlimits(
+            accounts[3], 0, 0
+        ).transact({"from": accounts[1]})
 
     assert (
         currency_network_contract.functions.onboarder(accounts[3]).call() == ADDRESS_0
