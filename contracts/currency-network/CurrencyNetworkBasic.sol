@@ -898,7 +898,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
                 trustlineAgreement.interestRateReceived == 0 &&
                 trustlineAgreement.isFrozen == false
             ) {
-                return;
+                revert("Can not open zero trustline.");
             }
             _deleteTrustlineRequest(_creditor, _debtor);
             _setTrustline(

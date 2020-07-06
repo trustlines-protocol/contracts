@@ -376,6 +376,17 @@ def test_can_always_reduce(currency_network_adapter_with_trustlines, accounts):
     )
 
 
+def test_update_cannot_open_zero_trustline(currency_network_adapter, accounts):
+    A, C, *rest = accounts
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_adapter.update_trustline(
+            A, C, creditline_given=0, creditline_received=0
+        )
+
+    assert currency_network_adapter.events("TrustlineUpdate") == []
+
+
 def test_update_without_accept_trustline(currency_network_adapter, accounts):
     A, B, *rest = accounts
 
