@@ -777,6 +777,10 @@ def test_meta_transaction_fee_recipient(
     assert debt_A_B == base_fee
     assert debt_A_delegate == 0
 
+    fee_payment_event = each_identity.contract.events.FeePayment().getLogs()[-1]
+    assert fee_payment_event["args"]["value"] == base_fee
+    assert fee_payment_event["args"]["recipient"] == B
+
 
 def test_meta_transaction_delegate_call(
     each_identity, delegate, delegate_address, web3, test_contract
