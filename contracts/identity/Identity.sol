@@ -148,7 +148,7 @@ contract Identity is ProxyStorage {
                 feeRecipient = msg.sender;
             }
             debtContract.increaseDebt(feeRecipient, fees);
-            emit FeePayment(fees, msg.sender, currencyNetworkOfFees);
+            emit FeePayment(fees, feeRecipient, currencyNetworkOfFees);
         }
 
         emit TransactionExecution(hash, status);
