@@ -17,6 +17,7 @@ def test_contract(deploy_contract):
     return deploy_contract("TestContract")
 
 
+@pytest.mark.gas_costs
 def test_deploy_identity(web3, accounts, gas_values_snapshot):
     A, *rest = accounts
 
@@ -33,6 +34,7 @@ def test_deploy_identity(web3, accounts, gas_values_snapshot):
     gas_values_snapshot.assert_gas_costs_match("DEPLOY_IDENTITY", gas_cost)
 
 
+@pytest.mark.gas_costs
 def test_deploy_proxied_identity(
     web3,
     gas_values_snapshot,
@@ -58,6 +60,7 @@ def test_deploy_proxied_identity(
     gas_values_snapshot.assert_gas_costs_match("DEPLOY_PROXIED_IDENTITY", gas_cost)
 
 
+@pytest.mark.gas_costs
 def test_meta_tx_over_regular_tx_overhead(
     web3, gas_values_snapshot, test_contract, identity, delegate
 ):
@@ -91,6 +94,7 @@ def test_meta_tx_over_regular_tx_overhead(
     )
 
 
+@pytest.mark.gas_costs
 def test_proxy_overhead(
     web3, gas_values_snapshot, test_contract, proxied_identity, identity, delegate
 ):
@@ -122,6 +126,7 @@ def test_proxy_overhead(
     )
 
 
+@pytest.mark.gas_costs
 def test_meta_tx_over_own_identity_tx_overhead(
     web3, gas_values_snapshot, test_contract, identity, owner, delegate
 ):
@@ -157,6 +162,7 @@ def test_meta_tx_over_own_identity_tx_overhead(
     )
 
 
+@pytest.mark.gas_costs
 def test_own_identity_meta_tx_overhead(
     web3, gas_values_snapshot, test_contract, identity, owner
 ):
