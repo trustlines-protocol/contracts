@@ -19,7 +19,6 @@ from tldeploy.core import deploy_network
 
 from ..conftest import EXTRA_DATA, EXPIRATION_TIME
 
-
 trustlines = [
     (0, 1, 100, 150),
     (1, 2, 200, 250),
@@ -66,6 +65,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
     return contract
 
 
+@pytest.mark.gas_costs
 def test_cost_transfer_0_mediators(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -81,6 +81,7 @@ def test_cost_transfer_0_mediators(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_transfer_1_mediators(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -94,6 +95,7 @@ def test_cost_transfer_1_mediators(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_transfer_2_mediators(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -107,6 +109,7 @@ def test_cost_transfer_2_mediators(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_transfer_3_mediators(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -120,6 +123,7 @@ def test_cost_transfer_3_mediators(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_first_trustline_request(
     web3, currency_network_contract, accounts, gas_values_snapshot
 ):
@@ -133,6 +137,7 @@ def test_cost_first_trustline_request(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_second_trustline_request(
     web3, currency_network_contract, accounts, gas_values_snapshot
 ):
@@ -149,6 +154,7 @@ def test_cost_second_trustline_request(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_first_trustline(
     web3, currency_network_contract, accounts, gas_values_snapshot
 ):
@@ -167,6 +173,7 @@ def test_cost_first_trustline(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_update_trustline(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -185,6 +192,7 @@ def test_cost_update_trustline(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_update_reduce_need_no_accept_trustline(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -200,6 +208,7 @@ def test_cost_update_reduce_need_no_accept_trustline(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_close_trustline_no_transfer(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -215,6 +224,7 @@ def test_cost_close_trustline_no_transfer(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_close_trustline_triangular_transfer_2_mediators(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -234,6 +244,7 @@ def test_cost_close_trustline_triangular_transfer_2_mediators(
     )
 
 
+@pytest.mark.gas_costs
 def test_cost_close_trustline_triangular_transfer_4_mediators(
     web3, currency_network_contract_with_trustlines, accounts, gas_values_snapshot
 ):
@@ -254,6 +265,7 @@ def test_cost_close_trustline_triangular_transfer_4_mediators(
     )
 
 
+@pytest.mark.gas_costs
 def test_cancel_trustline_update(
     web3, currency_network_contract, accounts, gas_values_snapshot
 ):
