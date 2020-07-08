@@ -3,11 +3,14 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
+* Add means to get contracts.json from py-bin: `from tlbin import load_packaged_contracts`
+* Remove: No longer packs `contracts.json` as data file in `trustlines-contracts/build/`.
+  Use package `tlbin` instead (BREAKING)
 
 `1.1.4`_ (2020-04-15)
 -----------------------
 * Fix bug in interests calculations that would cause the balance to flip sign for big values of negative interests.
-Set the balance to 0 when this should happen instead.
+  Set the balance to 0 when this should happen instead.
 
 `1.1.3`_ (2020-02-28)
 -----------------------
