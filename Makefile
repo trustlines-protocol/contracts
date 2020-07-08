@@ -28,15 +28,15 @@ compile:: install-requirements
 install0:: SETUPTOOLS_SCM_PRETEND_VERSION = $(shell python3 -c 'from setuptools_scm import get_version; print(get_version())')
 install0:: compile
 	@echo "==> Installing py-bin/py-deploy into your local virtualenv"
-	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install ./py-bin
-	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install $(PIP_DEPLOY_OPTIONS) ./py-deploy
+	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install $(PIP_INSTALL_OPTIONS) ./py-bin
+	/usr/bin/env SETUPTOOLS_SCM_PRETEND_VERSION=$(SETUPTOOLS_SCM_PRETEND_VERSION) pip install $(PIP_INSTALL_OPTIONS) ./py-deploy
 
 dist:: compile
 	cd py-bin; python setup.py sdist
 	cd py-deploy; python setup.py sdist
 
-install:: PIP_DEPLOY_OPTIONS = -q -e
+install:: PIP_INSTALL_OPTIONS = -q -e
 install:: install-requirements install0
 
-install-non-editable:: PIP_DEPLOY_OPTIONS = -q
+install-non-editable:: PIP_INSTALL_OPTIONS = -q
 install-non-editable:: install-requirements install0
