@@ -16,6 +16,7 @@ setup(
     setup_requires=["setuptools_scm"],
     use_scm_version={"root": ".."},
     description="deploy trustlines contracts",
+    long_description_content_type="text/markdown",
     long_description=long_description,
     url="https://github.com/trustlines-protocol/contracts",
     author="Trustlines-Network",

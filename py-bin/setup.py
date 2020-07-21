@@ -16,6 +16,7 @@ setup(
     setup_requires=["setuptools_scm"],
     use_scm_version={"root": ".."},
     description="Smart Contracts for Trustlines-Network",
+    long_description_content_type="text/markdown",
     long_description=long_description,
     # The project's main homepage.
     url="https://github.com/trustlines-protocol/contracts",
