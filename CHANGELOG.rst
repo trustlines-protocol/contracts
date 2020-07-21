@@ -3,9 +3,10 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
+
+`1.1.5`_ (2020-07-21)
+-----------------------
 * Add means to get contracts.json from py-bin: `from tlbin import load_packaged_contracts`
-* Remove: No longer packs `contracts.json` as data file in `trustlines-contracts/build/`.
-  Use package `tlbin` instead (BREAKING)
 
 `1.1.4`_ (2020-04-15)
 -----------------------
@@ -253,4 +254,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.2: https://github.com/trustlines-protocol/contracts/compare/1.1.1...1.1.2
 .. _1.1.3: https://github.com/trustlines-protocol/contracts/compare/1.1.2...1.1.3
 .. _1.1.4: https://github.com/trustlines-protocol/contracts/compare/1.1.3...1.1.4
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.4...master
+.. _1.1.5: https://github.com/trustlines-protocol/contracts/compare/1.1.4...1.1.5
+.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.5...master
