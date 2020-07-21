@@ -137,6 +137,10 @@ jobs:
           at: '~'
       - config-path
       - run:
+          name: upgrade twine
+          command: |
+            - pip install --upgrade twine
+      - run:
           name: Init .pypirc
           command: |
             echo -e "[pypi]" >> ~/.pypirc
