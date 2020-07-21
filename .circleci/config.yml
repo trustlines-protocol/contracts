@@ -139,7 +139,7 @@ jobs:
       - run:
           name: upgrade twine
           command: |
-            - pip install --upgrade twine
+            pip install --upgrade twine
       - run:
           name: Init .pypirc
           command: |
