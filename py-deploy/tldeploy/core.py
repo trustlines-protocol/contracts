@@ -3,9 +3,6 @@
 # contracts when running tests in this project.
 
 import collections
-import json
-import os
-import sys
 from typing import Dict
 
 from deploy_tools import deploy_compiled_contract
@@ -14,14 +11,7 @@ from deploy_tools.deploy import (
     send_function_call_transaction,
 )
 from web3 import Web3
-
-
-def load_contracts_json():
-    path = os.environ.get("TRUSTLINES_CONTRACTS_JSON") or os.path.join(
-        sys.prefix, "trustlines-contracts", "build", "contracts.json"
-    )
-    with open(path, "rb") as f:
-        return json.load(f)
+from tlbin import load_packaged_contracts
 
 
 # lazily load the contracts, so the compile_contracts fixture has a chance to
@@ -29,7 +19,7 @@ def load_contracts_json():
 class LazyContractsLoader(collections.UserDict):
     def __getitem__(self, *args):
         if not self.data:
-            self.data = load_contracts_json()
+            self.data = load_packaged_contracts()
         return super().__getitem__(*args)
 
 
