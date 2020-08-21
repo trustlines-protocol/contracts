@@ -184,6 +184,10 @@ class LastNonceFunctionNotFound(UnexpectedIdentityContractException):
     pass
 
 
+class ImplementationAddressNotFound(UnexpectedIdentityContractException):
+    pass
+
+
 class Delegate:
     def __init__(
         self, delegate_address: str, *, web3, identity_contract_abi, default_gas=MAX_GAS
@@ -333,6 +337,13 @@ class Delegate:
         except BadFunctionCallOutput:
             raise LastNonceFunctionNotFound
         return next_nonce
+
+    def get_implementation_address(self, identity_address: str):
+        identity_contract = self._get_identity_contract(identity_address)
+        try:
+            return identity_contract.functions.implementation().call()
+        except BadFunctionCallOutput:
+            raise ImplementationAddressNotFound
 
     def _get_identity_contract(self, address: str):
         return self._web3.eth.contract(abi=self._identity_contract_abi, address=address)
