@@ -164,7 +164,7 @@ def currencynetwork(
 
     if expiration_date is not None and expiration_time is not None:
         raise click.BadParameter(
-            f"Both --expiration-date and --expiration-times have been specified."
+            "Both --expiration-date and --expiration-times have been specified."
         )
 
     if expiration_date is None and expiration_time is None:
@@ -401,6 +401,9 @@ def test(
     identity_implementation = deploy_identity_implementation(
         web3=web3, transaction_options=transaction_options, private_key=private_key
     )
+    second_identity_implementation = deploy_identity_implementation(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     identity_proxy_factory = deploy_identity_proxy_factory(
         web3=web3, transaction_options=transaction_options, private_key=private_key
     )
@@ -411,8 +414,13 @@ def test(
     addresses["networks"] = network_addresses
     addresses["exchange"] = exchange_address
     addresses["unwEth"] = unw_eth_address
+    # TODO: remove address["identityImplementation"], left for backward compatibility
     addresses["identityImplementation"] = identity_implementation.address
     addresses["identityProxyFactory"] = identity_proxy_factory.address
+    addresses["identityImplementations"] = [
+        identity_implementation.address,
+        second_identity_implementation.address,
+    ]
 
     if file:
         with open(file, "w") as outfile:
@@ -426,8 +434,9 @@ def test(
         )
     )
     click.echo(
-        "Identity implementation: {}".format(
-            to_checksum_address(identity_implementation.address)
+        "Identity implementations: {} and {}".format(
+            to_checksum_address(identity_implementation.address),
+            to_checksum_address(second_identity_implementation.address),
         )
     )
     for settings, address in zip(network_settings, network_addresses):
