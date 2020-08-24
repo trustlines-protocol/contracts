@@ -4,6 +4,13 @@ Change Log
 `next`_ (unreleased)
 -----------------------
 
+`1.1.6`_ (2020-08-24)
+-----------------------
+* Added: function for delegate to find the implementation address of an identity proxy:
+  `Delegate.get_implementation_address(identity_address)`
+* Added: Deploy a second identity implementation contract in the the `tldeploy test` command.
+  this can be used for testing the update of identity implementations.
+
 `1.1.5`_ (2020-07-21)
 -----------------------
 * Add means to get contracts.json from py-bin: `from tlbin import load_packaged_contracts`
@@ -255,4 +262,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.3: https://github.com/trustlines-protocol/contracts/compare/1.1.2...1.1.3
 .. _1.1.4: https://github.com/trustlines-protocol/contracts/compare/1.1.3...1.1.4
 .. _1.1.5: https://github.com/trustlines-protocol/contracts/compare/1.1.4...1.1.5
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.5...master
+.. _1.1.6: https://github.com/trustlines-protocol/contracts/compare/1.1.5...1.1.6
+.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.6...master
