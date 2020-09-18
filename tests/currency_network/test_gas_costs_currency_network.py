@@ -1,5 +1,6 @@
 #! pytest
-"""This file contains tests so that there is no regression in the gas costs,
+"""
+ This file contains tests so that there is no regression in the gas costs,
  for example because of a different solidity version.
  The tests are meant to exhibit unexpected increase in gas costs.
  They are not meant to enforce a limit.
@@ -12,8 +13,8 @@
  The gas costs for the tests are automatically stored in the file 'gas_values.csv'
  If the gas cost changes and you need to change these values, run the tests with '--update-gas-values'
 
-The gas limit values are rounded up to the thousands
- """
+ The gas limit values are rounded up to the thousands
+"""
 import pytest
 from tldeploy.core import deploy_network
 
