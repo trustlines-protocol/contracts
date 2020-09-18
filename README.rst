@@ -24,8 +24,11 @@ The deploy tools can be used via cli or as a python package to be built on top o
 The package tl-deploy used for deployment of the contracts additionally provides
 an abstraction layer to identities and meta-transactions for delegates to use.
 
+To read more about the deploy tool, read its `readme
+<py-deploy/README.md>`__.
+
 To have more information about trustlines in general, visit the `Trustlines Foundation website
-<https://trustlines.network/>`__
+<https://trustlines.network/>`__.
 
 Currency Networks
 ~~~~~~~~~~~~~~~~~
