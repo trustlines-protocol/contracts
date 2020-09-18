@@ -68,7 +68,7 @@ contract CurrencyNetworkSafeMath {
         }
     }
 
-    function checkIsNotMinInt256(int a) internal pure returns (bool) {
+    function checkIsNotMinInt256(int a) internal pure {
         require(a != - 2 ** 255, "Prevent using value for minus overflow.");
     }
 }

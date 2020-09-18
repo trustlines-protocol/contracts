@@ -10,12 +10,10 @@ import "./MetaData.sol";
 
 
 /**
- * CurrencyNetworkBasic
- *
- * Main contract of Trustlines, encapsulates all trustlines of one currency network.
+ * @title Basic functionalities of Currency Networks
+ * @notice Main contract of Trustlines, encapsulates all trustlines of one currency network.
  * Implements core features of currency networks related to opening / closing trustline and transfers.
  * Also includes freezing of TL / currency networks, interests and fees.
- *
  **/
 contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizable, ERC165, CurrencyNetworkSafeMath {
 
@@ -292,6 +290,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     /**
      * @notice Updates the balance of the trustline between `msg.sender` and `_counterParty`
         by applying the outstanding interests
+        @param _counterParty The counterparty with which to update the interests
      */
     function applyInterests(
         address _counterParty
@@ -386,8 +385,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     }
 
     /**
-    * Query the trustline between two users.
-    * Can be removed once structs are supported in the ABI
+    * @notice Query the trustline between two users.
+    * @param _a First address that defines the trustline
+    * @param _b second address that defines the trustline
+    * @dev Can be removed once structs are supported in the ABI
     */
     function getAccount(address _a, address _b) external view returns (int, int, int, int, bool, int, int) {
         Trustline memory trustline = _loadTrustline(_a, _b);
@@ -402,6 +403,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             trustline.balances.balance);
     }
 
+    /**
+     * @notice Freezes the network once the expirationTime has been reached
+     * it can no longer be used after that
+     **/
     function freezeNetwork() external {
         require(expirationTime != 0, "The currency network has disabled freezing.");
         require(expirationTime <= now, "The currency network cannot be frozen yet.");
@@ -409,6 +414,12 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         emit NetworkFreeze();
     }
 
+    /**
+     * @notice Queries whether the contract supports the given interfaceID (see ERC165)
+     * @param interfaceID the queried interface id
+     * @return A boolean for whether the interface id is supported
+     * @dev This needs to be in sync with CurrencyNetworkInterface.sol
+     **/
     function supportsInterface(
         bytes4 interfaceID
     )
@@ -434,7 +445,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
     /**
      * @notice The creditline limit given by `_creditor` to `_debtor`
-     * @return Amount tokens allowed to spent
+     * @param _creditor the creditor of the queried trustline
+     * @param _debtor the debtor of the queried trustline
+     * @return credit limit given by creditor to debtor
      */
     function creditline(address _creditor, address _debtor) public view returns (uint _creditline) {
         // returns the current creditline given by A to B
@@ -444,7 +457,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
     /**
      * @notice The interest rate given by `_creditor` to `_debtor`
-     * @return Interest rate on the balance of the line
+     * @param _creditor the creditor of the queried trustline
+     * @param _debtor the debtor of the queried trustline
+     * @return Interest rate given by creditor to debtor on the balance of the line
      */
     function interestRate(address _creditor, address _debtor) public view returns (int16 _interestRate) {
         // returns the current interests given by A to B
@@ -452,18 +467,30 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         _interestRate = trustlineAgreement.interestRateGiven;
     }
 
-    /*
-     * @notice returns what B owes to A
-     */
+    /**
+     * @notice returns what _b owes to _a
+     * @param _a First address that defines the trustline
+     * @param _b second address that defines the trustline
+     * @return the amount _b owes to _a on the trustline between _a and _b
+     **/
     function balance(address _a, address _b) public view returns (int _balance) {
         TrustlineBalances memory trustlineBalances = _loadTrustlineBalances(_a, _b);
         _balance = trustlineBalances.balance;
     }
 
+    /**
+     * @notice returns the list of friends of _user,
+     * that is the list of addresses with which _user has an open trustline
+     * @param _user The user to query the list of friends for
+     **/
     function getFriends(address _user) public view returns (address[] memory) {
         return friends[_user].list;
     }
 
+    /**
+     * @notice returns the list of all the users of trustlines,
+     * that is all the addresses that ever opened a trustline
+     **/
     function getUsers() public view returns (address[] memory) {
         return users.list;
     }

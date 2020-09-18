@@ -62,6 +62,8 @@ contract DebtTracking is CurrencyNetworkSafeMath {
             return keccak256(abi.encodePacked(_a, _b));
         } else if (_a > _b) {
             return keccak256(abi.encodePacked(_b, _a));
+        } else {
+            revert("Unreachable");
         }
     }
 }
