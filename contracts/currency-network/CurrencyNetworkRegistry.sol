@@ -3,7 +3,11 @@ pragma solidity ^0.5.8;
 import "./CurrencyNetworkInterface.sol";
 import "../lib/ERC165Query.sol";
 
-
+/**
+ * @title Currency Network Registry
+ * @notice Used to keep an on-chain registry of currency networks
+ * @dev Currency networks must implement the CurrencyNetworkInterface with ERC-165 interface id: 0x7ecdffaf
+ **/
 contract CurrencyNetworkRegistry is ERC165Query {
 
     struct CurrencyNetworkMetadata {
