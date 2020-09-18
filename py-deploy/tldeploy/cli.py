@@ -351,7 +351,7 @@ def test(
     currency_network_contract_name: str,
 ):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
-    Also deploys an identity proxy factory and a identity implementation contract.
+    Also deploys an identity proxy factory and an identity implementation contract.
     This can be used for testing"""
 
     expiration_time = 4_102_444_800  # 01/01/2100
