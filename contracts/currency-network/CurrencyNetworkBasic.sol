@@ -1247,15 +1247,4 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             return keccak256(abi.encodePacked(_b, _a));
         }
     }
-
-    function acceptId(
-        address _creditor,
-        address _debtor
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encodePacked(_creditor, _debtor));
-    }
 }
