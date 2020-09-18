@@ -94,14 +94,12 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         int16 interestRateReceived;   //  interest rate set by B for creditline given from B to A in 0.01% per year
 
         bool isFrozen;                //  8 bits
-        int88 padding;                //  fill up to 256bit
     }
 
     struct TrustlineBalances {
         uint32 mtime;                  //  last time interests were applied
         int72 balance;                 //  balance between A and B, balance is >0 if B owes A, negative otherwise.
                                        //  balance(B,A) = - balance(A,B)
-        int152 padding;                //  fill up to 256 bit
     }
 
     struct TrustlineRequest {
@@ -799,14 +797,12 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateGiven;
             storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateReceived;
             storedTrustlineAgreement.isFrozen = trustlineAgreement.isFrozen;
-            storedTrustlineAgreement.padding = trustlineAgreement.padding;
         } else {
             storedTrustlineAgreement.creditlineGiven = trustlineAgreement.creditlineReceived;
             storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineGiven;
             storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateReceived;
             storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateGiven;
             storedTrustlineAgreement.isFrozen = trustlineAgreement.isFrozen;
-            storedTrustlineAgreement.padding = trustlineAgreement.padding;
         }
     }
 
@@ -816,11 +812,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         if (_a < _b) {
             storedTrustlineBalance.mtime = trustlineBalances.mtime;
             storedTrustlineBalance.balance = trustlineBalances.balance;
-            storedTrustlineBalance.padding = trustlineBalances.padding;
         } else {
             storedTrustlineBalance.mtime = trustlineBalances.mtime;
             storedTrustlineBalance.balance = - trustlineBalances.balance;
-            storedTrustlineBalance.padding = trustlineBalances.padding;
         }
     }
 
