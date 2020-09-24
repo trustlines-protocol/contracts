@@ -1,10 +1,8 @@
 import json
-import os
-import sys
+
+import pkg_resources
 
 
 def load_packaged_contracts():
-    with open(
-        os.path.join(sys.prefix, "trustlines-contracts", "build", "contracts.json")
-    ) as file:
+    with open(pkg_resources.resource_filename(__name__, "contracts.json")) as file:
         return json.load(file)
