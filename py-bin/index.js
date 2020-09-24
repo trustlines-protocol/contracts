@@ -1,1 +1,1 @@
-module.exports = require('./contracts.json')
+module.exports = require('./tlbin/contracts.json')
