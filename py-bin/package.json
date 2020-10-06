@@ -1,5 +1,5 @@
 {
-  "name": "trustlines-contracts-abi",
+  "name": "@trustlines/trustlines-contracts-abi",
   "version": "0.0.0",
   "description": "ABI of the trustlines smart contracts",
   "main": "index.js",
