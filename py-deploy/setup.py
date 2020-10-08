@@ -46,7 +46,7 @@ setup(
     packages=find_packages(exclude=["contrib", "docs", "tests"]),
     package_data={"tldeploy": ["identity-proxy.json"]},
     install_requires=[
-        "web3>=4.7.1,<6.0",
+        "web3>=5.7.0,<6.0",
         "click>=7.0",
         "trustlines-contracts-bin>=1.1.5,<2.0.0",
         "contract-deploy-tools>=0.6.1",

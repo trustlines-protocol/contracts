@@ -1,0 +1,2 @@
+contract-deploy-tools==0.8.0    # to make it work with the relay
+eth-tester[py-evm]==0.1.0b39    # to resolve conflict with contract-deploy-tools and web3
