@@ -4,6 +4,13 @@ Change Log
 `next`_ (unreleased)
 -----------------------
 
+`1.1.7`_ (2020-10-12)
+-----------------------
+* Fixed: packing of contracts in trustlines-contracts-bin,
+  it was not working properly when installed in editable mode.
+* Added: Natspec missing to some contracts functions
+* Updated: dependencies updated, notably contract-deploy-tools==0.8.0 and web3==5.12.1
+
 `1.1.6`_ (2020-08-24)
 -----------------------
 * Added: function for delegate to find the implementation address of an identity proxy:
@@ -263,4 +270,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.4: https://github.com/trustlines-protocol/contracts/compare/1.1.3...1.1.4
 .. _1.1.5: https://github.com/trustlines-protocol/contracts/compare/1.1.4...1.1.5
 .. _1.1.6: https://github.com/trustlines-protocol/contracts/compare/1.1.5...1.1.6
+.. _1.1.7: https://github.com/trustlines-protocol/contracts/compare/1.1.6...1.1.7
 .. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.6...master
