@@ -1,6 +1,9 @@
 {
   "name": "@trustlines/trustlines-contracts-abi",
   "version": "0.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "ABI of the trustlines smart contracts",
   "main": "index.js",
   "scripts": {
