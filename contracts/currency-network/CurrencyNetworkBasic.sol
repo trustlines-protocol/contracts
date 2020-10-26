@@ -1150,6 +1150,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         pure
         returns (int72)
     {
+        require(_balance <= MAX_BALANCE && _balance >= MIN_BALANCE, "The function requires the _balance to fit into a 64 bit value");
+        require(_startTime <= _endTime, "_startTime should be before _endTime");
         int16 rate = 0;
         if (_balance > 0) {
             rate = _interestRateGiven;

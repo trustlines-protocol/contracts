@@ -865,13 +865,10 @@ def test_apply_interests_not_possible_when_frozen(
         10 ** 12,
         MAX_BALANCE - 1,
         MAX_BALANCE,
-        MAX_BALANCE + 1,
-        10 ** 20,
         -1,
         -(10 ** 12),
         MIN_BALANCE + 1,
         MIN_BALANCE,
-        MIN_BALANCE - 1,
     ],
 )
 def test_interest_calculation_sane(
@@ -896,6 +893,16 @@ def test_interest_calculation_sane(
     assert abs(new_balance) <= abs(
         balance
     ), f"Absolute Balance has become bigger: |{new_balance}| > |{balance}|"
+
+
+@pytest.mark.parametrize("balance", [MAX_BALANCE + 1, MIN_BALANCE - 1])
+def test_interests_calculation_balance_out_of_bounds(
+    test_currency_network_contract, balance
+):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+            balance, 0, 100, 10, 10
+        ).call()
 
 
 # Above these we should warn users that interest calculation can be inaccurate
