@@ -89,6 +89,12 @@ def currency_network_contract_with_trustline_update(web3, accounts):
     return contract
 
 
+@pytest.fixture(scope="session", params=["+", "-"])
+def invalid_interest_rate(request):
+    max_interest_rate = 2000
+    return int(request.param + str(max_interest_rate + 1))
+
+
 def test_meta_name(currency_network_contract):
     assert currency_network_contract.functions.name().call() == "TestCoin"
 
@@ -106,6 +112,13 @@ def test_init_only_once(currency_network_contract):
         currency_network_contract.functions.init(
             "TestCoin", "T", 6, 0, 0, False, False, EXPIRATION_TIME, []
         ).transact()
+
+
+def test_default_interests_rates_out_of_bounds(web3, invalid_interest_rate):
+    invalid_settings = NETWORK_SETTING.copy()
+    invalid_settings["default_interest_rate"] = invalid_interest_rate
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        deploy_network(web3, **invalid_settings)
 
 
 def test_users(currency_network_contract_with_trustlines, accounts):
@@ -738,6 +751,26 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
 
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_adapter.update_trustline(A, B, interest_rate_given=-2)
+
+
+@pytest.mark.parametrize(
+    "interest_rate_param", ["interest_rate_given", "interest_rate_received"]
+)
+def test_update_trustline_interests_out_of_bounds(
+    currency_network_adapter_custom_interest,
+    interest_rate_param,
+    accounts,
+    invalid_interest_rate,
+):
+    currency_network_adapter = currency_network_adapter_custom_interest
+    A, B, *rest = accounts
+
+    param_dict = {interest_rate_param: invalid_interest_rate}
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_adapter.update_trustline(
+            A, B, creditline_given=50, creditline_received=50, **param_dict
+        )
 
 
 def test_cancel_trustline_update(

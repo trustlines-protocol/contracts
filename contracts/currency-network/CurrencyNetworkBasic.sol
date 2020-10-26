@@ -122,7 +122,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
      * @param _symbol The symbol of the currency
      * @param _decimals Number of decimals of the currency
      * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
-     * @param _defaultInterestRate The default interests for every trustlines in 0.001% per year
+     * @param _defaultInterestRate The default interests for every trustlines in 0.01% per year
      * @param _customInterests Flag to allow or disallow trustlines to have custom interests
      * @param _preventMediatorInterests Flag to allow or disallow transactions resulting in loss of interests for
      *         intermediaries, unless the transaction exclusively reduces balances
@@ -150,6 +150,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             ! ((_defaultInterestRate != 0) && _customInterests),
             "Custom interests are set; default interest rate must be zero."
         );
+        require(_defaultInterestRate <= 2000 && _defaultInterestRate >= -2000, "Default interests cannot exceed +-20%.");
         require(
             !_preventMediatorInterests || (_preventMediatorInterests && _customInterests),
             "Prevent mediator interest cannot be set without using custom interests."
@@ -901,6 +902,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
                 _interestRateGiven >= 0 && _interestRateReceived >= 0,
                 "Only positive interest rates are supported."
             );
+            require(_interestRateGiven <= 2000 && _interestRateGiven >= -2000, "Interests rate given cannot exceed +-20%.");
+            require(_interestRateReceived <= 2000 && _interestRateReceived >= -2000, "Interests rate received cannot exceed +-20%.");
         }
 
         // reduction of creditlines and interests given is always possible if trustline is not frozen
