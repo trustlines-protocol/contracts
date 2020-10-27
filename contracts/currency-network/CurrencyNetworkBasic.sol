@@ -1212,18 +1212,20 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
 
         // Restrict balance within MAX / MIN balance
         // If rate is negative, we assume that the balance was eventually going to be 0
-        if (newBalance > MAX_BALANCE) {
-            if (rate < 0) {
-                newBalance = 0;
-            } else {
+        if (rate > 0) {
+            if (newBalance > MAX_BALANCE) {
                 newBalance = MAX_BALANCE;
             }
-        }
-        if (newBalance < MIN_BALANCE) {
-            if (rate < 0) {
-                newBalance = 0;
-            } else {
+            if (newBalance < MIN_BALANCE) {
                 newBalance = MIN_BALANCE;
+            }
+        }
+        if (rate < 0) {
+            if (_balance > 0 && newBalance > _balance) {
+                newBalance = 0;
+            }
+            if (_balance < 0 && newBalance < _balance) {
+                newBalance = 0;
             }
         }
         // If sign flipped because of wrong calculation, the best thing we can do is to assume the result should be 0
