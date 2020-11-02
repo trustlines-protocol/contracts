@@ -3,6 +3,9 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
+* Updated: limit interest rates in currency networks to `+-20%`
+* Updated: limit balance with negative interests to old balance to avoid increasing the balance
+  instead of lowering it when calculation fails
 
 `1.1.7`_ (2020-10-12)
 -----------------------
