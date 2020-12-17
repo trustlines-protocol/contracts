@@ -178,7 +178,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         pure
         returns (int72)
     {
-        return _calculateBalanceWithInterests(
+        return calculateBalanceWithInterests(
             _balance,
             _startTime,
             _endTime,

@@ -74,7 +74,6 @@ class CurrencyNetworkAdapter:
         self,
         a_address,
         b_address,
-        *,
         creditline_given=None,
         creditline_received=None,
         interest_rate_given=None,
@@ -106,6 +105,13 @@ class CurrencyNetworkAdapter:
 
     def balance(self, a_address, b_address):
         return self.contract.functions.balance(a_address, b_address).call()
+
+    def balance_with_interests(
+        self, balance, old_mtime, new_mtime, interest_rate_given, interest_rate_received
+    ):
+        return self.contract.functions.calculateBalanceWithInterests(
+            balance, old_mtime, new_mtime, interest_rate_given, interest_rate_received
+        ).call()
 
     def creditline(self, creditor_address, debtor_address):
         return self.contract.functions.creditline(

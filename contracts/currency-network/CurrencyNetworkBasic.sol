@@ -504,6 +504,106 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         return trustlineAgreement.isFrozen;
     }
 
+    // This function will calculate the compound interests with a Taylor approximation
+    // It will give correct results if: rate * (_endTime - _startTime) < 10_000 * SECONDS_PER_YEAR
+    // so that Balance(t) = Balance(0) * exp(r*t) where (r*t) < 1
+    function calculateBalanceWithInterests(
+        int72 _balance,
+        uint _startTime,
+        uint _endTime,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived
+    )
+        public
+        pure
+        returns (int72)
+    {
+        require(_balance <= MAX_BALANCE && _balance >= MIN_BALANCE, "The function requires the _balance to fit into a 64 bit value");
+        require(_startTime <= _endTime, "_startTime should be before _endTime");
+        int16 rate = 0;
+        if (_balance > 0) {
+            rate = _interestRateGiven;
+        } else if (_balance < 0) {
+            rate = _interestRateReceived;
+        }
+
+        if (rate == 0) {
+            return _balance;
+        }
+
+        int256 dt = int256(_endTime - _startTime);
+        int256 intermediateOrder = _balance;
+        int256 newBalance = _balance;
+
+        assert(dt>=0);
+
+        for (int i = 1; i <= 15; i++) {
+            int256 newIntermediateOrder = intermediateOrder*rate*dt;
+
+            //Overflow adjustment
+            if ((newIntermediateOrder != 0) && (newIntermediateOrder / (rate * dt) != intermediateOrder)) {
+                if (rate > 0) {
+                    if (_balance > 0) {
+                        newBalance = MAX_BALANCE;
+                    } else {
+                        newBalance = MIN_BALANCE;
+                    }
+                } else {
+                    newBalance = 0;
+                }
+                break;
+            }
+
+            intermediateOrder = newIntermediateOrder/(SECONDS_PER_YEAR*10000*i);
+
+            if (intermediateOrder == 0) {
+                break;
+            }
+
+            int256 oldBalance = newBalance;
+            newBalance += intermediateOrder;
+
+            // overflow check of newBalance
+            if (oldBalance > 0 && intermediateOrder > 0) {
+                if (newBalance <= 0) {
+                    newBalance = oldBalance;
+                    break;
+                }
+            }
+            if (oldBalance < 0 && intermediateOrder < 0) {
+                if (newBalance >= 0) {
+                    newBalance = oldBalance;
+                    break;
+                }
+            }
+        }
+
+        // Restrict balance within MAX / MIN balance
+        // If rate is negative, we assume that the balance was eventually going to be 0
+        if (rate > 0) {
+            if (newBalance > MAX_BALANCE) {
+                newBalance = MAX_BALANCE;
+            }
+            if (newBalance < MIN_BALANCE) {
+                newBalance = MIN_BALANCE;
+            }
+        }
+        if (rate < 0) {
+            if (_balance > 0 && newBalance > _balance) {
+                newBalance = 0;
+            }
+            if (_balance < 0 && newBalance < _balance) {
+                newBalance = 0;
+            }
+        }
+        // If sign flipped because of wrong calculation, the best thing we can do is to assume the result should be 0
+        if (newBalance * _balance < 0) {
+            newBalance = 0;
+        }
+
+        return int72(newBalance);
+    }
+
     // This function transfers value over this trustline
     // For that it modifies the value of the balance stored in the trustline for sender and receiver
     function _applyDirectTransfer(
@@ -531,7 +631,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         internal
         view
     {
-        _trustline.balances.balance = _calculateBalanceWithInterests(
+        _trustline.balances.balance = calculateBalanceWithInterests(
             _trustline.balances.balance,
             _trustline.balances.mtime,
             now,
@@ -1134,106 +1234,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         uint64 result = uint64(imbalanceGenerated);
         require(result == imbalanceGenerated, "The imbalance does not fit into uint64.");
         return result;
-    }
-
-    // This function will calculate the compound interests with a Taylor approximation
-    // It will give correct results if: rate * (_endTime - _startTime) < 10_000 * SECONDS_PER_YEAR
-    // so that Balance(t) = Balance(0) * exp(r*t) where (r*t) < 1
-    function _calculateBalanceWithInterests(
-        int72 _balance,
-        uint _startTime,
-        uint _endTime,
-        int16 _interestRateGiven,
-        int16 _interestRateReceived
-    )
-        internal
-        pure
-        returns (int72)
-    {
-        require(_balance <= MAX_BALANCE && _balance >= MIN_BALANCE, "The function requires the _balance to fit into a 64 bit value");
-        require(_startTime <= _endTime, "_startTime should be before _endTime");
-        int16 rate = 0;
-        if (_balance > 0) {
-            rate = _interestRateGiven;
-        } else if (_balance < 0) {
-            rate = _interestRateReceived;
-        }
-
-        if (rate == 0) {
-            return _balance;
-        }
-
-        int256 dt = int256(_endTime - _startTime);
-        int256 intermediateOrder = _balance;
-        int256 newBalance = _balance;
-
-        assert(dt>=0);
-
-        for (int i = 1; i <= 15; i++) {
-            int256 newIntermediateOrder = intermediateOrder*rate*dt;
-
-            //Overflow adjustment
-            if ((newIntermediateOrder != 0) && (newIntermediateOrder / (rate * dt) != intermediateOrder)) {
-                if (rate > 0) {
-                    if (_balance > 0) {
-                        newBalance = MAX_BALANCE;
-                    } else {
-                        newBalance = MIN_BALANCE;
-                    }
-                } else {
-                    newBalance = 0;
-                }
-                break;
-            }
-
-            intermediateOrder = newIntermediateOrder/(SECONDS_PER_YEAR*10000*i);
-
-            if (intermediateOrder == 0) {
-                break;
-            }
-
-            int256 oldBalance = newBalance;
-            newBalance += intermediateOrder;
-
-            // overflow check of newBalance
-            if (oldBalance > 0 && intermediateOrder > 0) {
-                if (newBalance <= 0) {
-                    newBalance = oldBalance;
-                    break;
-                }
-            }
-            if (oldBalance < 0 && intermediateOrder < 0) {
-                if (newBalance >= 0) {
-                    newBalance = oldBalance;
-                    break;
-                }
-            }
-        }
-
-        // Restrict balance within MAX / MIN balance
-        // If rate is negative, we assume that the balance was eventually going to be 0
-        if (rate > 0) {
-            if (newBalance > MAX_BALANCE) {
-                newBalance = MAX_BALANCE;
-            }
-            if (newBalance < MIN_BALANCE) {
-                newBalance = MIN_BALANCE;
-            }
-        }
-        if (rate < 0) {
-            if (_balance > 0 && newBalance > _balance) {
-                newBalance = 0;
-            }
-            if (_balance < 0 && newBalance < _balance) {
-                newBalance = 0;
-            }
-        }
-        // If sign flipped because of wrong calculation, the best thing we can do is to assume the result should be 0
-        if (newBalance * _balance < 0) {
-            newBalance = 0;
-        }
-
-        return int72(newBalance);
     }
 
     // Calculates a representation of how happy or unhappy a participant is because of the interests after a transfer

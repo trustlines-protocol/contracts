@@ -20,6 +20,61 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         owner = address(0);
     }
 
+    /**
+     * @dev Set an account for two users, the final balance will be
+            _balance plus the interests accrued on _balance in between _mtime and now.
+     * @param _creditor The first party of the trustline agreement
+     * @param _debtor The other party of the trustline agreement
+     * @param _creditlineGiven The creditline limit given by _creditor
+     * @param _creditlineReceived The creditline limit given _debtor
+     * @param _interestRateGiven The interest given by _creditor
+     * @param _interestRateReceived The interest given by _debtor
+     * @param _isFrozen Whether the trustline should be frozen
+     * @param _mtime The last modification time of the balance
+     * @param _balance The balance of the trustline at time _mtime as seen by _creditor
+     */
+    function setAccount (
+        address _creditor,
+        address _debtor,
+        uint64 _creditlineGiven,
+        uint64 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
+        bool _isFrozen,
+        uint32 _mtime,
+        int72 _balance
+    ) external onlyOwner
+    {
+        TrustlineAgreement memory trustlineAgreement;
+        trustlineAgreement.creditlineGiven = _creditlineGiven;
+        trustlineAgreement.creditlineReceived = _creditlineReceived;
+        trustlineAgreement.interestRateGiven = _interestRateGiven;
+        trustlineAgreement.interestRateReceived = _interestRateReceived;
+        trustlineAgreement.isFrozen = _isFrozen;
+
+        // We apply the interests and set mtime to now because it should match with
+        // the time at which BalanceUpdate is emitted (e.g. to compute pending interests offchain)
+        TrustlineBalances memory trustlineBalances;
+        trustlineBalances.mtime = uint32(now);
+        int72 balanceWithInterests = calculateBalanceWithInterests(_balance, _mtime, now, _interestRateGiven, _interestRateReceived);
+        trustlineBalances.balance = balanceWithInterests;
+
+        _storeTrustlineAgreement(_creditor, _debtor, trustlineAgreement);
+        _storeTrustlineBalances(_creditor, _debtor, trustlineBalances);
+
+        addToUsersAndFriends(_creditor, _debtor);
+        emit TrustlineUpdate(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _isFrozen
+        );
+        emit BalanceUpdate(_creditor, _debtor, balanceWithInterests);
+    }
+
     function setDebt(address debtor, address creditor, int value) external onlyOwner {
         _addToDebt(debtor, creditor, value);
     }
