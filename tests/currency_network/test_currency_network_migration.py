@@ -27,7 +27,7 @@ def get_events_of_contract(contract, event_name, from_block=0):
 
 def get_single_event_of_contract(contract, event_name, from_block):
     events = get_events_of_contract(contract, event_name, from_block)
-    assert len(events) == 1, f"Found multiple events of type {event_name}"
+    assert len(events) == 1, f"No single event of type {event_name}"
     return events[0]
 
 
@@ -283,6 +283,44 @@ def test_set_account_add_users(
     assert len(new_users) == 2
     assert creditor in new_users
     assert debtor in new_users
+
+
+def test_set_on_boarder(currency_network_contract, owner, accounts):
+    user = accounts[1]
+    on_boarder = accounts[2]
+    currency_network_contract.functions.setOnboarder(user, on_boarder).transact(
+        {"from": owner}
+    )
+    assert currency_network_contract.functions.onboarder(user).call() == on_boarder
+
+
+def test_set_on_boarder_not_owner(currency_network_contract, not_owner, accounts):
+    user = accounts[1]
+    on_boarder = accounts[2]
+
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_contract.functions.setOnboarder(user, on_boarder).transact(
+            {"from": not_owner}
+        )
+
+
+@pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
+def test_set_on_boarder_event(
+    currency_network_contract, owner, accounts, creditor_index, debtor_index, web3
+):
+    user = accounts[1]
+    on_boarder = accounts[2]
+
+    block_number = web3.eth.blockNumber
+    currency_network_contract.functions.setOnboarder(user, on_boarder).transact(
+        {"from": owner}
+    )
+
+    event_args = get_single_event_of_contract(
+        currency_network_contract, "Onboard", block_number
+    )["args"]
+    assert event_args["_onboarder"] == on_boarder
+    assert event_args["_onboardee"] == user
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])

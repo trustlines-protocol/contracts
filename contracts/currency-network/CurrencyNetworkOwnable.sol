@@ -75,6 +75,11 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         emit BalanceUpdate(_creditor, _debtor, balanceWithInterests);
     }
 
+    function setOnboarder(address user, address onBoarder) external onlyOwner {
+        onboarder[user] = onBoarder;
+        emit Onboard(onBoarder, user);
+    }
+
     function setDebt(address debtor, address creditor, int value) external onlyOwner {
         _addToDebt(debtor, creditor, value);
     }
