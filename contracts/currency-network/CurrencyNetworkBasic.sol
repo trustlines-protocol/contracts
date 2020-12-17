@@ -117,68 +117,6 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     function() external {}
 
     /**
-     * @notice Initialize the currency Network
-     * @param _name The name of the currency
-     * @param _symbol The symbol of the currency
-     * @param _decimals Number of decimals of the currency
-     * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
-     * @param _defaultInterestRate The default interests for every trustlines in 0.01% per year
-     * @param _customInterests Flag to allow or disallow trustlines to have custom interests
-     * @param _preventMediatorInterests Flag to allow or disallow transactions resulting in loss of interests for
-     *         intermediaries, unless the transaction exclusively reduces balances
-     * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore. Setting
-     *         this value to zero disables freezing.
-     */
-    function init(
-        string calldata _name,
-        string calldata _symbol,
-        uint8 _decimals,
-        uint16 _capacityImbalanceFeeDivisor,
-        int16 _defaultInterestRate,
-        bool _customInterests,
-        bool _preventMediatorInterests,
-        uint _expirationTime,
-        address[] calldata authorizedAddresses
-    )
-        external
-    {
-        require(!isInitialized, "Currency Network already initialized.");
-        isInitialized = true;
-
-        // verifies that only one parameter is selected.
-        require(
-            ! ((_defaultInterestRate != 0) && _customInterests),
-            "Custom interests are set; default interest rate must be zero."
-        );
-        require(_defaultInterestRate <= 2000 && _defaultInterestRate >= -2000, "Default interests cannot exceed +-20%.");
-        require(
-            !_preventMediatorInterests || (_preventMediatorInterests && _customInterests),
-            "Prevent mediator interest cannot be set without using custom interests."
-        );
-
-        require(
-            _expirationTime == 0 || _expirationTime > now,
-            "Expiration time must be either in the future or zero to disable it."
-        );
-
-        require(
-            _capacityImbalanceFeeDivisor != 1,
-            "Too low imbalance fee divisor, fees can not be more than 50%"
-        );
-
-        MetaData.init(_name, _symbol, _decimals);
-        capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
-        defaultInterestRate = _defaultInterestRate;
-        customInterests = _customInterests;
-        preventMediatorInterests = _preventMediatorInterests;
-        expirationTime = _expirationTime;
-
-        for (uint i = 0; i < authorizedAddresses.length; i++) {
-            addGlobalAuthorizedAddress(authorizedAddresses[i]);
-        }
-    }
-
-    /**
      * @notice send `_value` along `_path`
      * The fees will be payed by the sender, so `_value` is the amount received by receiver
      * @param _value The amount to be transferred
@@ -442,6 +380,68 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
                 )
             )
         );
+    }
+
+    /**
+     * @notice Initialize the currency Network
+     * @param _name The name of the currency
+     * @param _symbol The symbol of the currency
+     * @param _decimals Number of decimals of the currency
+     * @param _capacityImbalanceFeeDivisor Divisor of the imbalance fee. The fee is 1 / _capacityImbalanceFeeDivisor
+     * @param _defaultInterestRate The default interests for every trustlines in 0.01% per year
+     * @param _customInterests Flag to allow or disallow trustlines to have custom interests
+     * @param _preventMediatorInterests Flag to allow or disallow transactions resulting in loss of interests for
+     *         intermediaries, unless the transaction exclusively reduces balances
+     * @param _expirationTime Time after which the currency network is frozen and cannot be used anymore. Setting
+     *         this value to zero disables freezing.
+     */
+    function init(
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        uint16 _capacityImbalanceFeeDivisor,
+        int16 _defaultInterestRate,
+        bool _customInterests,
+        bool _preventMediatorInterests,
+        uint _expirationTime,
+        address[] memory authorizedAddresses
+    )
+        public
+    {
+        require(!isInitialized, "Currency Network already initialized.");
+        isInitialized = true;
+
+        // verifies that only one parameter is selected.
+        require(
+            ! ((_defaultInterestRate != 0) && _customInterests),
+            "Custom interests are set; default interest rate must be zero."
+        );
+        require(_defaultInterestRate <= 2000 && _defaultInterestRate >= -2000, "Default interests cannot exceed +-20%.");
+        require(
+            !_preventMediatorInterests || (_preventMediatorInterests && _customInterests),
+            "Prevent mediator interest cannot be set without using custom interests."
+        );
+
+        require(
+            _expirationTime == 0 || _expirationTime > now,
+            "Expiration time must be either in the future or zero to disable it."
+        );
+
+        require(
+            _capacityImbalanceFeeDivisor != 1,
+            "Too low imbalance fee divisor, fees can not be more than 50%"
+        );
+
+        MetaData.init(_name, _symbol, _decimals);
+        capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
+        defaultInterestRate = _defaultInterestRate;
+        customInterests = _customInterests;
+        preventMediatorInterests = _preventMediatorInterests;
+        expirationTime = _expirationTime;
+
+        for (uint i = 0; i < authorizedAddresses.length; i++) {
+            addGlobalAuthorizedAddress(authorizedAddresses[i]);
+        }
     }
 
     /**
