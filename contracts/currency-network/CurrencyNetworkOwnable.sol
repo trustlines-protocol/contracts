@@ -84,6 +84,11 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         _addToDebt(debtor, creditor, value);
     }
 
+    function unFreezeNetwork() external onlyOwner {
+        require(isNetworkFrozen == true, "Network is not frozen");
+        isNetworkFrozen = false;
+    }
+
     /**
      * @notice Initialize the currency Network
      * @param _name The name of the currency
@@ -111,6 +116,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         public
     {
         owner = msg.sender;
+        isNetworkFrozen = true;
         // super.init(_name, _symbol, _decimals);
         CurrencyNetworkBasic.init(_name, _symbol, _decimals, _capacityImbalanceFeeDivisor, _defaultInterestRate, _customInterests, _preventMediatorInterests, _expirationTime, authorizedAddresses);
     }

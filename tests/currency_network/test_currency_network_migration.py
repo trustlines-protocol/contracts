@@ -362,3 +362,19 @@ def test_set_debt_event(
     assert event_args["_debtor"] == debtor
     assert event_args["_creditor"] == creditor
     assert event_args["_newDebt"] == value
+
+
+def test_network_starts_frozen(currency_network_contract):
+    assert currency_network_contract.functions.isNetworkFrozen().call()
+
+
+def test_unfreeze_network(currency_network_contract, owner):
+    currency_network_contract.functions.unFreezeNetwork().transact({"from": owner})
+    assert not currency_network_contract.functions.isNetworkFrozen().call()
+
+
+def test_unfreeze_network_not_owner(currency_network_contract, not_owner):
+    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+        currency_network_contract.functions.unFreezeNetwork().transact(
+            {"from": not_owner}
+        )
