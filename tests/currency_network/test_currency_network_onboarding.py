@@ -4,6 +4,8 @@ from eth_tester.exceptions import TransactionFailed
 from tldeploy.core import deploy_network
 from tests.conftest import EXPIRATION_TIME
 
+from tests.currency_network.conftest import ADDRESS_0, NO_ONBOARDER
+
 NETWORK_SETTING = {
     "name": "TestCoin",
     "symbol": "T",
@@ -14,9 +16,6 @@ NETWORK_SETTING = {
     "currency_network_contract_name": "TestCurrencyNetwork",
     "expiration_time": EXPIRATION_TIME,
 }
-
-ADDRESS_0 = "0x0000000000000000000000000000000000000000"
-NO_ONBOARDER = "0x0000000000000000000000000000000000000001"
 
 
 @pytest.fixture(scope="session")

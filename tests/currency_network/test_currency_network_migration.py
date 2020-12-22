@@ -5,20 +5,10 @@ import pytest
 from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import CurrencyNetworkAdapter
+from tests.currency_network.conftest import NETWORK_SETTING_OWNABLE as NETWORK_SETTING
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
-
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": True,
-    "currency_network_contract_name": "CurrencyNetworkOwnable",
-    "expiration_time": EXPIRATION_TIME,
-}
 
 
 def get_events_of_contract(contract, event_name, from_block=0):
@@ -47,7 +37,7 @@ def not_owner(accounts, owner):
 def currency_network_contract(web3, owner):
     settings = NETWORK_SETTING.copy()
     settings["transaction_options"] = {"from": owner}
-    return deploy_network(web3, **NETWORK_SETTING)
+    return deploy_network(web3, **settings)
 
 
 @pytest.fixture(scope="session")

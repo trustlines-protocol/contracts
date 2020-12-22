@@ -3,13 +3,16 @@
 # contracts when running tests in this project.
 
 import collections
-from typing import Dict
+from typing import Dict, Iterable
 
 from deploy_tools import deploy_compiled_contract
 from deploy_tools.deploy import (
     increase_transaction_options_nonce,
-    send_function_call_transaction,
+    send_function_call_transaction as wait_for_successfull_call,
+    _build_and_sign_transaction,
+    _set_from_address,
 )
+from hexbytes import HexBytes
 from web3 import Web3
 from tlbin import load_packaged_contracts
 
@@ -90,7 +93,7 @@ def deploy_unw_eth(
     if exchange_address is not None:
         if exchange_address is not None:
             function_call = unw_eth.functions.addAuthorizedAddress(exchange_address)
-            send_function_call_transaction(
+            wait_for_successfull_call(
                 function_call,
                 web3=web3,
                 transaction_options=transaction_options,
@@ -152,7 +155,7 @@ def deploy_network(
         authorized_addresses,
     )
 
-    send_function_call_transaction(
+    wait_for_successfull_call(
         init_function_call,
         web3=web3,
         transaction_options=transaction_options,
@@ -196,7 +199,7 @@ def deploy_identity(
     if chain_id is None:
         chain_id = get_chain_id(web3)
     function_call = identity.functions.init(owner_address, chain_id)
-    send_function_call_transaction(
+    wait_for_successfull_call(
         function_call, web3=web3, transaction_options=transaction_options
     )
     increase_transaction_options_nonce(transaction_options)
@@ -206,3 +209,204 @@ def deploy_identity(
 
 def get_chain_id(web3):
     return int(web3.eth.chainId)
+
+
+class NetworkMigrater:
+    def __init__(
+        self,
+        web3,
+        old_currency_network_address: str,
+        new_currency_network_address: str,
+        transaction_options: Dict = None,
+        private_key: str = None,
+        max_tx_queue_size=10,
+    ):
+        self.web3 = web3
+
+        old_network_interface = get_contract_interface("CurrencyNetwork")
+        self.old_network = web3.eth.contract(
+            address=old_currency_network_address, abi=old_network_interface["abi"]
+        )
+        new_network_interface = get_contract_interface("CurrencyNetworkOwnable")
+        self.new_network = web3.eth.contract(
+            address=new_currency_network_address, abi=new_network_interface["abi"]
+        )
+        self.users = set(self.old_network.functions.getUsers().call())
+
+        self.transaction_options = transaction_options
+        if transaction_options is None:
+            self.transaction_options = {}
+
+        self.private_key = private_key
+        self.max_tx_queue_size = max_tx_queue_size
+        self.tx_queue = set()
+
+    def migrate_network(self):
+        assert (
+            self.old_network.functions.isNetworkFrozen().call()
+        ), "Old contract not frozen"
+        assert (
+            self.new_network.functions.isNetworkFrozen().call()
+        ), "New contract not frozen"
+        assert (
+            self.old_network.functions.name().call()
+            == self.new_network.functions.name().call()
+        ), "New and old contracts name do not match"
+
+        self.migrate_accounts()
+        self.migrate_on_boarders()
+        self.migrate_debts()
+        self.unfreeze_network()
+        self.remove_owner()
+
+    def migrate_accounts(self):
+        for user in self.users:
+            friends = set(self.old_network.functions.getFriends(user).call())
+            for friend in friends:
+                if user < friend:
+                    # For each (user, friend) pair we only need to migrate the account once
+                    # We arbitrarily decide not to migrate in the case user < friend
+                    continue
+                (
+                    creditline_ab,
+                    creditline_ba,
+                    interest_ab,
+                    interest_ba,
+                    is_frozen,
+                    mtime,
+                    balance_ab,
+                ) = self.old_network.functions.getAccount(user, friend).call()
+                set_account_call = self.new_network.functions.setAccount(
+                    user,
+                    friend,
+                    creditline_ab,
+                    creditline_ba,
+                    interest_ab,
+                    interest_ba,
+                    is_frozen,
+                    mtime,
+                    balance_ab,
+                )
+                self.call_contract_function_with_tx(set_account_call)
+        self.wait_for_successfull_txs_in_queue()
+
+    def migrate_on_boarders(self):
+        for user in self.users:
+            on_boarder = self.old_network.functions.onboarder(user).call()
+            set_on_boarder_call = self.new_network.functions.setOnboarder(
+                user, on_boarder
+            )
+            self.call_contract_function_with_tx(set_on_boarder_call)
+        self.wait_for_successfull_txs_in_queue()
+
+    def migrate_debts(self):
+        # We have to use events to retrieve the debts
+        # We cannot use `self.users` as some non users could have set a debt
+        debts = self.get_all_debts()
+        for debtor in debts.keys():
+            for creditor in debts[debtor].keys():
+                set_debt_call = self.new_network.functions.setDebt(
+                    debtor, creditor, debts[debtor][creditor]
+                )
+                self.call_contract_function_with_tx(set_debt_call)
+        self.wait_for_successfull_txs_in_queue()
+
+    def get_all_debts(self):
+        all_debt_updates = self.old_network.events.DebtUpdate().getLogs(fromBlock=0)
+        debts = collections.defaultdict(lambda: {})
+
+        for debt_update in all_debt_updates:
+            creditor = debt_update["args"]["_creditor"]
+            debtor = debt_update["args"]["_debtor"]
+            value = debt_update["args"]["_newDebt"]
+
+            if creditor < debtor:
+                debts[debtor][creditor] = value
+            else:
+                debts[creditor][debtor] = -value
+
+        return debts
+
+    def unfreeze_network(self):
+        unfreeze_call = self.new_network.functions.unFreezeNetwork()
+        self.call_contract_function_with_tx(unfreeze_call)
+        self.wait_for_successfull_txs_in_queue()
+
+    def remove_owner(self):
+        remove_owner_call = self.new_network.functions.removeOwner()
+        self.call_contract_function_with_tx(remove_owner_call)
+        self.wait_for_successfull_txs_in_queue()
+
+    def call_contract_function_with_tx(self, function_call):
+        tx_hash = send_function_call_transaction(
+            function_call,
+            web3=self.web3,
+            transaction_options=self.transaction_options,
+            private_key=self.private_key,
+        )
+        increase_transaction_options_nonce(self.transaction_options)
+        self.tx_queue.add(tx_hash)
+
+        if len(self.tx_queue) >= self.max_tx_queue_size:
+            self.wait_for_successfull_txs_in_queue()
+
+    def wait_for_successfull_txs_in_queue(self):
+        wait_for_successfull_txs(self.web3, self.tx_queue)
+        self.tx_queue = set()
+
+
+class TransactionsFailed(Exception):
+    def __init__(self, failed_tx_hashs):
+        self.failed_tx_hashs = failed_tx_hashs
+
+
+def wait_for_successfull_txs(web3, tx_hashs: Iterable[HexBytes], timeout=300):
+    # TODO: refactor in deploy tools?
+
+    failed_tx_hashs = set()
+
+    for tx_hash in tx_hashs:
+        receipt = web3.eth.waitForTransactionReceipt(tx_hash, timeout=timeout)
+        status = receipt.get("status", None)
+        if status == 0:
+            failed_tx_hashs.add(tx_hash)
+        elif status == 1:
+            continue
+        else:
+            raise ValueError(
+                f"Unexpected value for status in the transaction receipt: {status}"
+            )
+
+    if len(failed_tx_hashs) != 0:
+        raise TransactionsFailed(failed_tx_hashs)
+
+
+def send_function_call_transaction(
+    function_call, *, web3: Web3, transaction_options: Dict = None, private_key=None
+):
+    """
+    Creates, signs and sends a transaction from a function call (for example created with `contract.functions.foo()`.
+    Will either use an account of the node(default), or a local private key(if given) to sign the transaction.
+    It will not block until tx is sent
+
+    Returns: The transaction hash
+    """
+    # TODO: refactor in deploy tools?
+    if transaction_options is None:
+        transaction_options = {}
+
+    if private_key is not None:
+        signed_transaction = _build_and_sign_transaction(
+            function_call,
+            web3=web3,
+            transaction_options=transaction_options,
+            private_key=private_key,
+        )
+        tx_hash = web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
+
+    else:
+        _set_from_address(web3, transaction_options)
+
+        tx_hash = function_call.transact(transaction_options)
+
+    return tx_hash

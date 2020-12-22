@@ -103,6 +103,9 @@ class CurrencyNetworkAdapter:
                 result = False
         return result
 
+    def get_on_boarder(self, user):
+        return self.contract.functions.onboarder(user).call()
+
     def balance(self, a_address, b_address):
         return self.contract.functions.balance(a_address, b_address).call()
 
@@ -191,6 +194,14 @@ class CurrencyNetworkAdapter:
         self.contract.functions.transferFrom(value, max_fee, path, extra_data).transact(
             {"from": msg_sender}
         )
+
+    def increase_debt(self, debtor, creditor, value):
+        return self.contract.functions.increaseDebt(creditor, value).transact(
+            {"from": debtor}
+        )
+
+    def get_debt(self, debtor, creditor):
+        return self.contract.functions.getDebt(debtor, creditor).call()
 
     def add_authorized_address(self, *, target, sender):
         self.contract.functions.addAuthorizedAddress(target).transact({"from": sender})
