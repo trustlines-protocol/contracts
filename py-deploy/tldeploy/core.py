@@ -3,8 +3,10 @@
 # contracts when running tests in this project.
 
 import collections
+import os
 from typing import Dict, Iterable
 
+import click
 from deploy_tools import deploy_compiled_contract
 from deploy_tools.deploy import (
     increase_transaction_options_nonce,
@@ -12,6 +14,7 @@ from deploy_tools.deploy import (
     _build_and_sign_transaction,
     _set_from_address,
 )
+from deploy_tools.files import read_addresses_in_csv
 from hexbytes import HexBytes
 from web3 import Web3
 from tlbin import load_packaged_contracts
@@ -211,6 +214,37 @@ def get_chain_id(web3):
     return int(web3.eth.chainId)
 
 
+def migrate_networks(
+    web3,
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    transaction_options: Dict = None,
+    private_key: str = None,
+):
+    if not os.path.isfile(old_addresses_file_path):
+        raise ValueError(f"Old addresses file not found at {old_addresses_file_path}")
+    if not os.path.isfile(new_addresses_file_path):
+        raise ValueError(f"New addresses file not found at {new_addresses_file_path}")
+
+    old_currency_network_addresses = read_addresses_in_csv(old_addresses_file_path)
+    new_currency_network_addresses = read_addresses_in_csv(new_addresses_file_path)
+
+    if len(old_currency_network_addresses) != len(new_currency_network_addresses):
+        raise ValueError(
+            f"The number of old and new addresses do not match: "
+            f"{len(old_currency_network_addresses)} old and {len(new_currency_network_addresses)} new"
+        )
+
+    for [old_address, new_address] in zip(
+        old_currency_network_addresses, new_currency_network_addresses
+    ):
+        click.secho(f"Migrating {old_address} to {new_address}", fg="green")
+        NetworkMigrater(
+            web3, old_address, new_address, transaction_options, private_key
+        ).migrate_network()
+        click.secho(f"Migration of {old_address} to {new_address} complete", fg="green")
+
+
 class NetworkMigrater:
     def __init__(
         self,
@@ -260,6 +294,7 @@ class NetworkMigrater:
         self.remove_owner()
 
     def migrate_accounts(self):
+        click.secho("Accounts migration")
         for user in self.users:
             friends = set(self.old_network.functions.getFriends(user).call())
             for friend in friends:
@@ -289,8 +324,10 @@ class NetworkMigrater:
                 )
                 self.call_contract_function_with_tx(set_account_call)
         self.wait_for_successfull_txs_in_queue()
+        click.secho("Accounts migration complete")
 
     def migrate_on_boarders(self):
+        click.secho("On boarders migration")
         for user in self.users:
             on_boarder = self.old_network.functions.onboarder(user).call()
             set_on_boarder_call = self.new_network.functions.setOnboarder(
@@ -298,8 +335,10 @@ class NetworkMigrater:
             )
             self.call_contract_function_with_tx(set_on_boarder_call)
         self.wait_for_successfull_txs_in_queue()
+        click.secho("On boarders migration complete")
 
     def migrate_debts(self):
+        click.secho("Debts migration")
         # We have to use events to retrieve the debts
         # We cannot use `self.users` as some non users could have set a debt
         debts = self.get_all_debts()
@@ -310,6 +349,7 @@ class NetworkMigrater:
                 )
                 self.call_contract_function_with_tx(set_debt_call)
         self.wait_for_successfull_txs_in_queue()
+        click.secho("Debts migration complete")
 
     def get_all_debts(self):
         all_debt_updates = self.old_network.events.DebtUpdate().getLogs(fromBlock=0)
