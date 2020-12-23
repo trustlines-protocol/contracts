@@ -25,7 +25,7 @@ def get_events_of_contract(contract, event_name, from_block=0):
     return list(getattr(contract.events, event_name).getLogs(fromBlock=from_block))
 
 
-def get_single_event_of_contract(contract, event_name, from_block):
+def get_single_event_of_contract(contract, event_name, from_block=0):
     events = get_events_of_contract(contract, event_name, from_block)
     assert len(events) == 1, f"No single event of type {event_name}"
     return events[0]
@@ -63,6 +63,14 @@ def test_remove_owner(currency_network_contract, owner):
 def test_remover_owner_not_owner(currency_network_contract, not_owner):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         currency_network_contract.functions.removeOwner().transact({"from": not_owner})
+
+
+def test_remove_owner_event(currency_network_contract, owner):
+    currency_network_contract.functions.removeOwner().transact({"from": owner})
+    assert (
+        get_single_event_of_contract(currency_network_contract, "OwnerRemoval")
+        is not None
+    )
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
@@ -378,3 +386,11 @@ def test_unfreeze_network_not_owner(currency_network_contract, not_owner):
         currency_network_contract.functions.unFreezeNetwork().transact(
             {"from": not_owner}
         )
+
+
+def test_unfreeze_network_event(currency_network_contract, owner):
+    currency_network_contract.functions.unFreezeNetwork().transact({"from": owner})
+    assert (
+        get_single_event_of_contract(currency_network_contract, "NetworkUnfreeze")
+        is not None
+    )

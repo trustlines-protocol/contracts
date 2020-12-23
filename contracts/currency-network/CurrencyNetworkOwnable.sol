@@ -8,6 +8,10 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
 
     address public owner;
 
+    event OwnerRemoval();
+
+    event NetworkUnfreeze();
+
     /**
      * @dev Throws if called by any account other than the owner.
      */
@@ -18,6 +22,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
 
     function removeOwner() external onlyOwner {
         owner = address(0);
+        emit OwnerRemoval();
     }
 
     /**
@@ -87,6 +92,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
     function unFreezeNetwork() external onlyOwner {
         require(isNetworkFrozen == true, "Network is not frozen");
         isNetworkFrozen = false;
+        emit NetworkUnfreeze();
     }
 
     /**
@@ -117,7 +123,6 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
     {
         owner = msg.sender;
         isNetworkFrozen = true;
-        // super.init(_name, _symbol, _decimals);
         CurrencyNetworkBasic.init(_name, _symbol, _decimals, _capacityImbalanceFeeDivisor, _defaultInterestRate, _customInterests, _preventMediatorInterests, _expirationTime, authorizedAddresses);
     }
 }
