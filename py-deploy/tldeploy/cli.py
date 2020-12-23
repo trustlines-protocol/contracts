@@ -28,6 +28,7 @@ from .core import (
     deploy_networks,
     deploy_unw_eth,
     migrate_networks,
+    verify_networks_migrations,
 )
 
 
@@ -63,7 +64,7 @@ def cli(ctx, version):
 currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
     help="name of the currency network contract to deploy (only use this for testing)",
-    default="CurrencyNetwork",
+    default="CurrencyNetworkOwnable",
     hidden=True,
 )
 
@@ -453,7 +454,7 @@ def test(
         )
 
 
-@cli.command(short_help="Migrate olds currency network to new ones.")
+@cli.command(short_help="Migrate old currency networks to new ones.")
 @click.option(
     "--old-addresses",
     "old_addresses_file_path",
@@ -502,3 +503,31 @@ def migration(
         transaction_options,
         private_key,
     )
+
+
+@cli.command(short_help="Verify migration from old currency networks to new ones.")
+@click.option(
+    "--old-addresses",
+    "old_addresses_file_path",
+    help="Path to a csv file with addresses of old currency networks, order and number must match with new addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@click.option(
+    "--new-addresses",
+    "new_addresses_file_path",
+    help="Path to a csv file with addresses of new currency networks, order and number must match with old addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@jsonrpc_option
+def verify_migration(
+    old_addresses_file_path: str, new_addresses_file_path: str, jsonrpc: str
+):
+    """Used to verify migration of old currency networks to new ones
+    The address files should contain currency network addresses with
+    address matching from one file to the other from top to bottom"""
+
+    web3 = connect_to_json_rpc(jsonrpc)
+
+    verify_networks_migrations(web3, old_addresses_file_path, new_addresses_file_path)
