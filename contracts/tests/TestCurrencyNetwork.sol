@@ -6,15 +6,10 @@ pragma solidity ^0.6.5;
   implementation of these functions
 */
 
-
 import "../currency-network/CurrencyNetwork.sol";
 
-
 contract TestCurrencyNetwork is CurrencyNetwork {
-
-    function setCapacityImbalanceFeeDivisor(uint16 divisor)
-        external
-    {
+    function setCapacityImbalanceFeeDivisor(uint16 divisor) external {
         capacityImbalanceFeeDivisor = divisor;
     }
 
@@ -25,8 +20,8 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         uint16 _capacityImbalanceFeeDivisor,
         int16 _defaultInterestRate,
         bool _customInterests,
-        bool _preventMediatorInterests) external
-    {
+        bool _preventMediatorInterests
+    ) external {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -39,35 +34,23 @@ contract TestCurrencyNetwork is CurrencyNetwork {
     function testTransferSenderPays(
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path)
-        external
-    {
-        _mediatedTransferSenderPays(
-            _value,
-            _maxFee,
-            _path,
-            ""
-        );
+        address[] calldata _path
+    ) external {
+        _mediatedTransferSenderPays(_value, _maxFee, _path, "");
     }
 
     function testTransferReceiverPays(
         uint64 _value,
         uint64 _maxFee,
-        address[] calldata _path)
-        external
-    {
-        _mediatedTransferReceiverPays(
-            _value,
-            _maxFee,
-            _path,
-            ""
-        );
+        address[] calldata _path
+    ) external {
+        _mediatedTransferReceiverPays(_value, _maxFee, _path, "");
     }
 
     /**
-    * Set the trustline account between two users.
-    * Can be removed once structs are supported in the ABI
-    */
+     * Set the trustline account between two users.
+     * Can be removed once structs are supported in the ABI
+     */
     function setAccount(
         address _a,
         address _b,
@@ -78,18 +61,16 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         bool _isFrozen,
         uint32 _mtime,
         int72 _balance
-    )
-        external
-    {
+    ) external {
         require(
             customInterests ||
-            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
+                (_interestRateGiven == defaultInterestRate &&
+                    _interestRateReceived == defaultInterestRate),
             "Interest rates given and received must be equal to default interest rates."
         );
         if (customInterests) {
             require(
-                _interestRateGiven >= 0 &&
-                _interestRateReceived >= 0,
+                _interestRateGiven >= 0 && _interestRateReceived >= 0,
                 "Only positive interest rates are supported."
             );
         }
@@ -108,9 +89,9 @@ contract TestCurrencyNetwork is CurrencyNetwork {
     }
 
     /**
-    * Set the trustline account between two users with default interests.
-    * Can be removed once structs are supported in the ABI
-    */
+     * Set the trustline account between two users with default interests.
+     * Can be removed once structs are supported in the ABI
+     */
     function setAccountDefaultInterests(
         address _a,
         address _b,
@@ -119,9 +100,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         bool _isFrozen,
         uint32 _mtime,
         int72 _balance
-    )
-        external
-    {
+    ) external {
         _setAccount(
             _a,
             _b,
@@ -135,33 +114,44 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         );
     }
 
-    function testAddToDebt(address debtor, address creditor, int value) external {
+    function testAddToDebt(
+        address debtor,
+        address creditor,
+        int256 value
+    ) external {
         _addToDebt(debtor, creditor, value);
     }
 
-    function testSafeSumInt256(int a, int b) external pure returns (int sum) {
+    function testSafeSumInt256(int256 a, int256 b)
+        external
+        pure
+        returns (int256 sum)
+    {
         return safeSumInt256(a, b);
     }
 
-    function testCalculateFees(uint64 _imbalanceGenerated, uint16 _capacityImbalanceFeeDivisor)
-        public pure
-        returns (uint64)
-    {
-        return _calculateFees(_imbalanceGenerated, _capacityImbalanceFeeDivisor);
+    function testCalculateFees(
+        uint64 _imbalanceGenerated,
+        uint16 _capacityImbalanceFeeDivisor
+    ) public pure returns (uint64) {
+        return
+            _calculateFees(_imbalanceGenerated, _capacityImbalanceFeeDivisor);
     }
 
-    function testCalculateFeesReverse(uint64 _imbalanceGenerated, uint16 _capacityImbalanceFeeDivisor)
-        public pure
-        returns (uint64)
-    {
-        return _calculateFeesReverse(_imbalanceGenerated, _capacityImbalanceFeeDivisor);
+    function testCalculateFeesReverse(
+        uint64 _imbalanceGenerated,
+        uint16 _capacityImbalanceFeeDivisor
+    ) public pure returns (uint64) {
+        return
+            _calculateFeesReverse(
+                _imbalanceGenerated,
+                _capacityImbalanceFeeDivisor
+            );
     }
 
-    function testImbalanceGenerated(
-        uint64 _value,
-        int72 _balance
-    )
-        public pure
+    function testImbalanceGenerated(uint64 _value, int72 _balance)
+        public
+        pure
         returns (uint64)
     {
         return _imbalanceGenerated(_value, _balance);
@@ -169,22 +159,19 @@ contract TestCurrencyNetwork is CurrencyNetwork {
 
     function testCalculateBalanceWithInterests(
         int72 _balance,
-        uint _startTime,
-        uint _endTime,
+        uint256 _startTime,
+        uint256 _endTime,
         int16 _interestRateGiven,
         int16 _interestRateReceived
-    )
-        public
-        pure
-        returns (int72)
-    {
-        return calculateBalanceWithInterests(
-            _balance,
-            _startTime,
-            _endTime,
-            _interestRateGiven,
-            _interestRateReceived
-        );
+    ) public pure returns (int72) {
+        return
+            calculateBalanceWithInterests(
+                _balance,
+                _startTime,
+                _endTime,
+                _interestRateGiven,
+                _interestRateReceived
+            );
     }
 
     function _setAccount(
@@ -197,9 +184,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         bool _isFrozen,
         uint32 _mtime,
         int72 _balance
-    )
-        internal
-    {
+    ) internal {
         TrustlineAgreement memory trustlineAgreement;
         trustlineAgreement.creditlineGiven = _creditlineGiven;
         trustlineAgreement.creditlineReceived = _creditlineReceived;

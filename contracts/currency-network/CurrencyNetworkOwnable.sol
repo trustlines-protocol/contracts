@@ -3,9 +3,7 @@ pragma solidity ^0.6.5;
 import "./CurrencyNetwork.sol";
 import "./CurrencyNetworkBasic.sol";
 
-
 contract CurrencyNetworkOwnable is CurrencyNetwork {
-
     address public owner;
 
     /**
@@ -33,7 +31,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
      * @param _mtime The last modification time of the balance
      * @param _balance The balance of the trustline at time _mtime as seen by _creditor
      */
-    function setAccount (
+    function setAccount(
         address _creditor,
         address _debtor,
         uint64 _creditlineGiven,
@@ -43,8 +41,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         bool _isFrozen,
         uint32 _mtime,
         int72 _balance
-    ) external onlyOwner
-    {
+    ) external onlyOwner {
         TrustlineAgreement memory trustlineAgreement;
         trustlineAgreement.creditlineGiven = _creditlineGiven;
         trustlineAgreement.creditlineReceived = _creditlineReceived;
@@ -56,7 +53,14 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         // the time at which BalanceUpdate is emitted (e.g. to compute pending interests offchain)
         TrustlineBalances memory trustlineBalances;
         trustlineBalances.mtime = uint32(now);
-        int72 balanceWithInterests = calculateBalanceWithInterests(_balance, _mtime, now, _interestRateGiven, _interestRateReceived);
+        int72 balanceWithInterests =
+            calculateBalanceWithInterests(
+                _balance,
+                _mtime,
+                now,
+                _interestRateGiven,
+                _interestRateReceived
+            );
         trustlineBalances.balance = balanceWithInterests;
 
         _storeTrustlineAgreement(_creditor, _debtor, trustlineAgreement);
@@ -80,7 +84,11 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         emit Onboard(onBoarder, user);
     }
 
-    function setDebt(address debtor, address creditor, int value) external onlyOwner {
+    function setDebt(
+        address debtor,
+        address creditor,
+        int256 value
+    ) external onlyOwner {
         _addToDebt(debtor, creditor, value);
     }
 
@@ -110,15 +118,22 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         int16 _defaultInterestRate,
         bool _customInterests,
         bool _preventMediatorInterests,
-        uint _expirationTime,
+        uint256 _expirationTime,
         address[] memory authorizedAddresses
-    )
-        public
-        override
-    {
+    ) public override {
         owner = msg.sender;
         isNetworkFrozen = true;
         // super.init(_name, _symbol, _decimals);
-        CurrencyNetworkBasic.init(_name, _symbol, _decimals, _capacityImbalanceFeeDivisor, _defaultInterestRate, _customInterests, _preventMediatorInterests, _expirationTime, authorizedAddresses);
+        CurrencyNetworkBasic.init(
+            _name,
+            _symbol,
+            _decimals,
+            _capacityImbalanceFeeDivisor,
+            _defaultInterestRate,
+            _customInterests,
+            _preventMediatorInterests,
+            _expirationTime,
+            authorizedAddresses
+        );
     }
 }

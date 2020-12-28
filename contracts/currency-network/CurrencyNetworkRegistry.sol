@@ -3,14 +3,12 @@ pragma solidity ^0.6.5;
 import "./CurrencyNetworkInterface.sol";
 import "../lib/ERC165Query.sol";
 
-
 /**
  * @title Currency Network Registry
  * @notice Used to keep an on-chain registry of currency networks
  * @dev Currency networks must implement the CurrencyNetworkInterface with ERC-165 interface id: 0x7ecdffaf
  **/
 contract CurrencyNetworkRegistry is ERC165Query {
-
     struct CurrencyNetworkMetadata {
         address firstRegistrationBy;
         string name;
@@ -18,9 +16,9 @@ contract CurrencyNetworkRegistry is ERC165Query {
         uint8 decimals;
     }
 
-    mapping (address => CurrencyNetworkMetadata) internal currencyNetworks;
+    mapping(address => CurrencyNetworkMetadata) internal currencyNetworks;
     address[] internal registeredCurrencyNetworks;
-    mapping (address => address[]) internal currencyNetworksRegisteredBy;
+    mapping(address => address[]) internal currencyNetworksRegisteredBy;
 
     event CurrencyNetworkAdded(
         address indexed _address,
@@ -40,12 +38,12 @@ contract CurrencyNetworkRegistry is ERC165Query {
             this.doesContractImplementInterface(
                 _address,
                 network.name.selector ^
-                network.symbol.selector ^
-                network.decimals.selector ^
-                network.transfer.selector ^
-                network.transferFrom.selector ^
-                network.balance.selector ^
-                network.creditline.selector
+                    network.symbol.selector ^
+                    network.decimals.selector ^
+                    network.transfer.selector ^
+                    network.transferFrom.selector ^
+                    network.balance.selector ^
+                    network.creditline.selector
             ),
             "CurrencyNetworks need to implement ERC165 and CurrencyNetworkInterface"
         );
@@ -80,13 +78,15 @@ contract CurrencyNetworkRegistry is ERC165Query {
         return registeredCurrencyNetworks.length;
     }
 
-    function getCurrencyNetworkAddress(uint256 _index) external view returns (address) {
+    function getCurrencyNetworkAddress(uint256 _index)
+        external
+        view
+        returns (address)
+    {
         return registeredCurrencyNetworks[_index];
     }
 
-    function getCurrencyNetworkMetadata(
-        address _address
-    )
+    function getCurrencyNetworkMetadata(address _address)
         external
         view
         returns (
@@ -104,7 +104,11 @@ contract CurrencyNetworkRegistry is ERC165Query {
         );
     }
 
-    function getCurrencyNetworksRegisteredBy(address _address) external view returns (address[] memory) {
+    function getCurrencyNetworksRegisteredBy(address _address)
+        external
+        view
+        returns (address[] memory)
+    {
         return currencyNetworksRegisteredBy[_address];
     }
 }

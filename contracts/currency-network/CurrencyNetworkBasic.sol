@@ -1,12 +1,10 @@
 pragma solidity ^0.6.5;
 
-
 import "../lib/it_set_lib.sol";
 import "../lib/Authorizable.sol";
 import "../lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
 import "./CurrencyNetworkSafeMath.sol";
-
 
 /**
  * @title Basic functionalities of Currency Networks
@@ -14,25 +12,29 @@ import "./CurrencyNetworkSafeMath.sol";
  * Implements core features of currency networks related to opening / closing trustline and transfers.
  * Also includes freezing of TL / currency networks, interests and fees.
  **/
-contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165, CurrencyNetworkSafeMath {
-
+contract CurrencyNetworkBasic is
+    CurrencyNetworkInterface,
+    Authorizable,
+    ERC165,
+    CurrencyNetworkSafeMath
+{
     // Constants
     int72 constant MAX_BALANCE = 2**64 - 1;
-    int72 constant MIN_BALANCE = - MAX_BALANCE;
-    int256 constant SECONDS_PER_YEAR = 60*60*24*365;
+    int72 constant MIN_BALANCE = -MAX_BALANCE;
+    int256 constant SECONDS_PER_YEAR = 60 * 60 * 24 * 365;
 
     using ItSet for ItSet.AddressSet;
-    mapping (bytes32 => Trustline) internal trustlines;
+    mapping(bytes32 => Trustline) internal trustlines;
     // mapping uniqueId => trustline request
-    mapping (bytes32 => TrustlineRequest) internal requestedTrustlineUpdates;
+    mapping(bytes32 => TrustlineRequest) internal requestedTrustlineUpdates;
 
     // friends, users address has a trustline with
-    mapping (address => ItSet.AddressSet) internal friends;
+    mapping(address => ItSet.AddressSet) internal friends;
     // list of all users of the system
     ItSet.AddressSet internal users;
 
     bool public isInitialized;
-    uint public expirationTime;
+    uint256 public expirationTime;
     bool public isNetworkFrozen;
 
     // Divides current value being transferred to calculate the capacity fee which equals the imbalance fee
@@ -44,30 +46,35 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
     bool public preventMediatorInterests;
 
     // Meta data
-    string override public name;
-    string override public symbol;
-    uint8 override public decimals;
+    string public override name;
+    string public override symbol;
+    uint8 public override decimals;
 
     // Events
-    event Transfer(address indexed _from, address indexed _to, uint _value, bytes _extraData);
+    event Transfer(
+        address indexed _from,
+        address indexed _to,
+        uint256 _value,
+        bytes _extraData
+    );
 
     event TrustlineUpdateRequest(
         address indexed _creditor,
         address indexed _debtor,
-        uint _creditlineGiven,
-        uint _creditlineReceived,
-        int _interestRateGiven,
-        int _interestRateReceived,
+        uint256 _creditlineGiven,
+        uint256 _creditlineReceived,
+        int256 _interestRateGiven,
+        int256 _interestRateReceived,
         bool _isFrozen
     );
 
     event TrustlineUpdate(
         address indexed _creditor,
         address indexed _debtor,
-        uint _creditlineGiven,
-        uint _creditlineReceived,
-        int _interestRateGiven,
-        int _interestRateReceived,
+        uint256 _creditlineGiven,
+        uint256 _creditlineReceived,
+        int256 _interestRateGiven,
+        int256 _interestRateReceived,
         bool _isFrozen
     );
 
@@ -76,7 +83,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         address indexed _counterparty
     );
 
-    event BalanceUpdate(address indexed _from, address indexed _to, int256 _value);
+    event BalanceUpdate(
+        address indexed _from,
+        address indexed _to,
+        int256 _value
+    );
 
     event NetworkFreeze();
 
@@ -89,19 +100,17 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
     }
 
     struct TrustlineAgreement {
-        uint64 creditlineGiven;       //  creditline given by A to B, always positive
-        uint64 creditlineReceived;    //  creditline given by B to A, always positive
-
-        int16 interestRateGiven;      //  interest rate set by A for creditline given by A to B in 0.01% per year
-        int16 interestRateReceived;   //  interest rate set by B for creditline given from B to A in 0.01% per year
-
-        bool isFrozen;                //  8 bits
+        uint64 creditlineGiven; //  creditline given by A to B, always positive
+        uint64 creditlineReceived; //  creditline given by B to A, always positive
+        int16 interestRateGiven; //  interest rate set by A for creditline given by A to B in 0.01% per year
+        int16 interestRateReceived; //  interest rate set by B for creditline given from B to A in 0.01% per year
+        bool isFrozen; //  8 bits
     }
 
     struct TrustlineBalances {
-        uint32 mtime;                  //  last time interests were applied
-        int72 balance;                 //  balance between A and B, balance is >0 if B owes A, negative otherwise.
-                                       //  balance(B,A) = - balance(A,B)
+        uint32 mtime; //  last time interests were applied
+        int72 balance; //  balance between A and B, balance is >0 if B owes A, negative otherwise.
+        //  balance(B,A) = - balance(A,B)
     }
 
     struct TrustlineRequest {
@@ -133,16 +142,12 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         uint64 _maxFee,
         address[] calldata _path,
         bytes calldata _extraData
-    )
-        external override
-    {
-        require(_path.length > 0 && msg.sender == _path[0], "The path must start with msg.sender");
-        _mediatedTransferSenderPays(
-            _value,
-            _maxFee,
-            _path,
-            _extraData
+    ) external override {
+        require(
+            _path.length > 0 && msg.sender == _path[0],
+            "The path must start with msg.sender"
         );
+        _mediatedTransferSenderPays(_value, _maxFee, _path, _extraData);
     }
 
     /**
@@ -158,17 +163,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         uint64 _maxFee,
         address[] calldata _path,
         bytes calldata _extraData
-    )
-        external override
-    {
-        require(globalAuthorized[msg.sender] || (_path.length > 0 && authorizedBy[_path[0]][msg.sender]), "The sender of the message is not authorized.");
-
-        _mediatedTransferSenderPays(
-            _value,
-            _maxFee,
-            _path,
-            _extraData
+    ) external override {
+        require(
+            globalAuthorized[msg.sender] ||
+                (_path.length > 0 && authorizedBy[_path[0]][msg.sender]),
+            "The sender of the message is not authorized."
         );
+
+        _mediatedTransferSenderPays(_value, _maxFee, _path, _extraData);
     }
 
     /**
@@ -184,15 +186,12 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         uint64 _maxFee,
         address[] calldata _path,
         bytes calldata _extraData
-    )
-        external
-    {
-        require(_path.length > 0 && msg.sender == _path[0], "The path must start with msg.sender");
-        _mediatedTransferReceiverPays(
-            _value,
-            _maxFee,
-            _path,
-            _extraData);
+    ) external {
+        require(
+            _path.length > 0 && msg.sender == _path[0],
+            "The path must start with msg.sender"
+        );
+        _mediatedTransferReceiverPays(_value, _maxFee, _path, _extraData);
     }
 
     /**
@@ -213,10 +212,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
         bool _isFrozen
-    )
-        external
-    {
-
+    ) external {
         address _creditor = msg.sender;
 
         _updateTrustline(
@@ -235,15 +231,18 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         by applying the outstanding interests
         @param _counterParty The counterparty with which to update the interests
      */
-    function applyInterests(
-        address _counterParty
-    )
-        external
-    {
+    function applyInterests(address _counterParty) external {
         Trustline memory trustline = _loadTrustline(msg.sender, _counterParty);
-        require(! _isTrustlineFrozen(trustline.agreement), "Cannot apply interests, the trustline is frozen");
+        require(
+            !_isTrustlineFrozen(trustline.agreement),
+            "Cannot apply interests, the trustline is frozen"
+        );
         _applyInterests(trustline);
-        emit BalanceUpdate(msg.sender, _counterParty, trustline.balances.balance);
+        emit BalanceUpdate(
+            msg.sender,
+            _counterParty,
+            trustline.balances.balance
+        );
         _storeTrustlineBalances(msg.sender, _counterParty, trustline.balances);
     }
 
@@ -251,15 +250,18 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * @notice `msg.sender` cancels a trustline update it initiated with _debtor
      * @param _counterparty The other party of the trustline agreement
      */
-    function cancelTrustlineUpdate(
-        address _counterparty
-    )
-        external
-    {
-        require(! isNetworkFrozen, "The network is frozen; trustlines update cannot be canceled.");
+    function cancelTrustlineUpdate(address _counterparty) external {
+        require(
+            !isNetworkFrozen,
+            "The network is frozen; trustlines update cannot be canceled."
+        );
 
-        TrustlineRequest memory trustlineRequest = _loadTrustlineRequest(msg.sender, _counterparty);
-        require(trustlineRequest.initiator != address(0), "No request to delete.");
+        TrustlineRequest memory trustlineRequest =
+            _loadTrustlineRequest(msg.sender, _counterparty);
+        require(
+            trustlineRequest.initiator != address(0),
+            "No request to delete."
+        );
         _deleteTrustlineRequest(msg.sender, _counterparty);
 
         emit TrustlineUpdateCancel(msg.sender, _counterparty);
@@ -277,9 +279,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         address _debtor,
         uint64 _creditlineGiven,
         uint64 _creditlineReceived
-    )
-        external
-    {
+    ) external {
         address _creditor = msg.sender;
 
         _updateCreditlimits(
@@ -295,17 +295,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * For this to succeed the balance of this trustline needs to be zero
      * @param _otherParty The other party of the trustline agreement
      */
-    function closeTrustline(
-        address _otherParty
-    )
-        external
-    {
+    function closeTrustline(address _otherParty) external {
         address from = msg.sender;
 
-        _closeTrustline(
-            from,
-            _otherParty
-        );
+        _closeTrustline(from, _otherParty);
     }
 
     /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
@@ -317,23 +310,29 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         address _otherParty,
         uint64 _maxFee,
         address[] calldata _path
-    )
-        external
-    {
-        _closeTrustlineByTriangularTransfer(
-            _otherParty,
-            _maxFee,
-            _path
-            );
+    ) external {
+        _closeTrustlineByTriangularTransfer(_otherParty, _maxFee, _path);
     }
 
     /**
-    * @notice Query the trustline between two users.
-    * @param _a First address that defines the trustline
-    * @param _b second address that defines the trustline
-    * @dev Can be removed once structs are supported in the ABI
-    */
-    function getAccount(address _a, address _b) external view returns (int, int, int, int, bool, int, int) {
+     * @notice Query the trustline between two users.
+     * @param _a First address that defines the trustline
+     * @param _b second address that defines the trustline
+     * @dev Can be removed once structs are supported in the ABI
+     */
+    function getAccount(address _a, address _b)
+        external
+        view
+        returns (
+            int256,
+            int256,
+            int256,
+            int256,
+            bool,
+            int256,
+            int256
+        )
+    {
         Trustline memory trustline = _loadTrustline(_a, _b);
 
         return (
@@ -343,7 +342,8 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             trustline.agreement.interestRateReceived,
             trustline.agreement.isFrozen || isNetworkFrozen,
             trustline.balances.mtime,
-            trustline.balances.balance);
+            trustline.balances.balance
+        );
     }
 
     /**
@@ -351,8 +351,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * it can no longer be used after that
      **/
     function freezeNetwork() external {
-        require(expirationTime != 0, "The currency network has disabled freezing.");
-        require(expirationTime <= now, "The currency network cannot be frozen yet.");
+        require(
+            expirationTime != 0,
+            "The currency network has disabled freezing."
+        );
+        require(
+            expirationTime <= now,
+            "The currency network cannot be frozen yet."
+        );
         isNetworkFrozen = true;
         emit NetworkFreeze();
     }
@@ -363,28 +369,22 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * @return A boolean for whether the interface id is supported
      * @dev This needs to be in sync with CurrencyNetworkInterface.sol
      **/
-    function supportsInterface(
-        bytes4 interfaceID
-    )
+    function supportsInterface(bytes4 interfaceID)
         external
         view
         override
         returns (bool)
     {
-        return (
-            interfaceID == this.supportsInterface.selector || // ERC165
-            (   // This needs to be in sync with CurrencyNetworkInterface.sol
-                interfaceID == (
-                    this.name.selector ^
+        return (interfaceID == this.supportsInterface.selector || // ERC165
+            (// This needs to be in sync with CurrencyNetworkInterface.sol
+            interfaceID ==
+                (this.name.selector ^
                     this.symbol.selector ^
                     this.decimals.selector ^
                     this.transfer.selector ^
                     this.transferFrom.selector ^
                     this.balance.selector ^
-                    this.creditline.selector
-                )
-            )
-        );
+                    this.creditline.selector)));
     }
 
     /**
@@ -408,23 +408,24 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         int16 _defaultInterestRate,
         bool _customInterests,
         bool _preventMediatorInterests,
-        uint _expirationTime,
+        uint256 _expirationTime,
         address[] memory authorizedAddresses
-    )
-        public
-        virtual
-    {
+    ) public virtual {
         require(!isInitialized, "Currency Network already initialized.");
         isInitialized = true;
 
         // verifies that only one parameter is selected.
         require(
-            ! ((_defaultInterestRate != 0) && _customInterests),
+            !((_defaultInterestRate != 0) && _customInterests),
             "Custom interests are set; default interest rate must be zero."
         );
-        require(_defaultInterestRate <= 2000 && _defaultInterestRate >= -2000, "Default interests cannot exceed +-20%.");
         require(
-            !_preventMediatorInterests || (_preventMediatorInterests && _customInterests),
+            _defaultInterestRate <= 2000 && _defaultInterestRate >= -2000,
+            "Default interests cannot exceed +-20%."
+        );
+        require(
+            !_preventMediatorInterests ||
+                (_preventMediatorInterests && _customInterests),
             "Prevent mediator interest cannot be set without using custom interests."
         );
 
@@ -447,7 +448,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         preventMediatorInterests = _preventMediatorInterests;
         expirationTime = _expirationTime;
 
-        for (uint i = 0; i < authorizedAddresses.length; i++) {
+        for (uint256 i = 0; i < authorizedAddresses.length; i++) {
             addGlobalAuthorizedAddress(authorizedAddresses[i]);
         }
     }
@@ -458,9 +459,15 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * @param _debtor the debtor of the queried trustline
      * @return _creditline credit limit given by creditor to debtor
      */
-    function creditline(address _creditor, address _debtor) public view override returns (uint _creditline) {
+    function creditline(address _creditor, address _debtor)
+        public
+        view
+        override
+        returns (uint256 _creditline)
+    {
         // returns the current creditline given by A to B
-        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        TrustlineAgreement memory trustlineAgreement =
+            _loadTrustlineAgreement(_creditor, _debtor);
         _creditline = trustlineAgreement.creditlineGiven;
     }
 
@@ -470,9 +477,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * @param _debtor the debtor of the queried trustline
      * @return _interestRate Interest rate given by creditor to debtor on the balance of the line
      */
-    function interestRate(address _creditor, address _debtor) public view returns (int16 _interestRate) {
+    function interestRate(address _creditor, address _debtor)
+        public
+        view
+        returns (int16 _interestRate)
+    {
         // returns the current interests given by A to B
-        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        TrustlineAgreement memory trustlineAgreement =
+            _loadTrustlineAgreement(_creditor, _debtor);
         _interestRate = trustlineAgreement.interestRateGiven;
     }
 
@@ -482,8 +494,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
      * @param _b second address that defines the trustline
      * @return _balance the amount _b owes to _a on the trustline between _a and _b
      **/
-    function balance(address _a, address _b) public view override returns (int _balance) {
-        TrustlineBalances memory trustlineBalances = _loadTrustlineBalances(_a, _b);
+    function balance(address _a, address _b)
+        public
+        view
+        override
+        returns (int256 _balance)
+    {
+        TrustlineBalances memory trustlineBalances =
+            _loadTrustlineBalances(_a, _b);
         _balance = trustlineBalances.balance;
     }
 
@@ -504,11 +522,16 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         return users.list;
     }
 
-    function isTrustlineFrozen(address a, address b) public view returns (bool) {
+    function isTrustlineFrozen(address a, address b)
+        public
+        view
+        returns (bool)
+    {
         if (isNetworkFrozen) {
             return true;
         }
-        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(a, b);
+        TrustlineAgreement memory trustlineAgreement =
+            _loadTrustlineAgreement(a, b);
         return trustlineAgreement.isFrozen;
     }
 
@@ -517,16 +540,15 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
     // so that Balance(t) = Balance(0) * exp(r*t) where (r*t) < 1
     function calculateBalanceWithInterests(
         int72 _balance,
-        uint _startTime,
-        uint _endTime,
+        uint256 _startTime,
+        uint256 _endTime,
         int16 _interestRateGiven,
         int16 _interestRateReceived
-    )
-        public
-        pure
-        returns (int72)
-    {
-        require(_balance <= MAX_BALANCE && _balance >= MIN_BALANCE, "The function requires the _balance to fit into a 64 bit value");
+    ) public pure returns (int72) {
+        require(
+            _balance <= MAX_BALANCE && _balance >= MIN_BALANCE,
+            "The function requires the _balance to fit into a 64 bit value"
+        );
         require(_startTime <= _endTime, "_startTime should be before _endTime");
         int16 rate = 0;
         if (_balance > 0) {
@@ -543,13 +565,16 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         int256 intermediateOrder = _balance;
         int256 newBalance = _balance;
 
-        assert(dt>=0);
+        assert(dt >= 0);
 
-        for (int i = 1; i <= 15; i++) {
-            int256 newIntermediateOrder = intermediateOrder*rate*dt;
+        for (int256 i = 1; i <= 15; i++) {
+            int256 newIntermediateOrder = intermediateOrder * rate * dt;
 
             //Overflow adjustment
-            if ((newIntermediateOrder != 0) && (newIntermediateOrder / (rate * dt) != intermediateOrder)) {
+            if (
+                (newIntermediateOrder != 0) &&
+                (newIntermediateOrder / (rate * dt) != intermediateOrder)
+            ) {
                 if (rate > 0) {
                     if (_balance > 0) {
                         newBalance = MAX_BALANCE;
@@ -562,7 +587,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
                 break;
             }
 
-            intermediateOrder = newIntermediateOrder/(SECONDS_PER_YEAR*10000*i);
+            intermediateOrder =
+                newIntermediateOrder /
+                (SECONDS_PER_YEAR * 10000 * i);
 
             if (intermediateOrder == 0) {
                 break;
@@ -614,10 +641,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
 
     // This function transfers value over this trustline
     // For that it modifies the value of the balance stored in the trustline for sender and receiver
-    function _applyDirectTransfer(
-        Trustline memory _trustline,
-        uint64 _value
-    )
+    function _applyDirectTransfer(Trustline memory _trustline, uint64 _value)
         internal
         pure
     {
@@ -633,12 +657,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         _trustline.balances.balance = newBalance;
     }
 
-    function _applyInterests(
-        Trustline memory _trustline
-    )
-        internal
-        view
-    {
+    function _applyInterests(Trustline memory _trustline) internal view {
         _trustline.balances.balance = calculateBalanceWithInterests(
             _trustline.balances.balance,
             _trustline.balances.mtime,
@@ -655,33 +674,44 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         uint64 _maxFee,
         address[] memory _path,
         bytes memory _extraData
-    )
-        internal
-    {
+    ) internal {
         require(_path.length > 1, "Path too short.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
-        int receiverUnhappiness = 0;
-        int receiverHappiness = 0;
+        int256 receiverUnhappiness = 0;
+        int256 receiverHappiness = 0;
         bool reducingDebtOfNextHopOnly = true;
 
         // check path in reverse to correctly accumulate the fee
-        for (uint receiverIndex = _path.length - 1; receiverIndex > 0; receiverIndex--) {
+        for (
+            uint256 receiverIndex = _path.length - 1;
+            receiverIndex > 0;
+            receiverIndex--
+        ) {
             address receiver = _path[receiverIndex];
-            address sender = _path[receiverIndex-1];
+            address sender = _path[receiverIndex - 1];
 
             uint64 fee;
 
             // Load trustline only once at the beginning
             Trustline memory trustline = _loadTrustline(sender, receiver);
-            require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
+            require(
+                !_isTrustlineFrozen(trustline.agreement),
+                "The path given is incorrect: one trustline in the path is frozen."
+            );
             _applyInterests(trustline);
 
             if (receiverIndex == _path.length - 1) {
                 fee = 0; // receiver should not get a fee
             } else {
-                fee = _calculateFeesReverse(_imbalanceGenerated(forwardedValue, trustline.balances.balance), capacityImbalanceFeeDivisor);
+                fee = _calculateFeesReverse(
+                    _imbalanceGenerated(
+                        forwardedValue,
+                        trustline.balances.balance
+                    ),
+                    capacityImbalanceFeeDivisor
+                );
             }
 
             // forward the value + the fee
@@ -689,21 +719,21 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             fees = safeAdd(fees, fee);
             require(fees <= _maxFee, "The fees exceed the max fee parameter.");
 
-
             int72 balanceBefore = trustline.balances.balance;
 
-            _applyDirectTransfer(
-                trustline,
-                forwardedValue);
-
+            _applyDirectTransfer(trustline, forwardedValue);
 
             if (preventMediatorInterests) {
                 // prevent intermediaries from paying more interests than they receive
                 // unless the transaction helps in reducing the debt of the next hop in the path
-                receiverHappiness = receiverUnhappiness;  // receiver was the sender in last iteration
-                receiverUnhappiness = _interestHappiness(trustline, balanceBefore);
+                receiverHappiness = receiverUnhappiness; // receiver was the sender in last iteration
+                receiverUnhappiness = _interestHappiness(
+                    trustline,
+                    balanceBefore
+                );
                 require(
-                    receiverUnhappiness <= receiverHappiness || reducingDebtOfNextHopOnly,
+                    receiverUnhappiness <= receiverHappiness ||
+                        reducingDebtOfNextHopOnly,
                     "The transfer was prevented by the prevent mediator interests strategy"
                 );
                 reducingDebtOfNextHopOnly = trustline.balances.balance >= 0;
@@ -715,12 +745,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             emit BalanceUpdate(sender, receiver, trustline.balances.balance);
         }
 
-        emit Transfer(
-            _path[0],
-            _path[_path.length - 1],
-            _value,
-            _extraData
-        );
+        emit Transfer(_path[0], _path[_path.length - 1], _value, _extraData);
     }
 
     /* like _mediatedTransfer only the receiver pays
@@ -731,40 +756,42 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         uint64 _maxFee,
         address[] memory _path,
         bytes memory _extraData
-    )
-        internal
-    {
+    ) internal {
         require(_path.length > 1, "Path too short.");
 
         uint64 forwardedValue = _value;
         uint64 fees = 0;
-        int senderHappiness = - 2**255;
-        int senderUnhappiness = - 2**255;
+        int256 senderHappiness = -2**255;
+        int256 senderUnhappiness = -2**255;
         bool reducingDebtOnly = true;
 
         // check path starting from sender correctly accumulate the fee
-        for (uint senderIndex = 0; senderIndex < _path.length-1; senderIndex++) {
-
-            address receiver = _path[senderIndex+1];
+        for (
+            uint256 senderIndex = 0;
+            senderIndex < _path.length - 1;
+            senderIndex++
+        ) {
+            address receiver = _path[senderIndex + 1];
             address sender = _path[senderIndex];
 
             uint64 fee;
 
             // Load trustline only once at the beginning
             Trustline memory trustline = _loadTrustline(sender, receiver);
-            require(! _isTrustlineFrozen(trustline.agreement), "The path given is incorrect: one trustline in the path is frozen.");
+            require(
+                !_isTrustlineFrozen(trustline.agreement),
+                "The path given is incorrect: one trustline in the path is frozen."
+            );
             _applyInterests(trustline);
 
             int72 balanceBefore = trustline.balances.balance;
 
-            _applyDirectTransfer(
-                trustline,
-                forwardedValue);
+            _applyDirectTransfer(trustline, forwardedValue);
 
             if (preventMediatorInterests) {
                 // prevent intermediaries from paying more interests than they receive
                 // unless the transaction helps in reducing the debt of the next hop in the path
-                senderUnhappiness = senderHappiness;  // sender was the receiver in last iteration
+                senderUnhappiness = senderHappiness; // sender was the receiver in last iteration
                 senderHappiness = _interestHappiness(trustline, balanceBefore);
                 reducingDebtOnly = trustline.balances.balance >= 0;
                 require(
@@ -783,58 +810,47 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             }
 
             // calculate fees for next mediator
-            fee = _calculateFees(_imbalanceGenerated(forwardedValue, balanceBefore), capacityImbalanceFeeDivisor);
+            fee = _calculateFees(
+                _imbalanceGenerated(forwardedValue, balanceBefore),
+                capacityImbalanceFeeDivisor
+            );
             // Underflow check
             forwardedValue = safeSub(forwardedValue, fee);
 
             fees = safeAdd(fees, fee);
             require(fees <= _maxFee, "The fees exceed the max fee parameter.");
-
         }
 
-        emit Transfer(
-            _path[0],
-            _path[_path.length - 1],
-            _value,
-            _extraData
-        );
+        emit Transfer(_path[0], _path[_path.length - 1], _value, _extraData);
     }
 
     /* close a trustline, which must have a balance of zero */
-    function _closeTrustline(
-        address _from,
-        address _otherParty)
-        internal
-    {
-        TrustlineBalances memory balances = _loadTrustlineBalances(_from, _otherParty);
-        require(balances.balance == 0, "A trustline can only be closed if its balance is zero.");
-        require(!isTrustlineFrozen(_from, _otherParty), "The trustline is frozen and cannot be closed.");
+    function _closeTrustline(address _from, address _otherParty) internal {
+        TrustlineBalances memory balances =
+            _loadTrustlineBalances(_from, _otherParty);
+        require(
+            balances.balance == 0,
+            "A trustline can only be closed if its balance is zero."
+        );
+        require(
+            !isTrustlineFrozen(_from, _otherParty),
+            "The trustline is frozen and cannot be closed."
+        );
 
         bytes32 uniqueId = uniqueIdentifier(_from, _otherParty);
         delete requestedTrustlineUpdates[uniqueId];
         delete trustlines[uniqueId];
         friends[_from].remove(_otherParty);
         friends[_otherParty].remove(_from);
-        emit TrustlineUpdate(
-            _from,
-            _otherParty,
-            0,
-            0,
-            0,
-            0,
-            false);
+        emit TrustlineUpdate(_from, _otherParty, 0, 0, 0, 0, false);
     }
 
     function _closeTrustlineByTriangularTransfer(
         address _otherParty,
         uint64 _maxFee,
-        address[] memory _path)
-        internal
-    {
-        require(
-            _path.length >= 3,
-            "Path given too short to be correct."
-        );
+        address[] memory _path
+    ) internal {
+        require(_path.length >= 3, "Path given too short to be correct.");
         require(msg.sender == _path[0], "Path must start msg.sender.");
         require(
             msg.sender == _path[_path.length - 1],
@@ -842,7 +858,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         );
 
         Trustline memory trustline = _loadTrustline(_path[0], _otherParty);
-        require(!_isTrustlineFrozen(trustline.agreement), "The trustline is frozen and cannot be closed.");
+        require(
+            !_isTrustlineFrozen(trustline.agreement),
+            "The trustline is frozen and cannot be closed."
+        );
         _applyInterests(trustline);
         TrustlineBalances memory balances = trustline.balances;
 
@@ -851,7 +870,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
                 _path[1] == _otherParty,
                 "Second element of path does not match _otherParty address."
             );
-            require(uint64(balances.balance) == balances.balance, "Cannot transfer too high values.");
+            require(
+                uint64(balances.balance) == balances.balance,
+                "Cannot transfer too high values."
+            );
             _mediatedTransferReceiverPays(
                 uint64(balances.balance),
                 _maxFee,
@@ -863,7 +885,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
                 _path[_path.length - 2] == _otherParty,
                 "Second to last element of path does not match _otherParty address."
             );
-            require(uint64(-balances.balance) == - balances.balance, "Cannot transfer too high values.");
+            require(
+                uint64(-balances.balance) == -balances.balance,
+                "Cannot transfer too high values."
+            );
             _mediatedTransferSenderPays(
                 uint64(-balances.balance),
                 _maxFee,
@@ -882,15 +907,24 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         friends[_b].insert(_a);
     }
 
-    function _loadTrustline(address _a, address _b) internal view returns (Trustline memory) {
+    function _loadTrustline(address _a, address _b)
+        internal
+        view
+        returns (Trustline memory)
+    {
         Trustline memory trustline;
         trustline.agreement = _loadTrustlineAgreement(_a, _b);
         trustline.balances = _loadTrustlineBalances(_a, _b);
         return trustline;
     }
 
-    function _loadTrustlineAgreement(address _a, address _b) internal view returns (TrustlineAgreement memory) {
-        TrustlineAgreement memory trustlineAgreement = trustlines[uniqueIdentifier(_a, _b)].agreement;
+    function _loadTrustlineAgreement(address _a, address _b)
+        internal
+        view
+        returns (TrustlineAgreement memory)
+    {
+        TrustlineAgreement memory trustlineAgreement =
+            trustlines[uniqueIdentifier(_a, _b)].agreement;
         TrustlineAgreement memory result;
         if (_a < _b) {
             result = trustlineAgreement;
@@ -904,58 +938,88 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         return result;
     }
 
-    function _loadTrustlineBalances(address _a, address _b) internal view returns (TrustlineBalances memory) {
-        TrustlineBalances memory balances = trustlines[uniqueIdentifier(_a, _b)].balances;
+    function _loadTrustlineBalances(address _a, address _b)
+        internal
+        view
+        returns (TrustlineBalances memory)
+    {
+        TrustlineBalances memory balances =
+            trustlines[uniqueIdentifier(_a, _b)].balances;
         TrustlineBalances memory result;
         if (_a < _b) {
             result = balances;
         } else {
             result.mtime = balances.mtime;
-            result.balance = - balances.balance;
+            result.balance = -balances.balance;
         }
         return result;
     }
 
     // Provides the abstraction of whether a < b or b < a.
-    function _storeTrustlineAgreement(address _a, address _b, TrustlineAgreement memory trustlineAgreement) internal {
+    function _storeTrustlineAgreement(
+        address _a,
+        address _b,
+        TrustlineAgreement memory trustlineAgreement
+    ) internal {
         if (!customInterests) {
             assert(trustlineAgreement.interestRateGiven == defaultInterestRate);
-            assert(trustlineAgreement.interestRateReceived == defaultInterestRate);
+            assert(
+                trustlineAgreement.interestRateReceived == defaultInterestRate
+            );
         } else {
             assert(trustlineAgreement.interestRateGiven >= 0);
             assert(trustlineAgreement.interestRateReceived >= 0);
         }
 
-        TrustlineAgreement storage storedTrustlineAgreement = trustlines[uniqueIdentifier(_a, _b)].agreement;
+        TrustlineAgreement storage storedTrustlineAgreement =
+            trustlines[uniqueIdentifier(_a, _b)].agreement;
         if (_a < _b) {
-            storedTrustlineAgreement.creditlineGiven = trustlineAgreement.creditlineGiven;
-            storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineReceived;
-            storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateGiven;
-            storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateReceived;
+            storedTrustlineAgreement.creditlineGiven = trustlineAgreement
+                .creditlineGiven;
+            storedTrustlineAgreement.creditlineReceived = trustlineAgreement
+                .creditlineReceived;
+            storedTrustlineAgreement.interestRateGiven = trustlineAgreement
+                .interestRateGiven;
+            storedTrustlineAgreement.interestRateReceived = trustlineAgreement
+                .interestRateReceived;
             storedTrustlineAgreement.isFrozen = trustlineAgreement.isFrozen;
         } else {
-            storedTrustlineAgreement.creditlineGiven = trustlineAgreement.creditlineReceived;
-            storedTrustlineAgreement.creditlineReceived = trustlineAgreement.creditlineGiven;
-            storedTrustlineAgreement.interestRateGiven = trustlineAgreement.interestRateReceived;
-            storedTrustlineAgreement.interestRateReceived = trustlineAgreement.interestRateGiven;
+            storedTrustlineAgreement.creditlineGiven = trustlineAgreement
+                .creditlineReceived;
+            storedTrustlineAgreement.creditlineReceived = trustlineAgreement
+                .creditlineGiven;
+            storedTrustlineAgreement.interestRateGiven = trustlineAgreement
+                .interestRateReceived;
+            storedTrustlineAgreement.interestRateReceived = trustlineAgreement
+                .interestRateGiven;
             storedTrustlineAgreement.isFrozen = trustlineAgreement.isFrozen;
         }
     }
 
     // Provides the abstraction of whether a < b or b < a.
-    function _storeTrustlineBalances(address _a, address _b, TrustlineBalances memory trustlineBalances) internal {
-        TrustlineBalances storage storedTrustlineBalance = trustlines[uniqueIdentifier(_a, _b)].balances;
+    function _storeTrustlineBalances(
+        address _a,
+        address _b,
+        TrustlineBalances memory trustlineBalances
+    ) internal {
+        TrustlineBalances storage storedTrustlineBalance =
+            trustlines[uniqueIdentifier(_a, _b)].balances;
         if (_a < _b) {
             storedTrustlineBalance.mtime = trustlineBalances.mtime;
             storedTrustlineBalance.balance = trustlineBalances.balance;
         } else {
             storedTrustlineBalance.mtime = trustlineBalances.mtime;
-            storedTrustlineBalance.balance = - trustlineBalances.balance;
+            storedTrustlineBalance.balance = -trustlineBalances.balance;
         }
     }
 
-    function _loadTrustlineRequest(address _a, address _b) internal view returns (TrustlineRequest memory) {
-        TrustlineRequest memory trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
+    function _loadTrustlineRequest(address _a, address _b)
+        internal
+        view
+        returns (TrustlineRequest memory)
+    {
+        TrustlineRequest memory trustlineRequest =
+            requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
         return trustlineRequest;
     }
 
@@ -963,22 +1027,31 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         delete requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
     }
 
-    function _storeTrustlineRequest(address _a, address _b, TrustlineRequest memory _trustlineRequest) internal {
+    function _storeTrustlineRequest(
+        address _a,
+        address _b,
+        TrustlineRequest memory _trustlineRequest
+    ) internal {
         if (!customInterests) {
             assert(_trustlineRequest.interestRateGiven == defaultInterestRate);
-            assert(_trustlineRequest.interestRateReceived == defaultInterestRate);
+            assert(
+                _trustlineRequest.interestRateReceived == defaultInterestRate
+            );
         } else {
             assert(_trustlineRequest.interestRateGiven >= 0);
             assert(_trustlineRequest.interestRateReceived >= 0);
-
         }
 
-        TrustlineRequest storage trustlineRequest = requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
+        TrustlineRequest storage trustlineRequest =
+            requestedTrustlineUpdates[uniqueIdentifier(_a, _b)];
 
         trustlineRequest.creditlineGiven = _trustlineRequest.creditlineGiven;
-        trustlineRequest.creditlineReceived = _trustlineRequest.creditlineReceived;
-        trustlineRequest.interestRateGiven = _trustlineRequest.interestRateGiven;
-        trustlineRequest.interestRateReceived = _trustlineRequest.interestRateReceived;
+        trustlineRequest.creditlineReceived = _trustlineRequest
+            .creditlineReceived;
+        trustlineRequest.interestRateGiven = _trustlineRequest
+            .interestRateGiven;
+        trustlineRequest.interestRateReceived = _trustlineRequest
+            .interestRateReceived;
         trustlineRequest.initiator = _trustlineRequest.initiator;
         trustlineRequest.isFrozen = _trustlineRequest.isFrozen;
     }
@@ -992,17 +1065,23 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
         bool _isFrozen
-    )
-        internal
-    {
-        require(! isNetworkFrozen, "The network is frozen and trustlines cannot be updated.");
-        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+    ) internal {
+        require(
+            !isNetworkFrozen,
+            "The network is frozen and trustlines cannot be updated."
+        );
+        TrustlineAgreement memory trustlineAgreement =
+            _loadTrustlineAgreement(_creditor, _debtor);
         if (_isTrustlineFrozen(trustlineAgreement)) {
-            require(! _isFrozen, "Trustline is frozen, it cannot be updated unless unfrozen.");
+            require(
+                !_isFrozen,
+                "Trustline is frozen, it cannot be updated unless unfrozen."
+            );
         }
         require(
             customInterests ||
-            (_interestRateGiven == defaultInterestRate && _interestRateReceived == defaultInterestRate),
+                (_interestRateGiven == defaultInterestRate &&
+                    _interestRateReceived == defaultInterestRate),
             "Interest rates given and received must be equal to default interest rates."
         );
         if (customInterests) {
@@ -1010,21 +1089,29 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
                 _interestRateGiven >= 0 && _interestRateReceived >= 0,
                 "Only positive interest rates are supported."
             );
-            require(_interestRateGiven <= 2000 && _interestRateGiven >= -2000, "Interests rate given cannot exceed +-20%.");
-            require(_interestRateReceived <= 2000 && _interestRateReceived >= -2000, "Interests rate received cannot exceed +-20%.");
+            require(
+                _interestRateGiven <= 2000 && _interestRateGiven >= -2000,
+                "Interests rate given cannot exceed +-20%."
+            );
+            require(
+                _interestRateReceived <= 2000 && _interestRateReceived >= -2000,
+                "Interests rate received cannot exceed +-20%."
+            );
         }
 
         // reduction of creditlines and interests given is always possible if trustline is not frozen
-        if (_creditlineGiven <= trustlineAgreement.creditlineGiven &&
+        if (
+            _creditlineGiven <= trustlineAgreement.creditlineGiven &&
             _creditlineReceived <= trustlineAgreement.creditlineReceived &&
             _interestRateGiven <= trustlineAgreement.interestRateGiven &&
             _interestRateReceived == trustlineAgreement.interestRateReceived &&
             _isFrozen == trustlineAgreement.isFrozen &&
-            ! trustlineAgreement.isFrozen
+            !trustlineAgreement.isFrozen
         ) {
             // Prevent opening a trustline with 0 limits
             // as this would allow opening a trustline without counterparty's consent
-            if (trustlineAgreement.creditlineGiven == 0 &&
+            if (
+                trustlineAgreement.creditlineGiven == 0 &&
                 trustlineAgreement.creditlineReceived == 0 &&
                 trustlineAgreement.interestRateGiven == 0 &&
                 trustlineAgreement.interestRateReceived == 0 &&
@@ -1045,11 +1132,18 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             return;
         }
 
-        TrustlineRequest memory trustlineRequest = _loadTrustlineRequest(_creditor, _debtor);
+        TrustlineRequest memory trustlineRequest =
+            _loadTrustlineRequest(_creditor, _debtor);
 
         // if original initiator is debtor, try to accept request
         if (trustlineRequest.initiator == _debtor) {
-            if (_creditlineReceived <= trustlineRequest.creditlineGiven && _creditlineGiven <= trustlineRequest.creditlineReceived && _interestRateGiven <= trustlineRequest.interestRateReceived && _interestRateReceived == trustlineRequest.interestRateGiven && _isFrozen == trustlineRequest.isFrozen) {
+            if (
+                _creditlineReceived <= trustlineRequest.creditlineGiven &&
+                _creditlineGiven <= trustlineRequest.creditlineReceived &&
+                _interestRateGiven <= trustlineRequest.interestRateReceived &&
+                _interestRateReceived == trustlineRequest.interestRateGiven &&
+                _isFrozen == trustlineRequest.isFrozen
+            ) {
                 _deleteTrustlineRequest(_creditor, _debtor);
                 // _debtor and _creditor is switched because we want the initiator of the trustline to be _debtor.
                 // So every Given / Received has to be switched.
@@ -1073,7 +1167,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
                     _isFrozen
                 );
             }
-        // update the trustline request
+            // update the trustline request
         } else {
             _requestTrustlineUpdate(
                 _creditor,
@@ -1092,12 +1186,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         address _debtor,
         uint64 _creditlineGiven,
         uint64 _creditlineReceived
-    )
-        internal
-    {
+    ) internal {
         int16 interestRateGiven = defaultInterestRate;
         int16 interestRateReceived = defaultInterestRate;
-        TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
+        TrustlineAgreement memory trustlineAgreement =
+            _loadTrustlineAgreement(_creditor, _debtor);
         bool isFrozen = trustlineAgreement.isFrozen;
         if (customInterests) {
             interestRateGiven = trustlineAgreement.interestRateGiven;
@@ -1123,16 +1216,16 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
         bool _isFrozen
-    )
-        internal
-        virtual
-    {
+    ) internal virtual {
         Trustline memory _trustline = _loadTrustline(_creditor, _debtor);
 
         // Because the interest rate might change, we need to apply interests.
-        if ((_interestRateGiven != _trustline.agreement.interestRateGiven ||
-            _interestRateReceived != _trustline.agreement.interestRateReceived
-            ) && _trustline.balances.balance != 0) {
+        if (
+            (_interestRateGiven != _trustline.agreement.interestRateGiven ||
+                _interestRateReceived !=
+                _trustline.agreement.interestRateReceived) &&
+            _trustline.balances.balance != 0
+        ) {
             _applyInterests(_trustline);
             emit BalanceUpdate(_creditor, _debtor, _trustline.balances.balance);
         }
@@ -1165,9 +1258,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
         bool _isFrozen
-    )
-        internal
-    {
+    ) internal {
         _storeTrustlineRequest(
             _creditor,
             _debtor,
@@ -1178,7 +1269,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
                 _interestRateReceived,
                 _isFrozen,
                 _creditor
-                )
+            )
         );
 
         emit TrustlineUpdateRequest(
@@ -1195,10 +1286,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
     function _calculateFees(
         uint64 _imbalanceGenerated,
         uint16 _capacityImbalanceFeeDivisor
-    )
-        internal pure
-        returns (uint64)
-    {
+    ) internal pure returns (uint64) {
         if (_capacityImbalanceFeeDivisor == 0 || _imbalanceGenerated == 0) {
             return 0;
         }
@@ -1210,23 +1298,19 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
     function _calculateFeesReverse(
         uint64 _imbalanceGenerated,
         uint16 _capacityImbalanceFeeDivisor
-    )
-        internal pure
-        returns (uint64)
-    {
+    ) internal pure returns (uint64) {
         if (_capacityImbalanceFeeDivisor == 0 || _imbalanceGenerated == 0) {
             return 0;
         }
         // Calculate the fees in reverse with c * imbalance / (1 - c) = imbalance / (divisor - 1)
         // We round up using (imbalance - 1) / (divisor - 1) + 1
-        return (_imbalanceGenerated - 1) / (_capacityImbalanceFeeDivisor - 1) + 1;
+        return
+            (_imbalanceGenerated - 1) / (_capacityImbalanceFeeDivisor - 1) + 1;
     }
 
-    function _imbalanceGenerated(
-        uint64 _value,
-        int72 _balance
-    )
-        internal pure
+    function _imbalanceGenerated(uint64 _value, int72 _balance)
+        internal
+        pure
         returns (uint64)
     {
         int72 imbalanceGenerated = _value;
@@ -1241,7 +1325,10 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             return 0;
         }
         uint64 result = uint64(imbalanceGenerated);
-        require(result == imbalanceGenerated, "The imbalance does not fit into uint64.");
+        require(
+            result == imbalanceGenerated,
+            "The imbalance does not fit into uint64."
+        );
         return result;
     }
 
@@ -1252,16 +1339,14 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
     function _interestHappiness(
         Trustline memory _trustline,
         int72 _balanceBefore
-    )
-        internal pure
-        returns (int)
-    {
+    ) internal pure returns (int256) {
         int72 _balance = _trustline.balances.balance;
-        int transferredValue = int(_balanceBefore) - _balance;
+        int256 transferredValue = int256(_balanceBefore) - _balance;
 
         if (_balanceBefore <= 0) {
             // Sender already owes receiver, this will only effect the interest rate received
-            return -transferredValue * _trustline.agreement.interestRateReceived;
+            return
+                -transferredValue * _trustline.agreement.interestRateReceived;
         } else if (_balance >= 0) {
             // Receiver owes sender before and after the transfer. This only effects the interest rate received
             return -transferredValue * _trustline.agreement.interestRateGiven;
@@ -1269,20 +1354,33 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165,
             // It effects both interest rates
             // Before the transfer: Receiver owes to sender balanceBefore;
             // After the transfer: Sender owes to receiver balance;
-            return - int(_balanceBefore) * _trustline.agreement.interestRateGiven + int(_balance) * _trustline.agreement.interestRateReceived;
+            return
+                -int256(_balanceBefore) *
+                _trustline.agreement.interestRateGiven +
+                int256(_balance) *
+                _trustline.agreement.interestRateReceived;
         }
     }
 
     // Returns whether a trustline is frozen
     // Should be more gas efficient than public isTrustlineFrozen() if agreement already loaded in memory
-    function _isTrustlineFrozen(TrustlineAgreement memory agreement) internal view returns (bool) {
+    function _isTrustlineFrozen(TrustlineAgreement memory agreement)
+        internal
+        view
+        returns (bool)
+    {
         if (isNetworkFrozen) {
             return true;
         }
         return agreement.isFrozen;
     }
 
-    function uniqueIdentifier(address _a, address _b) internal pure virtual returns (bytes32) {
+    function uniqueIdentifier(address _a, address _b)
+        internal
+        pure
+        virtual
+        returns (bytes32)
+    {
         require(_a != _b, "Unique identifiers require different addresses");
         if (_a < _b) {
             return keccak256(abi.encodePacked(_a, _b));

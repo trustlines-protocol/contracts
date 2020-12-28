@@ -1,6 +1,5 @@
 pragma solidity ^0.6.5;
 
-
 /**
  * CurrencyNetwork
  *
@@ -8,9 +7,8 @@ pragma solidity ^0.6.5;
  *
  **/
 contract Onboarding {
-
     // map each user to its onboarder
-    mapping (address => address) public onboarder;
+    mapping(address => address) public onboarder;
     // value in the mapping for users that do not have an onboarder
     address constant NO_ONBOARDER = address(1);
 

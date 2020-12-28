@@ -1,16 +1,15 @@
 pragma solidity ^0.6.5;
 
-
 /**
 @dev Library for a Set that can be iterated over
 */
 library ItSet {
     struct SetEntry {
-        uint index; // index of the entry, starting at 1
+        uint256 index; // index of the entry, starting at 1
     }
 
     struct AddressSet {
-        mapping (address => SetEntry) addressToEntry;
+        mapping(address => SetEntry) addressToEntry;
         address[] list;
     }
 
@@ -22,7 +21,11 @@ library ItSet {
         }
     }
 
-    function contains(AddressSet storage self, address address_) internal view returns (bool) {
+    function contains(AddressSet storage self, address address_)
+        internal
+        view
+        returns (bool)
+    {
         return self.addressToEntry[address_].index > 0;
     }
 
@@ -39,7 +42,7 @@ library ItSet {
         }
     }
 
-    function size(AddressSet storage self) internal view returns (uint) {
+    function size(AddressSet storage self) internal view returns (uint256) {
         return self.list.length;
     }
 }

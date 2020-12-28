@@ -2,12 +2,10 @@ pragma solidity ^0.6.5;
 
 import "./ProxyStorage.sol";
 
-
 /**
  * @title Proxy contract that forwards all calls to the implementation contract via a DELEGATECALL
  **/
 contract Proxy is ProxyStorage {
-
     constructor(address owner) public {
         // solium-disable-previous-line no-empty-blocks
         // we have the owner in the constructor so that it is part of the initcode
@@ -25,14 +23,25 @@ contract Proxy is ProxyStorage {
             calldatacopy(ptr, 0, calldatasize())
             // Call the implementation.
             // out and outsize are 0 because we don't know the size yet.
-            let result := delegatecall(gas(), _implementation, ptr, calldatasize(), 0, 0)
+            let result := delegatecall(
+                gas(),
+                _implementation,
+                ptr,
+                calldatasize(),
+                0,
+                0
+            )
             // Copy the returned data.
             returndatacopy(ptr, 0, returndatasize())
 
             switch result
-            // delegatecall returns 0 on error.
-            case 0 { revert(ptr, returndatasize()) }
-            default { return(ptr, returndatasize()) }
+                // delegatecall returns 0 on error.
+                case 0 {
+                    revert(ptr, returndatasize())
+                }
+                default {
+                    return(ptr, returndatasize())
+                }
         }
     }
 

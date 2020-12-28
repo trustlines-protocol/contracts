@@ -4,7 +4,6 @@ import "../lib/ECDSA.sol";
 import "../currency-network/DebtTracking.sol";
 import "./ProxyStorage.sol";
 
-
 /**
  * @title On-chain identity and meta-transaction executing contract
  * @dev Represents a users on-chain identity and allows to execute meta-transactions where the gas of the ethereum transaction
@@ -12,25 +11,28 @@ import "./ProxyStorage.sol";
         within a Trustlines Currency Network.
  **/
 contract Identity is ProxyStorage {
-
     /// Supported version of the meta transaction protocol
-    uint constant public version  = 1;
+    uint256 public constant version = 1;
 
     /// Owner of the contract who controls what can be done with it
     address public owner;
     /// ChainId where this contract is deployed for replay protection
-    uint public chainId;
+    uint256 public chainId;
     bool public initialised;
 
     mapping(bytes32 => bool) private hashUsed;
-    uint constant public maxNonce = 2 ** 255;
-    uint public lastNonce = 0;
+    uint256 public constant maxNonce = 2**255;
+    uint256 public lastNonce = 0;
     /// Divides the gas price value to allow for finer range of fee price
-    uint constant public gasPriceDivisor = 1000000;
+    uint256 public constant gasPriceDivisor = 1000000;
 
     event TransactionExecution(bytes32 indexed hash, bool status);
     event TransactionCancellation(bytes32 indexed hash);
-    event FeePayment(uint value, address indexed recipient, address indexed currencyNetwork);
+    event FeePayment(
+        uint256 value,
+        address indexed recipient,
+        address indexed currencyNetwork
+    );
     event ContractDeployment(address deployed);
 
     constructor() public {
@@ -41,14 +43,13 @@ contract Identity is ProxyStorage {
     // This contract can receive ether
     receive() external payable {}
 
-    function init(address _owner, uint _chainId) public {
-        require(! initialised, "The contract has already been initialised.");
+    function init(address _owner, uint256 _chainId) public {
+        require(!initialised, "The contract has already been initialised.");
         initialised = true;
 
         owner = _owner;
         chainId = _chainId;
     }
-
 
     /**
      * @notice Changes the implementation contract address to `_implementation`
@@ -58,7 +59,10 @@ contract Identity is ProxyStorage {
      * @param _implementation Address of the new identity implementation contract.
      **/
     function changeImplementation(address _implementation) public {
-        require(msg.sender == address(this), "The implementation can only be changed by the contract itself");
+        require(
+            msg.sender == address(this),
+            "The implementation can only be changed by the contract itself"
+        );
         implementation = _implementation;
         emit ImplementationChange(_implementation);
     }
@@ -99,26 +103,28 @@ contract Identity is ProxyStorage {
         uint256 timeLimit,
         uint8 operationType,
         bytes memory signature
-    )
-        public
-    {
-        bytes32 hash = transactionHash(
-            to,
-            value,
-            data,
-            baseFee,
-            gasPrice,
-            gasLimit,
-            feeRecipient,
-            currencyNetworkOfFees,
-            nonce,
-            timeLimit,
-            operationType
-        );
+    ) public {
+        bytes32 hash =
+            transactionHash(
+                to,
+                value,
+                data,
+                baseFee,
+                gasPrice,
+                gasLimit,
+                feeRecipient,
+                currencyNetworkOfFees,
+                nonce,
+                timeLimit,
+                operationType
+            );
 
         require(validateNonce(nonce, hash), "The transaction nonce is invalid");
         require(validateTimeLimit(timeLimit), "The transaction expired");
-        require(validateSignature(hash, signature), "The transaction signature is not valid");
+        require(
+            validateSignature(hash, signature),
+            "The transaction signature is not valid"
+        );
 
         // We allow nonce >= maxNonce to be able to change the hash via changing the nonce
         // This allows for two meta-tx that would have the same hash otherwise
@@ -128,11 +134,11 @@ contract Identity is ProxyStorage {
             lastNonce++;
         }
 
-        uint startGas = gasleft();
+        uint256 startGas = gasleft();
         require(startGas >= gasLimit, "Not enough gas left for operation");
         if (gasLimit == 0) {
             // Unlimited gas
-            gasLimit = uint(-1);
+            gasLimit = uint256(-1);
         }
 
         bool status = applyOperation(to, value, data, operationType, gasLimit);
@@ -141,7 +147,7 @@ contract Identity is ProxyStorage {
         require(gasSpent <= gasLimit, "Gas limit too low");
 
         if ((gasPrice > 0 || baseFee > 0) && status != false) {
-            uint256 fees = baseFee + gasSpent * gasPrice / gasPriceDivisor;
+            uint256 fees = baseFee + (gasSpent * gasPrice) / gasPriceDivisor;
             require(fees >= baseFee, "Fees addition overflow");
             DebtTracking debtContract = DebtTracking(currencyNetworkOfFees);
             if (feeRecipient == address(0)) {
@@ -160,7 +166,10 @@ contract Identity is ProxyStorage {
      * @param txHash hash of the meta-transaction to be cancelled
      **/
     function cancelTransaction(bytes32 txHash) public {
-        require(msg.sender == owner || msg.sender == address(this), "Can only be called by owner or via meta-tx");
+        require(
+            msg.sender == owner || msg.sender == address(this),
+            "Can only be called by owner or via meta-tx"
+        );
         require(!hashUsed[txHash], "Transaction already executed or cancelled");
         hashUsed[txHash] = true;
         emit TransactionCancellation(txHash);
@@ -183,23 +192,15 @@ contract Identity is ProxyStorage {
         bytes memory data,
         uint256 timeLimit,
         uint8 operationType
-    )
-        public
-    {
+    ) public {
         require(msg.sender == owner, "Only owner can call this");
         require(validateTimeLimit(timeLimit), "The transaction expired");
 
-        bool status = applyOperation(
-            to,
-            value,
-            data,
-            operationType,
-            uint(-1)
-        );
+        bool status =
+            applyOperation(to, value, data, operationType, uint256(-1));
 
         require(status, "Transaction execution failed");
     }
-
 
     /**
      * @dev Validates the used nonce for replay protection and the transaction hash
@@ -207,13 +208,16 @@ contract Identity is ProxyStorage {
      * @param txHash The hash of the meta-transaction
      * @return True, if the nonce is correct and the txHash is unused, false otherwise
      **/
-    function validateNonce(uint nonce, bytes32 txHash) public view returns (bool) {
+    function validateNonce(uint256 nonce, bytes32 txHash)
+        public
+        view
+        returns (bool)
+    {
         if (nonce == 0 || nonce >= maxNonce) {
             return !hashUsed[txHash];
         } else {
             return !hashUsed[txHash] && lastNonce + 1 == nonce;
         }
-
     }
 
     /**
@@ -221,7 +225,7 @@ contract Identity is ProxyStorage {
      * @param timeLimit The timestamp to check. A zero timestamp will disable the timeLimit, and thus always succeed
      * @return True, if the timestamp is valid, false otherwise
      **/
-    function validateTimeLimit(uint timeLimit) public view returns (bool) {
+    function validateTimeLimit(uint256 timeLimit) public view returns (bool) {
         if (timeLimit == 0) {
             return true;
         } else {
@@ -232,7 +236,11 @@ contract Identity is ProxyStorage {
     /**
      * @dev Validates the signature on a given hash
      **/
-    function validateSignature(bytes32 hash, bytes memory _signature) public view returns (bool) {
+    function validateSignature(bytes32 hash, bytes memory _signature)
+        public
+        view
+        returns (bool)
+    {
         address signer = ECDSA.recover(hash, _signature);
         return owner == signer;
     }
@@ -254,35 +262,32 @@ contract Identity is ProxyStorage {
         uint256 nonce,
         uint256 timeLimit,
         uint8 operationType
-    )
-    public
-    view
-    returns (bytes32)
-    {
-        bytes32 hash = keccak256(
-            abi.encodePacked(
+    ) public view returns (bytes32) {
+        bytes32 hash =
+            keccak256(
                 abi.encodePacked(
-                    byte(0x19),
-                    byte(0),
-                    address(this),
-                    chainId,
-                    version
-                ),
-                abi.encodePacked(
-                    to,
-                    value,
-                    keccak256(data),
-                    baseFee,
-                    gasPrice,
-                    gasLimit,
-                    feeRecipient,
-                    currencyNetworkOfFees,
-                    nonce,
-                    timeLimit,
-                    operationType
+                    abi.encodePacked(
+                        bytes1(0x19),
+                        bytes1(0),
+                        address(this),
+                        chainId,
+                        version
+                    ),
+                    abi.encodePacked(
+                        to,
+                        value,
+                        keccak256(data),
+                        baseFee,
+                        gasPrice,
+                        gasLimit,
+                        feeRecipient,
+                        currencyNetworkOfFees,
+                        nonce,
+                        timeLimit,
+                        operationType
+                    )
                 )
-            )
-        );
+            );
 
         return hash;
     }
@@ -292,11 +297,8 @@ contract Identity is ProxyStorage {
         uint256 value,
         bytes memory data,
         uint8 operationType,
-        uint gasLimit
-    )
-    internal
-    returns (bool status)
-    {
+        uint256 gasLimit
+    ) internal returns (bool status) {
         if (operationType == 0) {
             // regular call
             (status, ) = to.call{gas: gasLimit, value: value}(data); // solium-disable-line
@@ -318,7 +320,7 @@ contract Identity is ProxyStorage {
             // create2
             address deployed;
             assembly {
-              deployed := create2(value, add(data, 0x20), mload(data), 0)
+                deployed := create2(value, add(data, 0x20), mload(data), 0)
             }
             status = (deployed != address(0));
             if (status) {
