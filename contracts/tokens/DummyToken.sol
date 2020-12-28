@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "./../lib/SafeMath.sol";
 import "./../tokens/StandardToken.sol";
@@ -13,7 +13,7 @@ contract DummyToken is StandardToken, SafeMath {
         string memory _symbol,
         uint256 _decimals,
         uint256 _totalSupply
-    ) public {
+    ) {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;

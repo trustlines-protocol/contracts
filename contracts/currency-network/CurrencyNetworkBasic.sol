@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "../lib/it_set_lib.sol";
 import "../lib/Authorizable.sol";
@@ -51,13 +51,7 @@ contract CurrencyNetworkBasic is
     uint8 public override decimals;
 
     // Events
-    event Transfer(
-        address indexed _from,
-        address indexed _to,
-        uint256 _value,
-        bytes _extraData
-    );
-
+    // Transfer event defined in CurrencyNetworkInterface
     event TrustlineUpdateRequest(
         address indexed _creditor,
         address indexed _debtor,
@@ -122,7 +116,7 @@ contract CurrencyNetworkBasic is
         address initiator;
     }
 
-    constructor() public {
+    constructor() {
         // solium-disable-previous-line no-empty-blocks
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
@@ -356,7 +350,7 @@ contract CurrencyNetworkBasic is
             "The currency network has disabled freezing."
         );
         require(
-            expirationTime <= now,
+            expirationTime <= block.timestamp,
             "The currency network cannot be frozen yet."
         );
         isNetworkFrozen = true;
@@ -371,7 +365,7 @@ contract CurrencyNetworkBasic is
      **/
     function supportsInterface(bytes4 interfaceID)
         external
-        view
+        pure
         override
         returns (bool)
     {
@@ -430,7 +424,7 @@ contract CurrencyNetworkBasic is
         );
 
         require(
-            _expirationTime == 0 || _expirationTime > now,
+            _expirationTime == 0 || _expirationTime > block.timestamp,
             "Expiration time must be either in the future or zero to disable it."
         );
 
@@ -661,12 +655,12 @@ contract CurrencyNetworkBasic is
         _trustline.balances.balance = calculateBalanceWithInterests(
             _trustline.balances.balance,
             _trustline.balances.mtime,
-            now,
+            block.timestamp,
             _trustline.agreement.interestRateGiven,
             _trustline.agreement.interestRateReceived
         );
         // Fine until 2106
-        _trustline.balances.mtime = uint32(now);
+        _trustline.balances.mtime = uint32(block.timestamp);
     }
 
     function _mediatedTransferSenderPays(

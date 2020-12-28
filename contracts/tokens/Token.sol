@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 contract Token {
     /// @param _owner The address from which the balance will be retrieved

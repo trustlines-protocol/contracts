@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 /*
   The sole purpose of this file is to be able to test the internal functions of

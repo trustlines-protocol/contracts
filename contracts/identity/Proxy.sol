@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "./ProxyStorage.sol";
 
@@ -6,7 +6,7 @@ import "./ProxyStorage.sol";
  * @title Proxy contract that forwards all calls to the implementation contract via a DELEGATECALL
  **/
 contract Proxy is ProxyStorage {
-    constructor(address owner) public {
+    constructor(address owner) {
         // solium-disable-previous-line no-empty-blocks
         // we have the owner in the constructor so that it is part of the initcode
         // and the deployment address depends on the owner

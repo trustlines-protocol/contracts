@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 contract Authorizable {
     mapping(address => bool) public globalAuthorized;

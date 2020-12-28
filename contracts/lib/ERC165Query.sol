@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 contract ERC165Query {
     bytes4 constant InvalidID = 0xffffffff;

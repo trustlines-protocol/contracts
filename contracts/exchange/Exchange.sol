@@ -16,7 +16,7 @@
 
 */
 
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "../tokens/Token.sol";
 import "../lib/SafeMath.sol";
@@ -84,7 +84,7 @@ contract Exchange is SafeMath {
         bytes32 orderHash;
     }
 
-    constructor() public {
+    constructor() {
         // solium-disable-previous-line no-empty-blocks
     }
 

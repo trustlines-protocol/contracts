@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "../lib/ECDSA.sol";
 import "../currency-network/DebtTracking.sol";
@@ -35,7 +35,7 @@ contract Identity is ProxyStorage {
     );
     event ContractDeployment(address deployed);
 
-    constructor() public {
+    constructor() {
         // solium-disable-previous-line no-empty-blocks
         // don't do anything here to allow usage of proxy contracts.
     }
@@ -229,7 +229,7 @@ contract Identity is ProxyStorage {
         if (timeLimit == 0) {
             return true;
         } else {
-            return timeLimit >= now;
+            return timeLimit >= block.timestamp;
         }
     }
 

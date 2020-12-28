@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "./CurrencyNetwork.sol";
 import "./CurrencyNetworkBasic.sol";
@@ -52,12 +52,12 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         // We apply the interests and set mtime to now because it should match with
         // the time at which BalanceUpdate is emitted (e.g. to compute pending interests offchain)
         TrustlineBalances memory trustlineBalances;
-        trustlineBalances.mtime = uint32(now);
+        trustlineBalances.mtime = uint32(block.timestamp);
         int72 balanceWithInterests =
             calculateBalanceWithInterests(
                 _balance,
                 _mtime,
-                now,
+                block.timestamp,
                 _interestRateGiven,
                 _interestRateReceived
             );

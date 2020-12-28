@@ -1,4 +1,4 @@
-pragma solidity ^0.6.5;
+pragma solidity ^0.7.0;
 
 import "../lib/ECDSA.sol";
 import "./Proxy.sol";
@@ -17,7 +17,7 @@ contract IdentityProxyFactory {
 
     uint256 public chainId;
 
-    constructor(uint256 _chainId) public {
+    constructor(uint256 _chainId) {
         chainId = _chainId;
     }
 
