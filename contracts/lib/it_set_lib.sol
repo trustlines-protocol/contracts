@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 
 /**
@@ -32,7 +32,7 @@ library ItSet {
             // remove from list
             address lastAddress = self.list[self.list.length - 1];
             self.list[entry.index - 1] = lastAddress;
-            self.list.length -= 1;
+            self.list.pop();
             // update entries
             self.addressToEntry[lastAddress].index = entry.index;
             entry.index = 0;

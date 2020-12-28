@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 
 import "./DebtTracking.sol";
@@ -55,6 +55,7 @@ contract CurrencyNetwork is CurrencyNetworkBasic, DebtTracking, Onboarding {
         bool _isFrozen
     )
         internal
+        override
     {
         _applyOnboardingRules(_creditor, _debtor);
         super._setTrustline(
@@ -66,5 +67,9 @@ contract CurrencyNetwork is CurrencyNetworkBasic, DebtTracking, Onboarding {
             _interestRateReceived,
             _isFrozen
         );
+    }
+
+    function uniqueIdentifier(address _a, address _b) internal pure override(CurrencyNetworkBasic, DebtTracking) returns (bytes32) {
+        return CurrencyNetworkBasic.uniqueIdentifier(_a, _b);
     }
 }

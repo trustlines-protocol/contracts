@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 interface ERC165 {
     /// @notice Query if a contract implements an interface

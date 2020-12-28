@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 import "../currency-network/DebtTracking.sol";
 
@@ -19,10 +19,11 @@ contract TestContract is DebtTracking {
 
     }
 
-    function increaseDebt(address creditor, uint value) external {
+    function increaseDebt(address creditor, uint value) external override {
+        // solium-disable-previous-line no-empty-blocks
     }
 
-    function getDebt(address, address) public view returns (int) {
+    function getDebt(address, address) public view override returns (int) {
         return 0;
     }
 

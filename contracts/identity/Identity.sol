@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 import "../lib/ECDSA.sol";
 import "../currency-network/DebtTracking.sol";
@@ -39,7 +39,7 @@ contract Identity is ProxyStorage {
     }
 
     // This contract can receive ether
-    function () external payable {}
+    receive() external payable {}
 
     function init(address _owner, uint _chainId) public {
         require(! initialised, "The contract has already been initialised.");
@@ -299,11 +299,11 @@ contract Identity is ProxyStorage {
     {
         if (operationType == 0) {
             // regular call
-            (status, ) = to.call.value(value).gas(gasLimit)(data); // solium-disable-line
+            (status, ) = to.call{gas: gasLimit, value: value}(data); // solium-disable-line
         } else if (operationType == 1) {
             // delegate call
             require(value == 0, "Cannot transfer value with DELEGATECALL");
-            (status, ) = to.delegatecall.gas(gasLimit)(data);
+            (status, ) = to.delegatecall{gas: gasLimit}(data);
         } else if (operationType == 2) {
             // regular create
             address deployed;

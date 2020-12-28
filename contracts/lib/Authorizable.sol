@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 
 contract Authorizable {
@@ -17,6 +17,7 @@ contract Authorizable {
     /// @param target Address to authorize.
     function addAuthorizedAddress(address target)
         public
+        virtual
     {
         authorizedBy[msg.sender][target] = true;
         emit AuthorizedAddressAdd(target, msg.sender);

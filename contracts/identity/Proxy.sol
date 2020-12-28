@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 import "./ProxyStorage.sol";
 
@@ -14,7 +14,7 @@ contract Proxy is ProxyStorage {
         // and the deployment address depends on the owner
     }
 
-    function() external payable {
+    receive() external payable {
         address _implementation = implementation;
 
         // solium-disable-next-line security/no-inline-assembly
@@ -22,17 +22,17 @@ contract Proxy is ProxyStorage {
             // 0x40 contains the value for the next available free memory pointer.
             let ptr := mload(0x40)
             // Copy msg.data.
-            calldatacopy(ptr, 0, calldatasize)
+            calldatacopy(ptr, 0, calldatasize())
             // Call the implementation.
             // out and outsize are 0 because we don't know the size yet.
-            let result := delegatecall(gas, _implementation, ptr, calldatasize, 0, 0)
+            let result := delegatecall(gas(), _implementation, ptr, calldatasize(), 0, 0)
             // Copy the returned data.
-            returndatacopy(ptr, 0, returndatasize)
+            returndatacopy(ptr, 0, returndatasize())
 
             switch result
             // delegatecall returns 0 on error.
-            case 0 { revert(ptr, returndatasize) }
-            default { return(ptr, returndatasize) }
+            case 0 { revert(ptr, returndatasize()) }
+            default { return(ptr, returndatasize()) }
         }
     }
 

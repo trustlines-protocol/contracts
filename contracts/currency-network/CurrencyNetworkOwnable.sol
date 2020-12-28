@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 import "./CurrencyNetwork.sol";
 import "./CurrencyNetworkBasic.sol";
@@ -114,6 +114,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         address[] memory authorizedAddresses
     )
         public
+        override
     {
         owner = msg.sender;
         isNetworkFrozen = true;

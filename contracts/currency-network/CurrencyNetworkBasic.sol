@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 
 import "../lib/it_set_lib.sol";
@@ -6,7 +6,6 @@ import "../lib/Authorizable.sol";
 import "../lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
 import "./CurrencyNetworkSafeMath.sol";
-import "./MetaData.sol";
 
 
 /**
@@ -15,7 +14,7 @@ import "./MetaData.sol";
  * Implements core features of currency networks related to opening / closing trustline and transfers.
  * Also includes freezing of TL / currency networks, interests and fees.
  **/
-contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizable, ERC165, CurrencyNetworkSafeMath {
+contract CurrencyNetworkBasic is CurrencyNetworkInterface, Authorizable, ERC165, CurrencyNetworkSafeMath {
 
     // Constants
     int72 constant MAX_BALANCE = 2**64 - 1;
@@ -43,6 +42,11 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     int16 public defaultInterestRate;
     bool public customInterests;
     bool public preventMediatorInterests;
+
+    // Meta data
+    string override public name;
+    string override public symbol;
+    uint8 override public decimals;
 
     // Events
     event Transfer(address indexed _from, address indexed _to, uint _value, bytes _extraData);
@@ -114,7 +118,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         // don't do anything here due to upgradeability issues (no constructor-call on replacement).
     }
 
-    function() external {}
+    fallback() external {}
 
     /**
      * @notice send `_value` along `_path`
@@ -130,7 +134,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         address[] calldata _path,
         bytes calldata _extraData
     )
-        external
+        external override
     {
         require(_path.length > 0 && msg.sender == _path[0], "The path must start with msg.sender");
         _mediatedTransferSenderPays(
@@ -155,7 +159,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         address[] calldata _path,
         bytes calldata _extraData
     )
-        external
+        external override
     {
         require(globalAuthorized[msg.sender] || (_path.length > 0 && authorizedBy[_path[0]][msg.sender]), "The sender of the message is not authorized.");
 
@@ -364,6 +368,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
     )
         external
         view
+        override
         returns (bool)
     {
         return (
@@ -407,6 +412,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         address[] memory authorizedAddresses
     )
         public
+        virtual
     {
         require(!isInitialized, "Currency Network already initialized.");
         isInitialized = true;
@@ -432,7 +438,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
             "Too low imbalance fee divisor, fees can not be more than 50%"
         );
 
-        MetaData.init(_name, _symbol, _decimals);
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
         capacityImbalanceFeeDivisor = _capacityImbalanceFeeDivisor;
         defaultInterestRate = _defaultInterestRate;
         customInterests = _customInterests;
@@ -448,9 +456,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
      * @notice The creditline limit given by `_creditor` to `_debtor`
      * @param _creditor the creditor of the queried trustline
      * @param _debtor the debtor of the queried trustline
-     * @return credit limit given by creditor to debtor
+     * @return _creditline credit limit given by creditor to debtor
      */
-    function creditline(address _creditor, address _debtor) public view returns (uint _creditline) {
+    function creditline(address _creditor, address _debtor) public view override returns (uint _creditline) {
         // returns the current creditline given by A to B
         TrustlineAgreement memory trustlineAgreement = _loadTrustlineAgreement(_creditor, _debtor);
         _creditline = trustlineAgreement.creditlineGiven;
@@ -460,7 +468,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
      * @notice The interest rate given by `_creditor` to `_debtor`
      * @param _creditor the creditor of the queried trustline
      * @param _debtor the debtor of the queried trustline
-     * @return Interest rate given by creditor to debtor on the balance of the line
+     * @return _interestRate Interest rate given by creditor to debtor on the balance of the line
      */
     function interestRate(address _creditor, address _debtor) public view returns (int16 _interestRate) {
         // returns the current interests given by A to B
@@ -472,9 +480,9 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
      * @notice returns what _b owes to _a
      * @param _a First address that defines the trustline
      * @param _b second address that defines the trustline
-     * @return the amount _b owes to _a on the trustline between _a and _b
+     * @return _balance the amount _b owes to _a on the trustline between _a and _b
      **/
-    function balance(address _a, address _b) public view returns (int _balance) {
+    function balance(address _a, address _b) public view override returns (int _balance) {
         TrustlineBalances memory trustlineBalances = _loadTrustlineBalances(_a, _b);
         _balance = trustlineBalances.balance;
     }
@@ -1117,6 +1125,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         bool _isFrozen
     )
         internal
+        virtual
     {
         Trustline memory _trustline = _loadTrustline(_creditor, _debtor);
 
@@ -1273,7 +1282,7 @@ contract CurrencyNetworkBasic is CurrencyNetworkInterface, MetaData, Authorizabl
         return agreement.isFrozen;
     }
 
-    function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
+    function uniqueIdentifier(address _a, address _b) internal pure virtual returns (bytes32) {
         require(_a != _b, "Unique identifiers require different addresses");
         if (_a < _b) {
             return keccak256(abi.encodePacked(_a, _b));

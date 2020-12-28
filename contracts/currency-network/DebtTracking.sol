@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 import "./CurrencyNetworkSafeMath.sol";
 
@@ -15,7 +15,7 @@ contract DebtTracking is CurrencyNetworkSafeMath {
      * @param creditor The address towards which msg.sender increases its debt
      * @param value The value to increase the debt by
      */
-    function increaseDebt(address creditor, uint value) external {
+    function increaseDebt(address creditor, uint value) external virtual {
         int intValue = int(value);
         require(uint(intValue) == value, "Value overflow, cannot be cast to int");
         _addToDebt(msg.sender, creditor, intValue);
@@ -27,7 +27,7 @@ contract DebtTracking is CurrencyNetworkSafeMath {
      * @param creditor The address towards which the debtor owes money
      * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
      */
-    function getDebt(address debtor, address creditor) public view returns (int) {
+    function getDebt(address debtor, address creditor) public view virtual returns (int) {
         if (debtor < creditor) {
             return debt[uniqueIdentifier(debtor, creditor)];
         } else {
@@ -56,7 +56,7 @@ contract DebtTracking is CurrencyNetworkSafeMath {
         }
     }
 
-    function uniqueIdentifier(address _a, address _b) internal pure returns (bytes32) {
+    function uniqueIdentifier(address _a, address _b) internal pure virtual returns (bytes32) {
         require(_a != _b, "Unique identifiers require different addresses");
         if (_a < _b) {
             return keccak256(abi.encodePacked(_a, _b));

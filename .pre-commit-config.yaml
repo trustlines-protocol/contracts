@@ -25,6 +25,7 @@ repos:
     - id: trailing-whitespace
     - id: no-commit-to-branch
       args: [--branch, develop, --branch, master]
+
 -   repo: https://github.com/schmir/ethlint-pre-commit.git
     rev: 0.3.0
     hooks:

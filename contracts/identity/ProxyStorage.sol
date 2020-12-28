@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 
 // Contract used to synchronize storage layout between Identity.sol and Proxy.sol

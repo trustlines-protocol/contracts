@@ -16,7 +16,7 @@
 
 */
 
-pragma solidity ^0.5.8;
+pragma solidity ^0.6.5;
 
 import "../tokens/Token.sol";
 import "../lib/SafeMath.sol";
@@ -102,7 +102,7 @@ contract Exchange is SafeMath {
     /// @param v ECDSA signature parameter v.
     /// @param r ECDSA signature parameters r.
     /// @param s ECDSA signature parameters s.
-    /// @return Total amount of takerToken filled in trade.
+    /// @return filledTakerTokenAmount Total amount of takerToken filled in trade.
     function fillOrder(
         address[5] memory orderAddresses,
         uint[6] memory orderValues,
@@ -212,7 +212,7 @@ contract Exchange is SafeMath {
     /// @param v ECDSA signature parameter v.
     /// @param r ECDSA signature parameters r.
     /// @param s ECDSA signature parameters s.
-    /// @return Total amount of takerToken filled in trade.
+    /// @return filledTakerTokenAmount Total amount of takerToken filled in trade.
     function fillOrderTrustlines(
         address[5] memory orderAddresses,
         uint[6] memory orderValues,
@@ -661,9 +661,10 @@ contract Exchange is SafeMath {
     /// @return Token balance of owner.
     function getBalance(address token, address owner)
         internal
+        view
         returns (uint)
     {
-        return Token(token).balanceOf.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner); // Limit gas to prevent reentrancy
+        return Token(token).balanceOf{gas:EXTERNAL_QUERY_GAS_LIMIT}(owner); // Limit gas to prevent reentrancy
     }
 
     /// @dev Get allowance of token given to TokenTransferProxy by an address.
@@ -673,8 +674,9 @@ contract Exchange is SafeMath {
     /// @return Allowance of token given to TokenTransferProxy by owner.
     function getAllowance(address token, address owner)
         internal
+        view
         returns (uint)
     {
-        return Token(token).allowance.gas(EXTERNAL_QUERY_GAS_LIMIT)(owner, address(this)); // Limit gas to prevent reentrancy
+        return Token(token).allowance{gas: EXTERNAL_QUERY_GAS_LIMIT}(owner, address(this)); // Limit gas to prevent reentrancy
     }
 }
