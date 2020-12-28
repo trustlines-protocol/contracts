@@ -4,7 +4,7 @@
 
 import collections
 import os
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Set
 
 import click
 from deploy_tools import deploy_compiled_contract
@@ -305,80 +305,89 @@ class NetworkMigrationVerifier:
         for user in self.users:
             friends = set(self.old_network.functions.getFriends(user).call())
             for friend in friends:
-
-                (
-                    old_credit_given,
-                    old_credit_received,
-                    old_interest_given,
-                    old_interest_received,
-                    old_is_frozen,
-                    old_mtime,
-                    old_balance,
-                ) = self.old_network.functions.getAccount(user, friend).call()
-                (
-                    new_credit_given,
-                    new_credit_received,
-                    new_interest_given,
-                    new_interest_received,
-                    new_is_frozen,
-                    new_mtime,
-                    new_balance,
-                ) = self.new_network.functions.getAccount(user, friend).call()
-
-                if new_mtime < old_mtime:
-                    # The account was not migrated at all or modified on old network after migration
-                    self.warn_account_verification_failed(user, friend)
-                    continue
-
-                old_balance_with_interests = balance_with_interests(
-                    old_balance,
-                    old_interest_given,
-                    old_interest_received,
-                    new_mtime - old_mtime,
-                )
-
-                # We do not verify is_frozen because old network was necessarily frozen and new network will not be
-                if (
-                    (
-                        old_credit_given,
-                        old_credit_received,
-                        old_interest_given,
-                        old_interest_received,
-                    )
-                    != (
-                        new_credit_given,
-                        new_credit_received,
-                        new_interest_given,
-                        new_interest_received,
-                    )
-                    or old_balance_with_interests != new_balance
-                ):
+                if not self.is_account_migrated(user, friend):
                     self.warn_account_verification_failed(user, friend)
         click.secho("Accounts migration verified")
+
+    def is_account_migrated(self, user, friend):
+        (
+            old_credit_given,
+            old_credit_received,
+            old_interest_given,
+            old_interest_received,
+            old_is_frozen,
+            old_mtime,
+            old_balance,
+        ) = self.old_network.functions.getAccount(user, friend).call()
+        (
+            new_credit_given,
+            new_credit_received,
+            new_interest_given,
+            new_interest_received,
+            new_is_frozen,
+            new_mtime,
+            new_balance,
+        ) = self.new_network.functions.getAccount(user, friend).call()
+
+        if new_mtime < old_mtime:
+            # The account was not migrated at all or modified on old network after migration
+            return False
+
+        old_balance_with_interests = balance_with_interests(
+            old_balance,
+            old_interest_given,
+            old_interest_received,
+            new_mtime - old_mtime,
+        )
+
+        # We do not verify is_frozen because old network was necessarily frozen and new network will not be
+        if (
+            (
+                old_credit_given,
+                old_credit_received,
+                old_interest_given,
+                old_interest_received,
+            )
+            != (
+                new_credit_given,
+                new_credit_received,
+                new_interest_given,
+                new_interest_received,
+            )
+            or old_balance_with_interests != new_balance
+        ):
+            return False
+        return True
 
     def warn_account_verification_failed(self, user, friend):
         click.secho(f"Account verification failed for {user} - {friend}", fg="red")
 
     def verify_on_boarders_migrated(self):
         for user in self.users:
-            old_on_boarder = self.old_network.functions.onboarder(user).call()
-            new_on_boarder = self.new_network.functions.onboarder(user).call()
-            if old_on_boarder != new_on_boarder:
+            if not self.is_on_boarder_migrated(user):
                 click.secho(f"On boarder verification failed for {user}", fg="red")
         click.secho("On boarder migration verified")
+
+    def is_on_boarder_migrated(self, user):
+        old_on_boarder = self.old_network.functions.onboarder(user).call()
+        new_on_boarder = self.new_network.functions.onboarder(user).call()
+        return old_on_boarder == new_on_boarder
 
     def verify_debts_migrated(self):
         debts = get_all_debts_of_currency_network(self.old_network)
         for debtor in debts.keys():
             for creditor in debts[debtor].keys():
-                old_debt = debts[debtor][creditor]
-                new_debt = self.new_network.functions.getDebt(debtor, creditor).call()
-                if old_debt != new_debt:
+                if not self.is_debt_migrated(debts, debtor, creditor):
                     click.secho(
                         f"Debt verification failed for debtor {debtor} to creditor {creditor}",
                         fg="red",
                     )
         click.secho("Debts migration verified")
+
+    def is_debt_migrated(self, debts, debtor, creditor):
+        old_debt = debts[debtor][creditor]
+        new_debt = self.new_network.functions.getDebt(debtor, creditor).call()
+        return old_debt == new_debt
 
     def verify_network_unfrozen(self):
         if self.new_network.functions.isNetworkFrozen().call():
@@ -416,12 +425,9 @@ class NetworkMigrater(NetworkMigrationVerifier):
 
         self.private_key = private_key
         self.max_tx_queue_size = max_tx_queue_size
-        self.tx_queue = set()
+        self.tx_queue: Set[str] = set()
 
     def migrate_network(self):
-        assert (
-            self.old_network.functions.isNetworkFrozen().call()
-        ), "Old contract not frozen"
         assert (
             self.new_network.functions.isNetworkFrozen().call()
         ), "New contract not frozen"
@@ -430,11 +436,18 @@ class NetworkMigrater(NetworkMigrationVerifier):
             == self.new_network.functions.name().call()
         ), "New and old contracts name do not match"
 
+        self.freeze_old_network()
         self.migrate_accounts()
         self.migrate_on_boarders()
         self.migrate_debts()
         self.unfreeze_network()
         self.remove_owner()
+
+    def freeze_old_network(self):
+        if not self.old_network.functions.isNetworkFrozen().call():
+            freeze_network_call = self.old_network.functions.freezeNetwork()
+            self.call_contract_function_with_tx(freeze_network_call)
+            self.wait_for_successfull_txs_in_queue()
 
     def migrate_accounts(self):
         click.secho("Accounts migration")
@@ -444,6 +457,8 @@ class NetworkMigrater(NetworkMigrationVerifier):
                 if user < friend:
                     # For each (user, friend) pair we only need to migrate the account once
                     # We arbitrarily decide not to migrate in the case user < friend
+                    continue
+                if self.is_account_migrated(user, friend):
                     continue
                 (
                     creditline_ab,
@@ -472,11 +487,12 @@ class NetworkMigrater(NetworkMigrationVerifier):
     def migrate_on_boarders(self):
         click.secho("On boarders migration")
         for user in self.users:
-            on_boarder = self.old_network.functions.onboarder(user).call()
-            set_on_boarder_call = self.new_network.functions.setOnboarder(
-                user, on_boarder
-            )
-            self.call_contract_function_with_tx(set_on_boarder_call)
+            if not self.is_on_boarder_migrated(user):
+                on_boarder = self.old_network.functions.onboarder(user).call()
+                set_on_boarder_call = self.new_network.functions.setOnboarder(
+                    user, on_boarder
+                )
+                self.call_contract_function_with_tx(set_on_boarder_call)
         self.wait_for_successfull_txs_in_queue()
         click.secho("On boarders migration complete")
 

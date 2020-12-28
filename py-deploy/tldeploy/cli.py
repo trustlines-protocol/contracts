@@ -63,9 +63,10 @@ def cli(ctx, version):
 
 currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
-    help="name of the currency network contract to deploy (only use this for testing)",
-    default="CurrencyNetworkOwnable",
-    hidden=True,
+    help="name of the currency network contract to deploy, "
+    "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
+    default="CurrencyNetwork",
+    hidden=False,
 )
 
 
