@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "./CurrencyNetworkInterface.sol";
 import "../lib/ERC165Query.sol";

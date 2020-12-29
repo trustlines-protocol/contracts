@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "../lib/Authorizable.sol";
 
@@ -47,7 +47,7 @@ contract UnwEth is Authorizable {
     function withdraw(uint256 wad) public {
         require(balanceOf[msg.sender] >= wad);
         balanceOf[msg.sender] -= wad;
-        msg.sender.transfer(wad);
+        payable(msg.sender).transfer(wad);
         emit Withdrawal(msg.sender, wad);
     }
 
@@ -76,7 +76,7 @@ contract UnwEth is Authorizable {
             src != msg.sender &&
             !globalAuthorized[msg.sender] &&
             !authorizedBy[src][msg.sender] &&
-            allowance[src][msg.sender] != uint256(-1)
+            allowance[src][msg.sender] != type(uint256).max
         ) {
             require(allowance[src][msg.sender] >= wad);
             allowance[src][msg.sender] -= wad;

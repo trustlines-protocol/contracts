@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "../lib/ECDSA.sol";
 import "../currency-network/DebtTracking.sol";
@@ -138,7 +138,7 @@ contract Identity is ProxyStorage {
         require(startGas >= gasLimit, "Not enough gas left for operation");
         if (gasLimit == 0) {
             // Unlimited gas
-            gasLimit = uint256(-1);
+            gasLimit = type(uint256).max;
         }
 
         bool status = applyOperation(to, value, data, operationType, gasLimit);
@@ -197,7 +197,7 @@ contract Identity is ProxyStorage {
         require(validateTimeLimit(timeLimit), "The transaction expired");
 
         bool status =
-            applyOperation(to, value, data, operationType, uint256(-1));
+            applyOperation(to, value, data, operationType, type(uint256).max);
 
         require(status, "Transaction execution failed");
     }

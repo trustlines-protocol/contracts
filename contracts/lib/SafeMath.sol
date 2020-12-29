@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 contract SafeMath {
     function safeMul(uint256 a, uint256 b) internal pure returns (uint256) {

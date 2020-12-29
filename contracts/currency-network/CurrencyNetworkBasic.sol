@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "../lib/it_set_lib.sol";
 import "../lib/Authorizable.sol";
@@ -700,7 +700,7 @@ contract CurrencyNetworkBasic is
                 fee = 0; // receiver should not get a fee
             } else {
                 fee = _calculateFeesReverse(
-                    _imbalanceGenerated(
+                    _calculateImbalanceGenerated(
                         forwardedValue,
                         trustline.balances.balance
                     ),
@@ -805,7 +805,7 @@ contract CurrencyNetworkBasic is
 
             // calculate fees for next mediator
             fee = _calculateFees(
-                _imbalanceGenerated(forwardedValue, balanceBefore),
+                _calculateImbalanceGenerated(forwardedValue, balanceBefore),
                 capacityImbalanceFeeDivisor
             );
             // Underflow check
@@ -865,11 +865,11 @@ contract CurrencyNetworkBasic is
                 "Second element of path does not match _otherParty address."
             );
             require(
-                uint64(balances.balance) == balances.balance,
+                uint64(uint72(balances.balance)) == balances.balance,
                 "Cannot transfer too high values."
             );
             _mediatedTransferReceiverPays(
-                uint64(balances.balance),
+                uint64(uint72(balances.balance)),
                 _maxFee,
                 _path,
                 ""
@@ -880,11 +880,11 @@ contract CurrencyNetworkBasic is
                 "Second to last element of path does not match _otherParty address."
             );
             require(
-                uint64(-balances.balance) == -balances.balance,
+                uint64(uint72(-balances.balance)) == -balances.balance,
                 "Cannot transfer too high values."
             );
             _mediatedTransferSenderPays(
-                uint64(-balances.balance),
+                uint64(uint72(-balances.balance)),
                 _maxFee,
                 _path,
                 ""
@@ -1302,7 +1302,7 @@ contract CurrencyNetworkBasic is
             (_imbalanceGenerated - 1) / (_capacityImbalanceFeeDivisor - 1) + 1;
     }
 
-    function _imbalanceGenerated(uint64 _value, int72 _balance)
+    function _calculateImbalanceGenerated(uint64 _value, int72 _balance)
         internal
         pure
         returns (uint64)
@@ -1318,7 +1318,7 @@ contract CurrencyNetworkBasic is
         if (imbalanceGenerated <= 0) {
             return 0;
         }
-        uint64 result = uint64(imbalanceGenerated);
+        uint64 result = uint64(uint72(imbalanceGenerated));
         require(
             result == imbalanceGenerated,
             "The imbalance does not fit into uint64."
@@ -1380,6 +1380,8 @@ contract CurrencyNetworkBasic is
             return keccak256(abi.encodePacked(_a, _b));
         } else if (_a > _b) {
             return keccak256(abi.encodePacked(_b, _a));
+        } else {
+            revert("Unreachable code.");
         }
     }
 }

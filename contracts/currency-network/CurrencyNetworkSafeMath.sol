@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 contract CurrencyNetworkSafeMath {
     function safeSub(uint64 a, uint64 b) internal pure returns (uint64) {

@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 /*
   The sole purpose of this file is to be able to test the internal functions of
@@ -154,7 +154,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         pure
         returns (uint64)
     {
-        return _imbalanceGenerated(_value, _balance);
+        return _calculateImbalanceGenerated(_value, _balance);
     }
 
     function testCalculateBalanceWithInterests(

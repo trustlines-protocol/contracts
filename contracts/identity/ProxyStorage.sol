@@ -1,4 +1,4 @@
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 // Contract used to synchronize storage layout between Identity.sol and Proxy.sol
 // Required since we use delegateCall in IdentityProxy to call the implementation of Identity
