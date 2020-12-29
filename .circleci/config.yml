@@ -8,9 +8,9 @@ templates:
 executors:
   ubuntu-builder:
     docker:
-      - image: trustlines/builder:master32
+      - image: trustlines/builder:master37
         environment:
-          - SOLC_VERSION=v0.5.8
+          - SOLC_VERSION=v0.8.0
     working_directory: ~/repo
     environment:
       DOCKER_REPO: trustlines/contracts
