@@ -4,7 +4,6 @@ import "../lib/it_set_lib.sol";
 import "../lib/Authorizable.sol";
 import "../lib/ERC165.sol";
 import "./CurrencyNetworkInterface.sol";
-import "./CurrencyNetworkSafeMath.sol";
 
 /**
  * @title Basic functionalities of Currency Networks
@@ -15,8 +14,7 @@ import "./CurrencyNetworkSafeMath.sol";
 contract CurrencyNetworkBasic is
     CurrencyNetworkInterface,
     Authorizable,
-    ERC165,
-    CurrencyNetworkSafeMath
+    ERC165
 {
     // Constants
     int72 constant MAX_BALANCE = 2**64 - 1;
@@ -639,12 +637,12 @@ contract CurrencyNetworkBasic is
         internal
         pure
     {
-        int72 newBalance = safeSubInt(_trustline.balances.balance, _value);
+        int72 newBalance = _trustline.balances.balance - _value;
 
         // check if creditline is not exceeded
         uint64 creditlineReceived = _trustline.agreement.creditlineReceived;
         require(
-            safeMinus(newBalance) <= creditlineReceived,
+            -newBalance <= creditlineReceived,
             "The transferred value exceeds the capacity of the credit line."
         );
 
@@ -709,8 +707,8 @@ contract CurrencyNetworkBasic is
             }
 
             // forward the value + the fee
-            forwardedValue = safeAdd(forwardedValue, fee);
-            fees = safeAdd(fees, fee);
+            forwardedValue = forwardedValue + fee;
+            fees = fees + fee;
             require(fees <= _maxFee, "The fees exceed the max fee parameter.");
 
             int72 balanceBefore = trustline.balances.balance;
@@ -809,9 +807,9 @@ contract CurrencyNetworkBasic is
                 capacityImbalanceFeeDivisor
             );
             // Underflow check
-            forwardedValue = safeSub(forwardedValue, fee);
+            forwardedValue = forwardedValue - fee;
 
-            fees = safeAdd(fees, fee);
+            fees = fees + fee;
             require(fees <= _maxFee, "The fees exceed the max fee parameter.");
         }
 

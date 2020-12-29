@@ -19,12 +19,11 @@
 pragma solidity ^0.8.0;
 
 import "../tokens/Token.sol";
-import "../lib/SafeMath.sol";
 import "../currency-network/CurrencyNetworkInterface.sol";
 
 /// @title Exchange - Facilitates exchange of ERC20 tokens.
 /// @author Amir Bandeali - <amir@0xProject.com>, Will Warren - <will@0xProject.com>
-contract Exchange is SafeMath {
+contract Exchange {
     // Error Codes
     enum Errors {
         ORDER_EXPIRED, // Order has already expired
@@ -146,10 +145,8 @@ contract Exchange is SafeMath {
         }
 
         uint256 remainingTakerTokenAmount =
-            safeSub(
-                order.takerTokenAmount,
-                getUnavailableTakerTokenAmount(order.orderHash)
-            );
+            order.takerTokenAmount -
+                getUnavailableTakerTokenAmount(order.orderHash);
         filledTakerTokenAmount = min256(
             fillTakerTokenAmount,
             remainingTakerTokenAmount
@@ -184,10 +181,9 @@ contract Exchange is SafeMath {
             );
         uint256 paidMakerFee;
         uint256 paidTakerFee;
-        filled[order.orderHash] = safeAdd(
-            filled[order.orderHash],
-            filledTakerTokenAmount
-        );
+        filled[order.orderHash] =
+            filled[order.orderHash] +
+            filledTakerTokenAmount;
         require(
             Token(order.makerToken).transferFrom(
                 order.maker,
@@ -277,10 +273,8 @@ contract Exchange is SafeMath {
         }
 
         uint256 remainingTakerTokenAmount =
-            safeSub(
-                order.takerTokenAmount,
-                getUnavailableTakerTokenAmount(order.orderHash)
-            );
+            order.takerTokenAmount -
+                getUnavailableTakerTokenAmount(order.orderHash);
         filledTakerTokenAmount = min256(
             fillTakerTokenAmount,
             remainingTakerTokenAmount
@@ -313,10 +307,9 @@ contract Exchange is SafeMath {
                 order.takerTokenAmount,
                 order.makerTokenAmount
             );
-        filled[order.orderHash] = safeAdd(
-            filled[order.orderHash],
-            filledTakerTokenAmount
-        );
+        filled[order.orderHash] =
+            filled[order.orderHash] +
+            filledTakerTokenAmount;
 
         if (makerPath.length > 0) {
             // Transfer in a Trustlines Network
@@ -415,10 +408,8 @@ contract Exchange is SafeMath {
         }
 
         uint256 remainingTakerTokenAmount =
-            safeSub(
-                order.takerTokenAmount,
-                getUnavailableTakerTokenAmount(order.orderHash)
-            );
+            order.takerTokenAmount -
+                getUnavailableTakerTokenAmount(order.orderHash);
         uint256 cancelledTakerTokenAmount =
             min256(cancelTakerTokenAmount, remainingTakerTokenAmount);
         if (cancelledTakerTokenAmount == 0) {
@@ -429,10 +420,9 @@ contract Exchange is SafeMath {
             return 0;
         }
 
-        cancelled[order.orderHash] = safeAdd(
-            cancelled[order.orderHash],
-            cancelledTakerTokenAmount
-        );
+        cancelled[order.orderHash] =
+            cancelled[order.orderHash] +
+            cancelledTakerTokenAmount;
 
         emit LogCancel(
             order.maker,
@@ -565,18 +555,17 @@ contract Exchange is SafeMath {
                 orderAddresses[i][3] == orderAddresses[0][3],
                 "The taker token must be the same for each order."
             );
-            filledTakerTokenAmount = safeAdd(
-                filledTakerTokenAmount,
+            filledTakerTokenAmount =
+                filledTakerTokenAmount +
                 fillOrder(
                     orderAddresses[i],
                     orderValues[i],
-                    safeSub(fillTakerTokenAmount, filledTakerTokenAmount),
+                    fillTakerTokenAmount - filledTakerTokenAmount,
                     shouldThrowOnInsufficientBalanceOrAllowance,
                     v[i],
                     r[i],
                     s[i]
-                )
-            );
+                );
             if (filledTakerTokenAmount == fillTakerTokenAmount) {
                 break;
             }
@@ -675,7 +664,7 @@ contract Exchange is SafeMath {
         }
 
         uint256 errPercentageTimes1000000 =
-            safeDiv(safeMul(remainder, 1000000), safeMul(numerator, target));
+            (remainder * 1000000) / (numerator * target);
         return errPercentageTimes1000000 > 1000;
     }
 
@@ -689,7 +678,7 @@ contract Exchange is SafeMath {
         uint256 denominator,
         uint256 target
     ) public pure returns (uint256) {
-        return safeDiv(safeMul(numerator, target), denominator);
+        return (numerator * target) / denominator;
     }
 
     /// @dev Calculates the sum of values already filled and cancelled for a given order.
@@ -700,7 +689,7 @@ contract Exchange is SafeMath {
         view
         returns (uint256)
     {
-        return safeAdd(filled[orderHash], cancelled[orderHash]);
+        return filled[orderHash] + cancelled[orderHash];
     }
 
     /// @dev Get token balance of an address.
@@ -731,6 +720,10 @@ contract Exchange is SafeMath {
                 owner,
                 address(this)
             ); // Limit gas to prevent reentrancy
+    }
+
+    function min256(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 }
 

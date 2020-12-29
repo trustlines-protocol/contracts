@@ -127,7 +127,8 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         pure
         returns (int256 sum)
     {
-        return safeSumInt256(a, b);
+        return a + b;
+        //return safeSumInt256(a, b);
     }
 
     function testCalculateFees(

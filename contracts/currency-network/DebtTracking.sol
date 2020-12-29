@@ -1,8 +1,6 @@
 pragma solidity ^0.8.0;
 
-import "./CurrencyNetworkSafeMath.sol";
-
-contract DebtTracking is CurrencyNetworkSafeMath {
+contract DebtTracking {
     // mapping of a pair of user to the signed debt in the point of view of the lowest address
     mapping(bytes32 => int256) public debt;
 
@@ -37,7 +35,7 @@ contract DebtTracking is CurrencyNetworkSafeMath {
         if (debtor < creditor) {
             return debt[uniqueIdentifier(debtor, creditor)];
         } else {
-            return safeMinusInt256(debt[uniqueIdentifier(debtor, creditor)]);
+            return -debt[uniqueIdentifier(debtor, creditor)];
         }
     }
 
@@ -51,7 +49,7 @@ contract DebtTracking is CurrencyNetworkSafeMath {
             uint256(intValue) == value,
             "Value overflow, cannot be cast to int"
         );
-        _addToDebt(debtor, creditor, safeMinusInt256(intValue));
+        _addToDebt(debtor, creditor, -intValue);
     }
 
     function _addToDebt(
@@ -61,16 +59,23 @@ contract DebtTracking is CurrencyNetworkSafeMath {
     ) internal {
         int256 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
         if (debtor < creditor) {
-            int256 newDebt = safeSumInt256(oldDebt, value);
+            int256 newDebt = oldDebt + value;
             checkIsNotMinInt256(newDebt);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
             emit DebtUpdate(debtor, creditor, newDebt);
         } else {
-            int256 newDebt = safeSumInt256(oldDebt, safeMinusInt256(value));
+            int256 newDebt = oldDebt + -value;
             checkIsNotMinInt256(newDebt);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
             emit DebtUpdate(debtor, creditor, -newDebt);
         }
+    }
+
+    function checkIsNotMinInt256(int256 a) internal pure {
+        require(
+            a != type(int256).min,
+            "Prevent using value for minus overflow."
+        );
     }
 
     function uniqueIdentifier(address _a, address _b)
