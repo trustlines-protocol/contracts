@@ -69,3 +69,5 @@ contract StandardToken is Token {
     mapping(address => mapping(address => uint256)) allowed;
     uint256 public totalSupply;
 }
+
+// SPDX-License-Identifier: MIT

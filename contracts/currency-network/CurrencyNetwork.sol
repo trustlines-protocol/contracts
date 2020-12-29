@@ -71,3 +71,5 @@ contract CurrencyNetwork is CurrencyNetworkBasic, DebtTracking, Onboarding {
         return CurrencyNetworkBasic.uniqueIdentifier(_a, _b);
     }
 }
+
+// SPDX-License-Identifier: MIT

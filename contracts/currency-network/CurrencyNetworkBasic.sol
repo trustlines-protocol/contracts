@@ -1385,3 +1385,5 @@ contract CurrencyNetworkBasic is
         }
     }
 }
+
+// SPDX-License-Identifier: MIT

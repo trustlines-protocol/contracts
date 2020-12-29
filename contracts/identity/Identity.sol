@@ -329,3 +329,5 @@ contract Identity is ProxyStorage {
         }
     }
 }
+
+// SPDX-License-Identifier: MIT

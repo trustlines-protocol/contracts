@@ -68,3 +68,5 @@ interface CurrencyNetworkInterface {
         bytes _extraData
     );
 }
+
+// SPDX-License-Identifier: MIT

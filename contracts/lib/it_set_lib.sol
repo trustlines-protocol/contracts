@@ -46,3 +46,5 @@ library ItSet {
         return self.list.length;
     }
 }
+
+// SPDX-License-Identifier: MIT

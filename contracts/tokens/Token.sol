@@ -58,3 +58,5 @@ contract Token {
         uint256 _value
     );
 }
+
+// SPDX-License-Identifier: MIT

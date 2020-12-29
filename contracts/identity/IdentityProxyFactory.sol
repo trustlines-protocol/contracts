@@ -77,3 +77,5 @@ contract IdentityProxyFactory {
         return owner == signer;
     }
 }
+
+// SPDX-License-Identifier: MIT

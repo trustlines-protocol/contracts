@@ -39,3 +39,5 @@ contract SafeMath {
         return a < b ? a : b;
     }
 }
+
+// SPDX-License-Identifier: MIT

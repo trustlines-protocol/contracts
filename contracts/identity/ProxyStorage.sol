@@ -7,3 +7,5 @@ contract ProxyStorage {
 
     event ImplementationChange(address implementation);
 }
+
+// SPDX-License-Identifier: MIT

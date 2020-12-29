@@ -19,3 +19,5 @@ contract TestCurrencyNetworkSafeMath is CurrencyNetworkSafeMath {
         return super.safeMinus(a);
     }
 }
+
+// SPDX-License-Identifier: MIT

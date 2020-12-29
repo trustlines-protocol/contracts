@@ -137,3 +137,5 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         );
     }
 }
+
+// SPDX-License-Identifier: MIT

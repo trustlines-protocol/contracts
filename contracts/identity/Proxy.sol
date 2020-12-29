@@ -51,3 +51,5 @@ contract Proxy is ProxyStorage {
         emit ImplementationChange(_implementation);
     }
 }
+
+// SPDX-License-Identifier: MIT

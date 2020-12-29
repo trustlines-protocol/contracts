@@ -54,3 +54,5 @@ contract CurrencyNetworkSafeMath {
         require(a != -2**255, "Prevent using value for minus overflow.");
     }
 }
+
+// SPDX-License-Identifier: MIT

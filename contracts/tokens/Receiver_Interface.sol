@@ -11,3 +11,5 @@ interface ContractReceiver {
         bytes calldata _data
     ) external;
 }
+
+// SPDX-License-Identifier: MIT

@@ -89,3 +89,5 @@ contract DebtTracking is CurrencyNetworkSafeMath {
         }
     }
 }
+
+// SPDX-License-Identifier: MIT

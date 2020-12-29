@@ -29,3 +29,5 @@ contract TestContract is DebtTracking {
         revert("This will just always fail");
     }
 }
+
+// SPDX-License-Identifier: MIT

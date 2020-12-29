@@ -31,3 +31,5 @@ contract DummyToken is StandardToken, SafeMath {
         balances[_target] = _value;
     }
 }
+
+// SPDX-License-Identifier: MIT

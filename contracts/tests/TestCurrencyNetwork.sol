@@ -204,3 +204,5 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         _applyOnboardingRules(_b, NO_ONBOARDER);
     }
 }
+
+// SPDX-License-Identifier: MIT

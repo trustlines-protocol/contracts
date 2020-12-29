@@ -34,3 +34,5 @@ contract Onboarding {
         }
     }
 }
+
+// SPDX-License-Identifier: MIT

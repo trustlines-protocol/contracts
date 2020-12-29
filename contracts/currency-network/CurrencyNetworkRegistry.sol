@@ -112,3 +112,5 @@ contract CurrencyNetworkRegistry is ERC165Query {
         return currencyNetworksRegisteredBy[_address];
     }
 }
+
+// SPDX-License-Identifier: MIT
