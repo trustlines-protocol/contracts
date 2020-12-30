@@ -276,3 +276,13 @@ def gas_values_snapshot(pytestconfig):
     yield snapshoter
 
     write_test_data(snapshot_path, ["KEY", "GAS_COST", "GAS_LIMIT"], snapshoter.data)
+
+
+def get_events_of_contract(contract, event_name, from_block=0):
+    return list(getattr(contract.events, event_name).getLogs(fromBlock=from_block))
+
+
+def get_single_event_of_contract(contract, event_name, from_block=0):
+    events = get_events_of_contract(contract, event_name, from_block)
+    assert len(events) == 1, f"No single event of type {event_name}"
+    return events[0]
