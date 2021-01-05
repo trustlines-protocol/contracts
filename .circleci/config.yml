@@ -82,20 +82,7 @@ jobs:
           name: Run black
           command: |
             black --check py-bin py-deploy tests
-  run-solium:
-    executor: ubuntu-builder
 
-    steps:
-      - checkout
-      - config-path
-      - run:
-          name: Install ethlint (=solium)
-          command: |
-            npm install -g 'ethlint@1.2.5'
-      - run:
-          name: Run solium
-          command: |
-            solium --dir contracts
   install:
     executor: ubuntu-builder
     steps:
@@ -278,9 +265,6 @@ workflows:
   version: 2
   default:
     jobs:
-      - run-solium:
-          filters:
-            <<: *tagged-filter
 
       - run-flake8:
           requires:
@@ -318,7 +302,6 @@ workflows:
                 - master
 
           requires:
-            - run-solium
             - run-flake8
             - run-black
             - run-mypy
@@ -340,7 +323,6 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - run-solium
             - run-flake8
             - run-black
             - run-mypy
@@ -365,7 +347,6 @@ workflows:
             branches:
               only: master
           requires:
-            - run-solium
             - run-flake8
             - run-black
             - run-pytest
