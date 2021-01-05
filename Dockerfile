@@ -21,7 +21,7 @@ RUN apt-get -y update && \
     apt-get -y install --no-install-recommends libssl-dev curl python3 python3-distutils libpq5 ca-certificates \
                pkg-config libsecp256k1-dev python3-dev python3-venv git build-essential libpq-dev && \
     rm -rf /var/lib/apt/lists/* && \
-    curl -L -o /usr/bin/solc https://github.com/ethereum/solidity/releases/download/v0.5.8/solc-static-linux && \
+    curl -L -o /usr/bin/solc https://github.com/ethereum/solidity/releases/download/v0.8.0/solc-static-linux && \
     chmod +x /usr/bin/solc
 
 # cache /opt/contracts with requirements installed
