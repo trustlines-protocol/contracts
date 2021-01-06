@@ -1,16 +1,15 @@
-pragma solidity ^0.5.8;
-
+pragma solidity ^0.8.0;
 
 /**
 @dev Library for a Set that can be iterated over
 */
 library ItSet {
     struct SetEntry {
-        uint index; // index of the entry, starting at 1
+        uint256 index; // index of the entry, starting at 1
     }
 
     struct AddressSet {
-        mapping (address => SetEntry) addressToEntry;
+        mapping(address => SetEntry) addressToEntry;
         address[] list;
     }
 
@@ -22,7 +21,11 @@ library ItSet {
         }
     }
 
-    function contains(AddressSet storage self, address address_) internal view returns (bool) {
+    function contains(AddressSet storage self, address address_)
+        internal
+        view
+        returns (bool)
+    {
         return self.addressToEntry[address_].index > 0;
     }
 
@@ -32,14 +35,16 @@ library ItSet {
             // remove from list
             address lastAddress = self.list[self.list.length - 1];
             self.list[entry.index - 1] = lastAddress;
-            self.list.length -= 1;
+            self.list.pop();
             // update entries
             self.addressToEntry[lastAddress].index = entry.index;
             entry.index = 0;
         }
     }
 
-    function size(AddressSet storage self) internal view returns (uint) {
+    function size(AddressSet storage self) internal view returns (uint256) {
         return self.list.length;
     }
 }
+
+// SPDX-License-Identifier: MIT

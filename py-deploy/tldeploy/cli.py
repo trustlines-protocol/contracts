@@ -22,7 +22,14 @@ from tldeploy.identity import (
     deploy_identity_proxy_factory,
 )
 
-from .core import deploy_exchange, deploy_network, deploy_networks, deploy_unw_eth
+from .core import (
+    deploy_exchange,
+    deploy_network,
+    deploy_networks,
+    deploy_unw_eth,
+    migrate_networks,
+    verify_networks_migrations,
+)
 
 
 def report_version():
@@ -56,9 +63,10 @@ def cli(ctx, version):
 
 currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
-    help="name of the currency network contract to deploy (only use this for testing)",
+    help="name of the currency network contract to deploy, "
+    "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
     default="CurrencyNetwork",
-    hidden=True,
+    hidden=False,
 )
 
 
@@ -445,3 +453,82 @@ def test(
                 settings=settings, address=to_checksum_address(address)
             )
         )
+
+
+@cli.command(short_help="Migrate old currency networks to new ones.")
+@click.option(
+    "--old-addresses",
+    "old_addresses_file_path",
+    help="Path to a csv file with addresses of old currency networks, order and number must match with new addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@click.option(
+    "--new-addresses",
+    "new_addresses_file_path",
+    help="Path to a csv file with addresses of new currency networks, order and number must match with old addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@jsonrpc_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def migration(
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    jsonrpc: str,
+    gas_price: int,
+    nonce: int,
+    auto_nonce: bool,
+    keystore: str,
+):
+    """Used to migrate old currency networks to new ones
+    It will fetch information about users in the old contract and set them in the one
+    The address files should contain currency network addresses with
+    address matching from one file to the other from top to bottom"""
+
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce
+    )
+    migrate_networks(
+        web3,
+        old_addresses_file_path,
+        new_addresses_file_path,
+        transaction_options,
+        private_key,
+    )
+
+
+@cli.command(short_help="Verify migration from old currency networks to new ones.")
+@click.option(
+    "--old-addresses",
+    "old_addresses_file_path",
+    help="Path to a csv file with addresses of old currency networks, order and number must match with new addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@click.option(
+    "--new-addresses",
+    "new_addresses_file_path",
+    help="Path to a csv file with addresses of new currency networks, order and number must match with old addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@jsonrpc_option
+def verify_migration(
+    old_addresses_file_path: str, new_addresses_file_path: str, jsonrpc: str
+):
+    """Used to verify migration of old currency networks to new ones
+    The address files should contain currency network addresses with
+    address matching from one file to the other from top to bottom"""
+
+    web3 = connect_to_json_rpc(jsonrpc)
+
+    verify_networks_migrations(web3, old_addresses_file_path, new_addresses_file_path)

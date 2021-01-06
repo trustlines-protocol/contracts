@@ -1,4 +1,4 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.8.0;
 
 /**
  * @title Currency Network Interface
@@ -6,9 +6,10 @@ pragma solidity ^0.5.8;
  * @dev ERC-165 Interface Id: 0x7ecdffaf
  **/
 interface CurrencyNetworkInterface {
-
     function name() external view returns (string memory);
+
     function symbol() external view returns (string memory);
+
     function decimals() external view returns (uint8);
 
     /**
@@ -24,8 +25,7 @@ interface CurrencyNetworkInterface {
         uint64 _maxFee,
         address[] calldata _path,
         bytes calldata _extraData
-    )
-        external;
+    ) external;
 
     /**
      * @notice send `_value` along `_path`
@@ -40,8 +40,7 @@ interface CurrencyNetworkInterface {
         uint64 _maxFee,
         address[] calldata _path,
         bytes calldata _extraData
-    )
-        external;
+    ) external;
 
     /**
      * @notice returns what _to owes to _from
@@ -49,7 +48,7 @@ interface CurrencyNetworkInterface {
      * @param _to second address that defines the trustline
      * @return the amount _to owes to _from on the trustline between _from and _to
      **/
-    function balance(address _from, address _to) external view returns (int);
+    function balance(address _from, address _to) external view returns (int256);
 
     /**
      * @notice The creditline limit given by `_creditor` to `_debtor`
@@ -57,7 +56,17 @@ interface CurrencyNetworkInterface {
      * @param _debtor the debtor of the queried trustline
      * @return credit limit given by creditor to debtor
      */
-    function creditline(address _creditor, address _debtor) external view returns (uint);
+    function creditline(address _creditor, address _debtor)
+        external
+        view
+        returns (uint256);
 
-    event Transfer(address indexed _from, address indexed _to, uint _value, bytes _extraData);
+    event Transfer(
+        address indexed _from,
+        address indexed _to,
+        uint256 _value,
+        bytes _extraData
+    );
 }
+
+// SPDX-License-Identifier: MIT

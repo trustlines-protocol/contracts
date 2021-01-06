@@ -1,5 +1,4 @@
-pragma solidity ^0.5.8;
-
+pragma solidity ^0.8.0;
 
 /**
  * CurrencyNetwork
@@ -8,9 +7,8 @@ pragma solidity ^0.5.8;
  *
  **/
 contract Onboarding {
-
     // map each user to its onboarder
-    mapping (address => address) public onboarder;
+    mapping(address => address) public onboarder;
     // value in the mapping for users that do not have an onboarder
     address constant NO_ONBOARDER = address(1);
 
@@ -36,3 +34,5 @@ contract Onboarding {
         }
     }
 }
+
+// SPDX-License-Identifier: MIT

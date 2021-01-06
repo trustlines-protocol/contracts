@@ -25,11 +25,14 @@ repos:
     - id: trailing-whitespace
     - id: no-commit-to-branch
       args: [--branch, develop, --branch, master]
--   repo: https://github.com/schmir/ethlint-pre-commit.git
-    rev: 0.3.0
+
+-   repo: https://github.com/pre-commit/mirrors-prettier
+    rev: "v2.2.0"
     hooks:
-    - id: ethlint
-      exclude: ^(contracts/lib/|contracts/tokens)
+      - id: prettier
+        additional_dependencies: ["prettier@2.1.2", "prettier-plugin-solidity@1.0.0-beta.1"]
+        files: "\\.sol$"
+        args: ["--plugin=prettier-plugin-solidity"]
 
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: 977b5b383e7b3f65f21b94300f4d7
