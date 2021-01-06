@@ -12,6 +12,7 @@ from deploy_tools.cli import (
     keystore_option,
     nonce_option,
     retrieve_private_key,
+    validate_address,
 )
 from deploy_tools.deploy import build_transaction_options
 from eth_utils import is_checksum_address, to_checksum_address
@@ -29,6 +30,7 @@ from .core import (
     deploy_unw_eth,
     migrate_networks,
     verify_networks_migrations,
+    deploy_beacon,
 )
 
 
@@ -532,3 +534,56 @@ def verify_migration(
     web3 = connect_to_json_rpc(jsonrpc)
 
     verify_networks_migrations(web3, old_addresses_file_path, new_addresses_file_path)
+
+
+@cli.command(short_help="Deploy a new beacon contract")
+@click.option(
+    "--implementation",
+    "implementation_address",
+    help="Address of the implementation contract the beacon will point to",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--owner",
+    "owner_address",
+    help="Address of the owner of the beacon to be deployed",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@jsonrpc_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def beacon(
+    implementation_address: str,
+    owner_address: str,
+    jsonrpc: str,
+    gas_price: int,
+    nonce: int,
+    auto_nonce: bool,
+    keystore: str,
+):
+    """Used to deploy an owned beacon pointing to an implementation address"""
+
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce
+    )
+    beacon = deploy_beacon(
+        web3,
+        implementation_address,
+        owner_address,
+        private_key=private_key,
+        transaction_options=transaction_options,
+    )
+    click.secho(
+        f"Beacon successfully deployed at address {beacon.address} with owner {beacon.functions.owner().call()}"
+    )

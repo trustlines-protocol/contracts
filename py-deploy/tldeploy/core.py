@@ -217,6 +217,35 @@ def get_chain_id(web3):
     return int(web3.eth.chainId)
 
 
+def deploy_beacon(
+    web3,
+    implementation_address,
+    owner_address,
+    *,
+    private_key: bytes = None,
+    transaction_options: Dict = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+    beacon = deploy(
+        "ProxyBeacon",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+        constructor_args=(implementation_address,),
+    )
+    increase_transaction_options_nonce(transaction_options)
+    if owner_address != beacon.functions.owner().call():
+        transfer_ownership = beacon.functions.transferOwnership(owner_address)
+        wait_for_successfull_call(
+            transfer_ownership,
+            web3=web3,
+            transaction_options=transaction_options,
+            private_key=private_key,
+        )
+    return beacon
+
+
 def migrate_networks(
     web3,
     old_addresses_file_path: str,
