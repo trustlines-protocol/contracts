@@ -1,23 +1,8 @@
-from typing import Any, Dict
-
 import eth_tester.exceptions
 import pytest
 
-from tldeploy.core import deploy_network
-
 from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
-
-NETWORK_SETTING: Dict[str, Any] = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": False,
-    "currency_network_contract_name": "TestCurrencyNetwork",
-    "expiration_time": EXPIRATION_TIME,
-}
-
+from tests.currency_network.conftest import deploy_test_network, NETWORK_SETTING
 
 trustlines = [
     (0, 1, 100, 150),
@@ -31,17 +16,17 @@ trustlines = [
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
+    return deploy_test_network(web3, NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_without_expiration(web3):
-    return deploy_network(web3, **{**NETWORK_SETTING, "expiration_time": 0})
+    return deploy_test_network(web3, {**NETWORK_SETTING, "expiration_time": 0})
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts, chain):
-    contract = deploy_network(web3, **NETWORK_SETTING)
+    contract = deploy_test_network(web3, NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         CurrencyNetworkAdapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA

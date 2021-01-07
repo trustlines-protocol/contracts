@@ -1,10 +1,10 @@
 #! pytest
 
 import pytest
-from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-from tests.conftest import EXTRA_DATA, EXPIRATION_TIME
+from tests.conftest import EXTRA_DATA, NETWORK_SETTINGS
+from tests.currency_network.conftest import deploy_test_network
 
 trustlines = [
     (0, 1, 100, 150),
@@ -17,15 +17,7 @@ trustlines = [
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
-    contract = deploy_network(
-        web3,
-        name="TestCoin",
-        symbol="T",
-        decimals=6,
-        fee_divisor=100,
-        currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
-    )
+    contract = deploy_test_network(web3, {**NETWORK_SETTINGS, "fee_divisor": 100})
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
             accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0
@@ -35,15 +27,7 @@ def currency_network_contract_with_trustlines(web3, accounts):
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_high_trustlines(web3, accounts):
-    contract = deploy_network(
-        web3,
-        name="TestCoin",
-        symbol="T",
-        decimals=6,
-        fee_divisor=100,
-        currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
-    )
+    contract = deploy_test_network(web3, {**NETWORK_SETTINGS, "fee_divisor": 100})
     creditline = 1000000
     contract.functions.setAccount(
         accounts[0], accounts[1], creditline, creditline, 0, 0, False, 0, 0

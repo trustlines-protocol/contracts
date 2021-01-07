@@ -380,6 +380,7 @@ def test(
             "default_interest_rate": 0,
             "custom_interests": True,
             "expiration_time": expiration_time,
+            "prevent_mediator_interests": False,
         },
         {
             "name": "Work Hours",
@@ -389,14 +390,17 @@ def test(
             "default_interest_rate": 1000,
             "custom_interests": False,
             "expiration_time": expiration_time,
+            "prevent_mediator_interests": False,
         },
         {
             "name": "Beers",
             "symbol": "BEER",
             "decimals": 0,
             "fee_divisor": 0,
+            "default_interest_rate": 0,
             "custom_interests": False,
             "expiration_time": expiration_time,
+            "prevent_mediator_interests": False,
         },
     ]
 

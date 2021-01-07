@@ -2,10 +2,10 @@
 
 import pytest
 
-from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
 from tests.conftest import EXTRA_DATA, EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.currency_network.conftest import deploy_test_network
 
 trustlines = [
     (0, 1, 100, 150),
@@ -25,6 +25,7 @@ NETWORK_SETTING = {
     "fee_divisor": 100,
     "default_interest_rate": 0,
     "custom_interests": False,
+    "prevent_mediator_interests": False,
     "currency_network_contract_name": "TestCurrencyNetwork",
     "expiration_time": EXPIRATION_TIME,
 }
@@ -32,12 +33,12 @@ NETWORK_SETTING = {
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
+    return deploy_test_network(web3, NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
-    contract = deploy_network(web3, **NETWORK_SETTING)
+    contract = deploy_test_network(web3, NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         CurrencyNetworkAdapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA

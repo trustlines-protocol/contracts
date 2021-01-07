@@ -8,9 +8,9 @@ from eth_tester.exceptions import TransactionFailed
 from tldeploy.core import deploy_network
 from tests.conftest import (
     EXTRA_DATA,
-    EXPIRATION_TIME,
     MAX_UINT_64,
     CurrencyNetworkAdapter,
+    NETWORK_SETTINGS,
 )
 
 trustlines = [
@@ -41,15 +41,8 @@ def test_currency_network_contract(deploy_contract):
 def currency_network_contract_no_interests(web3):
     return deploy_network(
         web3,
-        "TestCoin",
-        "T",
-        decimals=6,
-        fee_divisor=0,
-        default_interest_rate=0,
-        custom_interests=False,
-        prevent_mediator_interests=False,
+        {**NETWORK_SETTINGS, "custom_interests": False},
         currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -57,15 +50,8 @@ def currency_network_contract_no_interests(web3):
 def currency_network_contract_default_interests(web3):
     return deploy_network(
         web3,
-        "TestCoin",
-        "T",
-        decimals=6,
-        fee_divisor=0,
-        default_interest_rate=100,
-        custom_interests=False,
-        prevent_mediator_interests=False,
+        {**NETWORK_SETTINGS, "default_interest_rate": 100, "custom_interests": False},
         currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -73,15 +59,8 @@ def currency_network_contract_default_interests(web3):
 def currency_network_contract_negative_interests(web3):
     return deploy_network(
         web3,
-        "TestCoin",
-        "T",
-        decimals=6,
-        fee_divisor=0,
-        default_interest_rate=-100,
-        custom_interests=False,
-        prevent_mediator_interests=False,
+        {**NETWORK_SETTINGS, "default_interest_rate": -100, "custom_interests": False},
         currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -89,15 +68,8 @@ def currency_network_contract_negative_interests(web3):
 def currency_network_contract_custom_interests_safe_ripple(web3):
     return deploy_network(
         web3,
-        "TestCoin",
-        "T",
-        decimals=6,
-        fee_divisor=0,
-        default_interest_rate=0,
-        custom_interests=True,
-        prevent_mediator_interests=True,
+        {**NETWORK_SETTINGS, "prevent_mediator_interests": True},
         currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
     )
 
 
@@ -372,16 +344,12 @@ def test_custom_interests_postive_balance(
 def test_setting_default_and_custom_interests_fails(web3):
     """Tests that we cannot set default and custom interests at the same time"""
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        deploy_network(
-            web3,
-            "TestCoin",
-            "T",
-            6,
-            0,
-            default_interest_rate=1,
-            custom_interests=True,
-            prevent_mediator_interests=False,
-        )
+        settings = {
+            **NETWORK_SETTINGS,
+            "default_interest_rate": 1,
+            "custom_interests": True,
+        }
+        deploy_network(web3, settings)
 
 
 def test_safe_interest_allows_direct_transactions(

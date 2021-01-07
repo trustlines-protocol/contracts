@@ -2,7 +2,6 @@
 
 import pytest
 
-from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
 from tests.conftest import (
@@ -10,7 +9,7 @@ from tests.conftest import (
     get_single_event_of_contract,
     get_events_of_contract,
 )
-from tests.currency_network.conftest import NETWORK_SETTING_OWNABLE as NETWORK_SETTING
+from tests.currency_network.conftest import deploy_ownable_network, NETWORK_SETTING
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 
@@ -29,9 +28,9 @@ def not_owner(accounts, owner):
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3, owner):
-    settings = NETWORK_SETTING.copy()
+    settings = {**NETWORK_SETTING, "custom_interests": True}
     settings["transaction_options"] = {"from": owner}
-    return deploy_network(web3, **settings)
+    return deploy_ownable_network(web3, settings, transaction_options={"from": owner})
 
 
 @pytest.fixture(scope="session")

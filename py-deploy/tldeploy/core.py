@@ -377,7 +377,7 @@ def migrate_networks(
     old_addresses_file_path: str,
     new_addresses_file_path: str,
     transaction_options: Dict = None,
-    private_key: str = None,
+    private_key: bytes = None,
 ):
     for [old_address, new_address] in read_addresses_to_migrate(
         old_addresses_file_path, new_addresses_file_path
@@ -565,7 +565,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
         old_currency_network_address: str,
         new_currency_network_address: str,
         transaction_options: Dict = None,
-        private_key: str = None,
+        private_key: bytes = None,
         max_tx_queue_size=10,
     ):
         super().__init__(

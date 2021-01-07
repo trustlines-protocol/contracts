@@ -2,25 +2,7 @@
 import pytest
 import eth_tester.exceptions
 
-from tldeploy.core import deploy_network
-from tests.conftest import EXPIRATION_TIME
-
-
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": False,
-    "currency_network_contract_name": "TestCurrencyNetwork",
-    "expiration_time": EXPIRATION_TIME,
-}
-
-
-@pytest.fixture
-def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
+from tests.currency_network.conftest import NETWORK_SETTING
 
 
 @pytest.fixture

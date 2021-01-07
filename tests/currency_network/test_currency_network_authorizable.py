@@ -4,21 +4,10 @@ import pytest
 
 import eth_tester.exceptions
 
-from tldeploy.core import deploy_network
-from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import CurrencyNetworkAdapter
+from tests.currency_network.conftest import deploy_test_network, NETWORK_SETTING
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 100,
-    "default_interest_rate": 0,
-    "custom_interests": True,
-    "prevent_mediator_interests": False,
-    "currency_network_contract_name": "TestCurrencyNetwork",
-    "expiration_time": EXPIRATION_TIME,
-}
 
 trustlines = [(1, 2, 100, 150)]
 
@@ -32,9 +21,10 @@ def global_authorized_address(accounts):
 def currency_network_contract_authorized_with_trustlines(
     web3, global_authorized_address, accounts
 ):
-    network_setting = NETWORK_SETTING
-    network_setting["authorized_addresses"] = [global_authorized_address]
-    contract = deploy_network(web3, **NETWORK_SETTING)
+    network_setting = {**NETWORK_SETTING, "fee_divisor": 100, "custom_interests": True}
+    contract = deploy_test_network(
+        web3, network_setting, authorized_addresses=[global_authorized_address]
+    )
 
     for (A, B, clAB, clBA) in trustlines:
         CurrencyNetworkAdapter(contract).set_account(

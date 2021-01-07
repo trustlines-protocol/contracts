@@ -2,7 +2,7 @@
 
 from tldeploy.core import deploy_networks, deploy_network
 
-from tests.conftest import EXPIRATION_TIME
+from tests.conftest import EXPIRATION_TIME, NETWORK_SETTINGS
 
 
 def test_deploy_networks(web3):
@@ -15,6 +15,7 @@ def test_deploy_networks(web3):
             "default_interest_rate": 0,
             "custom_interests": True,
             "expiration_time": EXPIRATION_TIME,
+            "prevent_mediator_interests": False,
         },
         {
             "name": "Test Coin",
@@ -24,6 +25,7 @@ def test_deploy_networks(web3):
             "default_interest_rate": 1000,
             "custom_interests": False,
             "expiration_time": EXPIRATION_TIME,
+            "prevent_mediator_interests": False,
         },
     ]
     networks, exchange, unw_eth = deploy_networks(web3, example_settings)
@@ -35,21 +37,19 @@ def test_deploy_networks(web3):
 
 
 def test_deploy_network(web3):
-    network = deploy_network(
-        web3,
-        name="Testcoin",
-        symbol="T",
-        decimals=2,
-        fee_divisor=100,
-        default_interest_rate=100,
-        custom_interests=False,
-        prevent_mediator_interests=False,
-        expiration_time=EXPIRATION_TIME,
-    )
+    network = deploy_network(web3, NETWORK_SETTINGS)
 
-    assert network.functions.name().call() == "Testcoin"
-    assert network.functions.symbol().call() == "T"
-    assert network.functions.decimals().call() == 2
-    assert network.functions.customInterests().call() is False
-    assert network.functions.defaultInterestRate().call() == 100
-    assert network.functions.expirationTime().call() == EXPIRATION_TIME
+    assert network.functions.name().call() == NETWORK_SETTINGS["name"]
+    assert network.functions.symbol().call() == NETWORK_SETTINGS["symbol"]
+    assert network.functions.decimals().call() == NETWORK_SETTINGS["decimals"]
+    assert (
+        network.functions.customInterests().call()
+        == NETWORK_SETTINGS["custom_interests"]
+    )
+    assert (
+        network.functions.defaultInterestRate().call()
+        == NETWORK_SETTINGS["default_interest_rate"]
+    )
+    assert (
+        network.functions.expirationTime().call() == NETWORK_SETTINGS["expiration_time"]
+    )
