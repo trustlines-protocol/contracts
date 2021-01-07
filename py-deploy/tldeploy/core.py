@@ -112,14 +112,7 @@ def deploy_unw_eth(
 
 def deploy_network(
     web3,
-    name,
-    symbol,
-    decimals,
-    expiration_time,
-    fee_divisor=0,
-    default_interest_rate=0,
-    custom_interests=True,
-    prevent_mediator_interests=False,
+    network_settings,
     exchange_address=None,
     currency_network_contract_name=None,
     transaction_options: Dict = None,
@@ -146,24 +139,12 @@ def deploy_network(
     )
     increase_transaction_options_nonce(transaction_options)
 
-    if exchange_address is not None:
-        authorized_addresses.append(exchange_address)
-
-    init_function_call = currency_network.functions.init(
-        name,
-        symbol,
-        decimals,
-        fee_divisor,
-        default_interest_rate,
-        custom_interests,
-        prevent_mediator_interests,
-        expiration_time,
-        authorized_addresses,
-    )
-
-    wait_for_successfull_call(
-        init_function_call,
+    init_currency_network(
         web3=web3,
+        network_settings=network_settings,
+        currency_network=currency_network,
+        exchange_address=exchange_address,
+        authorized_addresses=authorized_addresses,
         transaction_options=transaction_options,
         private_key=private_key,
     )
@@ -187,7 +168,7 @@ def deploy_networks(
             exchange_address=exchange.address,
             currency_network_contract_name=currency_network_contract_name,
             transaction_options=transaction_options,
-            **network_setting,
+            network_settings=network_setting,
         )
         for network_setting in network_settings
     ]
@@ -244,6 +225,151 @@ def deploy_beacon(
             private_key=private_key,
         )
     return beacon
+
+
+def deploy_currency_network_proxy(
+    *,
+    web3,
+    network_settings,
+    exchange_address=None,
+    authorized_addresses=None,
+    beacon_address,
+    owner_address,
+    private_key: bytes = None,
+    transaction_options: Dict = None,
+):
+    verify_owner_not_deployer(web3, owner_address, private_key)
+
+    if transaction_options is None:
+        transaction_options = {}
+
+    proxy = deploy(
+        "AdministrativeProxy",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+        constructor_args=(beacon_address, ""),
+    )
+    increase_transaction_options_nonce(transaction_options)
+
+    interface = get_contract_interface(contracts["CurrencyNetwork"])
+    proxied_currency_network = web3.eth.contract(
+        abi=interface["abi"], address=proxy.address
+    )
+
+    init_currency_network(
+        web3=web3,
+        network_settings=network_settings,
+        currency_network=proxied_currency_network,
+        exchange_address=exchange_address,
+        authorized_addresses=authorized_addresses,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+
+    return proxied_currency_network
+
+
+def verify_owner_not_deployer(web3, owner_address, private_key):
+    if private_key is not None:
+        if owner_address == web3.eth.account.from_key(private_key=private_key).address:
+            raise ValueError(
+                "Private key address equals the proxy owner address. This prevents correct proxy initialization."
+            )
+    else:
+        if owner_address == web3.eth.accounts[0]:
+            raise ValueError(
+                "Default node address equals the proxy owner address. This prevents correct proxy initialization."
+            )
+
+
+def init_currency_network(
+    *,
+    web3,
+    currency_network,
+    network_settings,
+    exchange_address=None,
+    authorized_addresses=None,
+    transaction_options,
+    private_key,
+):
+    if transaction_options is None:
+        transaction_options = {}
+    if authorized_addresses is None:
+        authorized_addresses = []
+    if exchange_address is not None:
+        authorized_addresses.append(exchange_address)
+
+    init_call = currency_network.functions.init(
+        network_settings["name"],
+        network_settings["symbol"],
+        network_settings["decimals"],
+        network_settings["fee_divisor"],
+        network_settings["default_interest_rate"],
+        network_settings["custom_interests"],
+        network_settings["prevent_mediator_interests"],
+        network_settings["expiration_time"],
+        authorized_addresses,
+    )
+
+    wait_for_successfull_call(
+        init_call,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+
+
+def deploy_and_migrate_networks(
+    *,
+    web3,
+    beacon_address: str,
+    owner_address: str,
+    addresses_file_path: str,
+    private_key: bytes = None,
+    transaction_options: Dict = None,
+):
+    verify_owner_not_deployer(web3, owner_address, private_key)
+    currency_network_interface = get_contract_interface(contracts["CurrencyNetwork"])
+
+    for old_address in read_addresses_in_csv(addresses_file_path):
+        old_network = web3.eth.contract(
+            abi=currency_network_interface["abi"], address=old_address
+        )
+        network_settings = get_network_settings(old_network)
+        network_settings["expiration_time"] = 0
+
+        new_network = deploy_currency_network_proxy(
+            web3=web3,
+            network_settings=network_settings,
+            beacon_address=beacon_address,
+            owner_address=owner_address,
+            private_key=private_key,
+            transaction_options=transaction_options,
+        )
+        new_address = new_network.address
+        click.secho(
+            message=f"Successfully deployed new proxy for currency network at {new_address}"
+        )
+
+        click.secho(f"Migrating {old_address} to {new_address}", fg="green")
+        NetworkMigrater(
+            web3, old_address, new_network.address, transaction_options, private_key
+        ).migrate_network()
+        click.secho(f"Migration of {old_address} to {new_address} complete", fg="green")
+
+
+def get_network_settings(currency_network):
+    return {
+        "name": currency_network.functions.name().call(),
+        "symbol": currency_network.functions.symbol().call(),
+        "decimals": currency_network.functions.decimals().call(),
+        "fee_divisor": currency_network.functions.capacityImbalanceFeeDivisor().call(),
+        "default_interest_rate": currency_network.functions.defaultInterestRate().call(),
+        "custom_interests": currency_network.functions.customInterests().call(),
+        "expiration_time": currency_network.functions.expirationTime().call(),
+    }
 
 
 def migrate_networks(
