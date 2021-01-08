@@ -1,5 +1,5 @@
 #! pytest
-
+from deploy_tools import deploy_compiled_contract
 import pytest
 
 from tldeploy.core import deploy_network
@@ -102,3 +102,65 @@ def currency_network_contract_with_fees(web3):
 @pytest.fixture(scope="session")
 def currency_network_adapter_with_fees(currency_network_contract_with_fees):
     return CurrencyNetworkAdapter(currency_network_contract_with_fees)
+
+
+@pytest.fixture(scope="session")
+def upgradeable_implementation(deploy_contract):
+    return deploy_contract(contract_identifier="TestUpgradeable")
+
+
+@pytest.fixture(scope="session")
+def upgraded_implementation(deploy_contract):
+    return deploy_contract(contract_identifier="TestUpgraded")
+
+
+@pytest.fixture(scope="session")
+def proxy_beacon(owner_key, contract_assets, web3, upgradeable_implementation):
+    return deploy_compiled_contract(
+        abi=contract_assets["ProxyBeacon"]["abi"],
+        bytecode=contract_assets["ProxyBeacon"]["bytecode"],
+        constructor_args=(upgradeable_implementation.address,),
+        web3=web3,
+        private_key=owner_key,
+    )
+
+
+@pytest.fixture(scope="session")
+def owner(accounts):
+    return accounts[0]
+
+
+@pytest.fixture(scope="session")
+def owner_key(account_keys):
+    return account_keys[0]
+
+
+@pytest.fixture(scope="session")
+def not_owner(accounts, owner):
+    not_owner = accounts[1]
+    assert not_owner != owner
+    return not_owner
+
+
+@pytest.fixture(scope="session")
+def not_owner_key(account_keys):
+    return account_keys[1]
+
+
+@pytest.fixture(scope="session")
+def owned_currency_network(web3, owner):
+    settings = {**NETWORK_SETTING, "custom_interests": True}
+    return deploy_ownable_network(web3, settings, transaction_options={"from": owner})
+
+
+@pytest.fixture(scope="session")
+def beacon_with_currency_network(
+    web3, owned_currency_network, contract_assets, owner_key
+):
+    return deploy_compiled_contract(
+        abi=contract_assets["ProxyBeacon"]["abi"],
+        bytecode=contract_assets["ProxyBeacon"]["bytecode"],
+        constructor_args=(owned_currency_network.address,),
+        web3=web3,
+        private_key=owner_key,
+    )

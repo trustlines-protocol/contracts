@@ -21,9 +21,9 @@ def owner(accounts):
 
 @pytest.fixture(scope="session")
 def new_contract(web3, owner):
-    settings = NETWORK_SETTING.copy()
-    settings["transaction_options"] = {"from": owner}
-    return deploy_ownable_network(web3, settings)
+    return deploy_ownable_network(
+        web3, NETWORK_SETTING, transaction_options={"from": owner}
+    )
 
 
 @pytest.fixture(scope="session")

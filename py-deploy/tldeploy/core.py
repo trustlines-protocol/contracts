@@ -19,6 +19,7 @@ from hexbytes import HexBytes
 from tldeploy.interests import balance_with_interests
 from web3 import Web3
 from tlbin import load_packaged_contracts
+from web3.contract import Contract
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 
@@ -252,9 +253,19 @@ def deploy_currency_network_proxy(
     )
     increase_transaction_options_nonce(transaction_options)
 
-    interface = get_contract_interface(contracts["CurrencyNetwork"])
+    change_owner = proxy.functions.changeAdmin(owner_address)
+    wait_for_successfull_call(
+        change_owner,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    assert proxy.functions.admin().call({"from": owner_address}) == owner_address
+
+    interface = get_contract_interface("CurrencyNetwork")
     proxied_currency_network = web3.eth.contract(
-        abi=interface["abi"], address=proxy.address
+        abi=interface["abi"], address=proxy.address, bytecode=interface["bytecode"]
     )
 
     init_currency_network(
@@ -321,7 +332,7 @@ def init_currency_network(
     )
 
 
-def deploy_and_migrate_networks(
+def deploy_and_migrate_networks_from_file(
     *,
     web3,
     beacon_address: str,
@@ -330,34 +341,63 @@ def deploy_and_migrate_networks(
     private_key: bytes = None,
     transaction_options: Dict = None,
 ):
+    """Deploy new owned currency network proxies and migrate old networks to it"""
+    if transaction_options is None:
+        transaction_options = {}
+
     verify_owner_not_deployer(web3, owner_address, private_key)
-    currency_network_interface = get_contract_interface(contracts["CurrencyNetwork"])
+    currency_network_interface = get_contract_interface("CurrencyNetwork")
 
     for old_address in read_addresses_in_csv(addresses_file_path):
         old_network = web3.eth.contract(
             abi=currency_network_interface["abi"], address=old_address
         )
-        network_settings = get_network_settings(old_network)
-        network_settings["expiration_time"] = 0
-
-        new_network = deploy_currency_network_proxy(
+        deploy_and_migrate_network(
             web3=web3,
-            network_settings=network_settings,
             beacon_address=beacon_address,
             owner_address=owner_address,
+            old_network=old_network,
             private_key=private_key,
             transaction_options=transaction_options,
         )
-        new_address = new_network.address
-        click.secho(
-            message=f"Successfully deployed new proxy for currency network at {new_address}"
-        )
 
-        click.secho(f"Migrating {old_address} to {new_address}", fg="green")
-        NetworkMigrater(
-            web3, old_address, new_network.address, transaction_options, private_key
-        ).migrate_network()
-        click.secho(f"Migration of {old_address} to {new_address} complete", fg="green")
+
+def deploy_and_migrate_network(
+    *,
+    web3,
+    beacon_address: str,
+    owner_address: str,
+    old_network: Contract,
+    private_key: bytes = None,
+    transaction_options: Dict = None,
+):
+    """Deploy a new owned currency network proxy and migrate the old networks to it"""
+    if transaction_options is None:
+        transaction_options = {}
+
+    network_settings = get_network_settings(old_network)
+    network_settings["expiration_time"] = 0
+
+    new_network = deploy_currency_network_proxy(
+        web3=web3,
+        network_settings=network_settings,
+        beacon_address=beacon_address,
+        owner_address=owner_address,
+        private_key=private_key,
+        transaction_options=transaction_options,
+    )
+    new_address = new_network.address
+    click.secho(
+        message=f"Successfully deployed new proxy for currency network at {new_address}"
+    )
+
+    click.secho(f"Migrating {old_network.address} to {new_address}", fg="green")
+    NetworkMigrater(
+        web3, old_network.address, new_network.address, transaction_options, private_key
+    ).migrate_network()
+    click.secho(
+        f"Migration of {old_network.address} to {new_address} complete", fg="green"
+    )
 
 
 def get_network_settings(currency_network):
@@ -369,6 +409,7 @@ def get_network_settings(currency_network):
         "default_interest_rate": currency_network.functions.defaultInterestRate().call(),
         "custom_interests": currency_network.functions.customInterests().call(),
         "expiration_time": currency_network.functions.expirationTime().call(),
+        "prevent_mediator_interests": currency_network.functions.preventMediatorInterests().call(),
     }
 
 
@@ -573,6 +614,10 @@ class NetworkMigrater(NetworkMigrationVerifier):
         )
 
         self.web3 = web3
+        if private_key is not None:
+            self.web3.eth.defaultAccount = web3.eth.account.from_key(
+                private_key=private_key
+            ).address
 
         self.transaction_options = transaction_options
         if transaction_options is None:

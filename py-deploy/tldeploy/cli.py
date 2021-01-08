@@ -31,7 +31,7 @@ from .core import (
     migrate_networks,
     verify_networks_migrations,
     deploy_beacon,
-    deploy_and_migrate_networks,
+    deploy_and_migrate_networks_from_file,
 )
 
 
@@ -648,7 +648,7 @@ def deploy_and_migrate(
         gas=None, gas_price=gas_price, nonce=nonce
     )
 
-    deploy_and_migrate_networks(
+    deploy_and_migrate_networks_from_file(
         web3=web3,
         addresses_file_path=addresses_file_path,
         beacon_address=beacon_address,

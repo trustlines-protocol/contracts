@@ -9,7 +9,6 @@ from tests.conftest import (
     get_single_event_of_contract,
     get_events_of_contract,
 )
-from tests.currency_network.conftest import deploy_ownable_network, NETWORK_SETTING
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 
@@ -27,10 +26,9 @@ def not_owner(accounts, owner):
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract(web3, owner):
-    settings = {**NETWORK_SETTING, "custom_interests": True}
-    settings["transaction_options"] = {"from": owner}
-    return deploy_ownable_network(web3, settings, transaction_options={"from": owner})
+def currency_network_contract(owned_currency_network):
+    # This is just an alias
+    return owned_currency_network
 
 
 @pytest.fixture(scope="session")
