@@ -2,7 +2,6 @@
 
 import pytest
 
-from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
 from tests.conftest import (
@@ -11,14 +10,18 @@ from tests.conftest import (
     MAX_UINT_64,
     CurrencyNetworkAdapter,
 )
-from tests.currency_network.conftest import NETWORK_SETTING, trustlines
+from tests.currency_network.conftest import (
+    NETWORK_SETTING,
+    trustlines,
+    deploy_test_network,
+)
 
 MAX_CREDITLINE = MAX_UINT_64
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustline_update(web3, accounts):
-    contract = deploy_network(web3, **NETWORK_SETTING)
+    contract = deploy_test_network(web3, NETWORK_SETTING)
     contract.functions.updateTrustline(accounts[1], 1, 1, 0, 0, False).transact(
         {"from": accounts[0]}
     )
@@ -54,7 +57,7 @@ def test_default_interests_rates_out_of_bounds(web3, invalid_interest_rate):
     invalid_settings = NETWORK_SETTING.copy()
     invalid_settings["default_interest_rate"] = invalid_interest_rate
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        deploy_network(web3, **invalid_settings)
+        deploy_test_network(web3, invalid_settings)
 
 
 def test_users(currency_network_contract_with_trustlines, accounts):

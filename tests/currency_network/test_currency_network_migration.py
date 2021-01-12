@@ -2,23 +2,15 @@
 
 import pytest
 
-from tldeploy.core import deploy_network
 import eth_tester.exceptions
 
-from tests.conftest import CurrencyNetworkAdapter
-from tests.currency_network.conftest import NETWORK_SETTING_OWNABLE as NETWORK_SETTING
+from tests.conftest import (
+    CurrencyNetworkAdapter,
+    get_single_event_of_contract,
+    get_events_of_contract,
+)
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
-
-
-def get_events_of_contract(contract, event_name, from_block=0):
-    return list(getattr(contract.events, event_name).getLogs(fromBlock=from_block))
-
-
-def get_single_event_of_contract(contract, event_name, from_block):
-    events = get_events_of_contract(contract, event_name, from_block)
-    assert len(events) == 1, f"No single event of type {event_name}"
-    return events[0]
 
 
 @pytest.fixture(scope="session")
@@ -34,10 +26,9 @@ def not_owner(accounts, owner):
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract(web3, owner):
-    settings = NETWORK_SETTING.copy()
-    settings["transaction_options"] = {"from": owner}
-    return deploy_network(web3, **settings)
+def currency_network_contract(owned_currency_network):
+    # This is just an alias
+    return owned_currency_network
 
 
 @pytest.fixture(scope="session")

@@ -58,7 +58,7 @@ def test_transfer_from(unweth_contract, web3, accounts):
     with pytest.raises(eth_tester.exceptions.TransactionFailed):
         unweth_contract.functions.transferFrom(A, B, wei).transact({"from": C})
 
-    unweth_contract.functions.addAuthorizedAddress(C).transact()
+    unweth_contract.functions.addAuthorizedAddress(C).transact({"from": C})
     unweth_contract.functions.transferFrom(A, B, wei).transact({"from": C})
 
     assert web3.eth.getBalance(B) == balance + wei

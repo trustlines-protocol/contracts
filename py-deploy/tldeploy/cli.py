@@ -12,6 +12,7 @@ from deploy_tools.cli import (
     keystore_option,
     nonce_option,
     retrieve_private_key,
+    validate_address,
 )
 from deploy_tools.deploy import build_transaction_options
 from eth_utils import is_checksum_address, to_checksum_address
@@ -29,6 +30,8 @@ from .core import (
     deploy_unw_eth,
     migrate_networks,
     verify_networks_migrations,
+    deploy_beacon,
+    deploy_and_migrate_networks_from_file,
 )
 
 
@@ -200,18 +203,22 @@ def currencynetwork(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
 
+    network_settings = {
+        "name": name,
+        "symbol": symbol,
+        "decimals": decimals,
+        "fee_divisor": fee_divisor,
+        "default_interest_rate": default_interest_rate,
+        "custom_interests": custom_interests,
+        "prevent_mediator_interests": prevent_mediator_interests,
+        "expiration_time": expiration_time,
+    }
+
     contract = deploy_network(
         web3,
-        name,
-        symbol,
-        decimals,
-        fee_divisor=fee_divisor,
-        default_interest_rate=default_interest_rate,
-        custom_interests=custom_interests,
-        prevent_mediator_interests=prevent_mediator_interests,
+        network_settings,
         exchange_address=exchange_contract,
         currency_network_contract_name=currency_network_contract_name,
-        expiration_time=expiration_time,
         transaction_options=transaction_options,
         private_key=private_key,
     )
@@ -373,6 +380,7 @@ def test(
             "default_interest_rate": 0,
             "custom_interests": True,
             "expiration_time": expiration_time,
+            "prevent_mediator_interests": False,
         },
         {
             "name": "Work Hours",
@@ -382,14 +390,17 @@ def test(
             "default_interest_rate": 1000,
             "custom_interests": False,
             "expiration_time": expiration_time,
+            "prevent_mediator_interests": False,
         },
         {
             "name": "Beers",
             "symbol": "BEER",
             "decimals": 0,
             "fee_divisor": 0,
+            "default_interest_rate": 0,
             "custom_interests": False,
             "expiration_time": expiration_time,
+            "prevent_mediator_interests": False,
         },
     ]
 
@@ -532,3 +543,116 @@ def verify_migration(
     web3 = connect_to_json_rpc(jsonrpc)
 
     verify_networks_migrations(web3, old_addresses_file_path, new_addresses_file_path)
+
+
+@cli.command(short_help="Deploy a new beacon contract")
+@click.option(
+    "--implementation",
+    "implementation_address",
+    help="Address of the implementation contract the beacon will point to",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--owner",
+    "owner_address",
+    help="Address of the owner of the beacon to be deployed",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@jsonrpc_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def beacon(
+    implementation_address: str,
+    owner_address: str,
+    jsonrpc: str,
+    gas_price: int,
+    nonce: int,
+    auto_nonce: bool,
+    keystore: str,
+):
+    """Used to deploy an owned beacon pointing to an implementation address"""
+
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce
+    )
+    beacon = deploy_beacon(
+        web3,
+        implementation_address,
+        owner_address,
+        private_key=private_key,
+        transaction_options=transaction_options,
+    )
+    click.secho(
+        f"Beacon successfully deployed at address {beacon.address} with owner {beacon.functions.owner().call()}"
+    )
+
+
+@cli.command(
+    short_help="Deploy new currrency networks and migrate old ones to deployed ones."
+)
+@click.option(
+    "--addresses-file",
+    "addresses_file_path",
+    help="Path to a csv file with addresses of old currency networks, order and number must match with new addresses",
+    default="",
+    type=click.Path(dir_okay=False, writable=True),
+)
+@click.option(
+    "--beacon",
+    "beacon_address",
+    help="Address of the beacon contract the proxies will point to",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--owner",
+    "owner_address",
+    help="Address of the owner of the proxies to be deployed",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@jsonrpc_option
+@gas_price_option
+@nonce_option
+@auto_nonce_option
+@keystore_option
+def deploy_and_migrate(
+    addresses_file_path: str,
+    beacon_address: str,
+    owner_address: str,
+    jsonrpc: str,
+    gas_price: int,
+    nonce: int,
+    auto_nonce: bool,
+    keystore: str,
+):
+    web3 = connect_to_json_rpc(jsonrpc)
+    private_key = retrieve_private_key(keystore)
+    nonce = get_nonce(
+        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
+    )
+    transaction_options = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce
+    )
+
+    deploy_and_migrate_networks_from_file(
+        web3=web3,
+        addresses_file_path=addresses_file_path,
+        beacon_address=beacon_address,
+        owner_address=owner_address,
+        private_key=private_key,
+        transaction_options=transaction_options,
+    )

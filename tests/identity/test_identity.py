@@ -45,17 +45,18 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": False,
     "expiration_time": EXPIRATION_TIME,
+    "prevent_mediator_interests": False,
 }
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
+    return deploy_network(web3, NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")
 def second_currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
+    return deploy_network(web3, NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session")

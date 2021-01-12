@@ -1,26 +1,7 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from tldeploy.core import deploy_network
-from tests.conftest import EXPIRATION_TIME
-
 from tests.currency_network.conftest import ADDRESS_0, NO_ONBOARDER
-
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": False,
-    "currency_network_contract_name": "TestCurrencyNetwork",
-    "expiration_time": EXPIRATION_TIME,
-}
-
-
-@pytest.fixture(scope="session")
-def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
 
 
 def open_trustline(network, a, b):

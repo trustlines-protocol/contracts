@@ -2,8 +2,8 @@
 
 import pytest
 
-from tldeploy.core import deploy_network
 from tests.conftest import EXPIRATION_TIME
+from tests.currency_network.conftest import deploy_test_network
 
 """
 This file showcases how to get relevant information related to trustlines transfer
@@ -27,14 +27,14 @@ NETWORK_SETTING = {
     "fee_divisor": 100,
     "default_interest_rate": 1000,
     "custom_interests": False,
-    "currency_network_contract_name": "TestCurrencyNetwork",
     "expiration_time": EXPIRATION_TIME,
+    "prevent_mediator_interests": False,
 }
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
-    contract = deploy_network(web3, **NETWORK_SETTING)
+    contract = deploy_test_network(web3, NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccountDefaultInterests(
             accounts[A], accounts[B], clAB, clBA, False, 0, 0

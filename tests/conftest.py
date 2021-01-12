@@ -28,6 +28,18 @@ MAX_UINT_64 = 2 ** 64 - 1
 MAX_FEE = MAX_UINT_64
 
 
+NETWORK_SETTINGS = {
+    "name": "TestCoin",
+    "symbol": "T",
+    "decimals": 6,
+    "fee_divisor": 0,
+    "default_interest_rate": 0,
+    "custom_interests": True,
+    "prevent_mediator_interests": False,
+    "expiration_time": EXPIRATION_TIME,
+}
+
+
 def pytest_addoption(parser):
     parser.addoption(
         UPDATE_GAS_VALUES_OPTION,
@@ -276,3 +288,13 @@ def gas_values_snapshot(pytestconfig):
     yield snapshoter
 
     write_test_data(snapshot_path, ["KEY", "GAS_COST", "GAS_LIMIT"], snapshoter.data)
+
+
+def get_events_of_contract(contract, event_name, from_block=0):
+    return list(getattr(contract.events, event_name).getLogs(fromBlock=from_block))
+
+
+def get_single_event_of_contract(contract, event_name, from_block=0):
+    events = get_events_of_contract(contract, event_name, from_block)
+    assert len(events) == 1, f"No single event of type {event_name}"
+    return events[0]

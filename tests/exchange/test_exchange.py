@@ -8,7 +8,7 @@ from tldeploy.core import deploy_network, deploy_exchange, deploy
 from tldeploy.exchange import Order
 from tldeploy.signing import priv_to_pubkey
 
-from tests.conftest import EXPIRATION_TIME
+from tests.conftest import NETWORK_SETTINGS
 
 
 trustlines = [
@@ -43,12 +43,8 @@ def token_contract(web3, accounts):
 def currency_network_contract_with_trustlines(web3, exchange_contract, accounts):
     contract = deploy_network(
         web3,
-        name="TestCoin",
-        symbol="T",
-        decimals=6,
-        fee_divisor=0,
+        NETWORK_SETTINGS,
         currency_network_contract_name="TestCurrencyNetwork",
-        expiration_time=EXPIRATION_TIME,
         exchange_address=exchange_contract.address,
     )
     for (A, B, clAB, clBA) in trustlines:

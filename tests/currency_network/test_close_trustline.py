@@ -5,8 +5,8 @@ import pytest
 
 import eth_tester.exceptions
 
-from tldeploy.core import deploy_network
 from tests.conftest import EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
+from tests.currency_network.conftest import deploy_test_network
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
 NETWORK_SETTING = {
@@ -17,21 +17,8 @@ NETWORK_SETTING = {
     "default_interest_rate": 0,
     "custom_interests": True,
     "prevent_mediator_interests": False,
-    "currency_network_contract_name": "TestCurrencyNetwork",
     "expiration_time": EXPIRATION_TIME,
 }
-
-
-@pytest.fixture(scope="session")
-def currency_network_contract(web3):
-    return deploy_network(web3, **NETWORK_SETTING)
-
-
-@pytest.fixture(scope="session")
-def currency_network_contract_no_fees(web3):
-    network_setting = NETWORK_SETTING
-    network_setting["fee_divisor"] = 0
-    return deploy_network(web3, **NETWORK_SETTING)
 
 
 @pytest.fixture(scope="session", params=[0, 100, 2000])  # 0% , 1%, 20%
@@ -41,7 +28,7 @@ def interest_rate(request):
 
 @pytest.fixture()
 def currency_network_contract_with_trustlines(chain, web3, accounts, interest_rate):
-    currency_network_contract = deploy_network(web3, **NETWORK_SETTING)
+    currency_network_contract = deploy_test_network(web3, NETWORK_SETTING)
     currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
@@ -68,10 +55,10 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
 
 @pytest.fixture()
 def currency_network_contract_with_max_uint_trustlines(
-    currency_network_contract_no_fees, chain, web3, accounts
+    currency_network_contract_custom_interest, chain, web3, accounts
 ):
     """Currency network that uses max_unit64 for all credit limits"""
-    currency_network_contract = currency_network_contract_no_fees
+    currency_network_contract = currency_network_contract_custom_interest
     currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
 
     for a in accounts[:3]:
@@ -90,8 +77,8 @@ def currency_network_contract_with_max_uint_trustlines(
     return currency_network_contract
 
 
-def test_close_trustline(currency_network_contract, accounts):
-    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+def test_close_trustline(currency_network_adapter_with_fees, accounts):
+    currency_network_adapter = currency_network_adapter_with_fees
     A, B, *rest = accounts
 
     currency_network_adapter.update_trustline(
@@ -102,8 +89,8 @@ def test_close_trustline(currency_network_contract, accounts):
     assert currency_network_adapter.is_trustline_closed(A, B)
 
 
-def test_cannot_close_with_balance(currency_network_contract, accounts):
-    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+def test_cannot_close_with_balance(currency_network_adapter_with_fees, accounts):
+    currency_network_adapter = currency_network_adapter_with_fees
     A, B, *rest = accounts
 
     currency_network_adapter.update_trustline(
@@ -115,8 +102,8 @@ def test_cannot_close_with_balance(currency_network_contract, accounts):
         currency_network_adapter.close_trustline(A, B)
 
 
-def test_cannot_reopen_closed_trustline(currency_network_contract, accounts):
-    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+def test_cannot_reopen_closed_trustline(currency_network_adapter_with_fees, accounts):
+    currency_network_adapter = currency_network_adapter_with_fees
     A, B, *rest = accounts
 
     currency_network_adapter.update_trustline(
