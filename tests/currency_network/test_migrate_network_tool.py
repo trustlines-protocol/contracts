@@ -185,7 +185,7 @@ def test_migrate_network_global(
     assert_accounts_migrated,
 ):
     """Test that calling `migrate_network` will migrate accounts, on boarders, debts,
-       unfreeze the network and remove the owner"""
+    unfreeze the network and remove the owner"""
     network_migrater.migrate_network()
 
     assert_accounts_migrated()

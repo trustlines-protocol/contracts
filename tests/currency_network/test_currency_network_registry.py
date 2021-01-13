@@ -113,8 +113,10 @@ def test_add_network_multiple_events(
     registrar.
     """
 
-    currency_added_event_filter = currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
-        fromBlock=0
+    currency_added_event_filter = (
+        currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
+            fromBlock=0
+        )
     )
     currency_network_registry_contract.functions.addCurrencyNetwork(
         currency_network_contract.address
@@ -166,9 +168,11 @@ def test_get_metadata(
 
 
 def test_no_events(currency_network_registry_contract):
-    events = currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
-        fromBlock=0
-    ).get_all_entries()
+    events = (
+        currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
+            fromBlock=0
+        ).get_all_entries()
+    )
     assert len(events) == 0
 
 

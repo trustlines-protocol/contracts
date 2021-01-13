@@ -5,9 +5,9 @@ from typing import Dict, Optional, Any, MutableMapping
 import attr
 import pkg_resources
 from deploy_tools.compile import build_initcode
-from deploy_tools.deploy import (
+from deploy_tools.transact import (
     increase_transaction_options_nonce,
-    send_function_call_transaction,
+    wait_for_successful_function_call,
 )
 from eth_keys.datatypes import PrivateKey
 from eth_utils import to_checksum_address
@@ -507,7 +507,7 @@ def deploy_proxied_identity(
     function_call = factory.functions.deployProxy(
         initcode, implementation_address, signature
     )
-    receipt = send_function_call_transaction(
+    receipt = wait_for_successful_function_call(
         function_call,
         web3=web3,
         transaction_options=transaction_options,

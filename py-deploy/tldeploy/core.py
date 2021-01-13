@@ -4,18 +4,17 @@
 
 import collections
 import os
-from typing import Dict, Iterable, Set
+from typing import Dict, Set
 
 import click
 from deploy_tools import deploy_compiled_contract
-from deploy_tools.deploy import (
+from deploy_tools.transact import (
     increase_transaction_options_nonce,
-    send_function_call_transaction as wait_for_successfull_call,
-    _build_and_sign_transaction,
-    _set_from_address,
+    send_function_call_transaction,
+    wait_for_successful_function_call,
+    wait_for_successful_transaction_receipts,
 )
 from deploy_tools.files import read_addresses_in_csv
-from hexbytes import HexBytes
 from tldeploy.interests import balance_with_interests
 from web3 import Web3
 from tlbin import load_packaged_contracts
@@ -100,7 +99,7 @@ def deploy_unw_eth(
     if exchange_address is not None:
         if exchange_address is not None:
             function_call = unw_eth.functions.addAuthorizedAddress(exchange_address)
-            wait_for_successfull_call(
+            wait_for_successful_function_call(
                 function_call,
                 web3=web3,
                 transaction_options=transaction_options,
@@ -187,7 +186,7 @@ def deploy_identity(
     if chain_id is None:
         chain_id = get_chain_id(web3)
     function_call = identity.functions.init(owner_address, chain_id)
-    wait_for_successfull_call(
+    wait_for_successful_function_call(
         function_call, web3=web3, transaction_options=transaction_options
     )
     increase_transaction_options_nonce(transaction_options)
@@ -219,7 +218,7 @@ def deploy_beacon(
     increase_transaction_options_nonce(transaction_options)
     if owner_address != beacon.functions.owner().call():
         transfer_ownership = beacon.functions.transferOwnership(owner_address)
-        wait_for_successfull_call(
+        wait_for_successful_function_call(
             transfer_ownership,
             web3=web3,
             transaction_options=transaction_options,
@@ -254,7 +253,7 @@ def deploy_currency_network_proxy(
     increase_transaction_options_nonce(transaction_options)
 
     change_owner = proxy.functions.changeAdmin(owner_address)
-    wait_for_successfull_call(
+    wait_for_successful_function_call(
         change_owner,
         web3=web3,
         transaction_options=transaction_options,
@@ -324,7 +323,7 @@ def init_currency_network(
         authorized_addresses,
     )
 
-    wait_for_successfull_call(
+    wait_for_successful_function_call(
         init_call,
         web3=web3,
         transaction_options=transaction_options,
@@ -538,20 +537,16 @@ class NetworkMigrationVerifier:
 
         # We do not verify is_frozen because old network was necessarily frozen and new network will not be
         if (
-            (
-                old_credit_given,
-                old_credit_received,
-                old_interest_given,
-                old_interest_received,
-            )
-            != (
-                new_credit_given,
-                new_credit_received,
-                new_interest_given,
-                new_interest_received,
-            )
-            or old_balance_with_interests != new_balance
-        ):
+            old_credit_given,
+            old_credit_received,
+            old_interest_given,
+            old_interest_received,
+        ) != (
+            new_credit_given,
+            new_credit_received,
+            new_interest_given,
+            new_interest_received,
+        ) or old_balance_with_interests != new_balance:
             return False
         return True
 
@@ -732,7 +727,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
             self.wait_for_successfull_txs_in_queue()
 
     def wait_for_successfull_txs_in_queue(self):
-        wait_for_successfull_txs(self.web3, self.tx_queue)
+        wait_for_successful_transaction_receipts(self.web3, self.tx_queue)
         self.tx_queue = set()
 
 
@@ -758,63 +753,3 @@ def get_all_debts_of_currency_network(currency_network):
 class TransactionsFailed(Exception):
     def __init__(self, failed_tx_hashs):
         self.failed_tx_hashs = failed_tx_hashs
-
-
-def wait_for_successfull_txs(web3, tx_hashs: Iterable[HexBytes], timeout=300):
-    # TODO: refactor in deploy tools?
-
-    failed_tx_hashs = set()
-
-    for tx_hash in tx_hashs:
-        receipt = web3.eth.waitForTransactionReceipt(tx_hash, timeout=timeout)
-        status = receipt.get("status", None)
-        if status == 0:
-            failed_tx_hashs.add(tx_hash)
-        elif status == 1:
-            continue
-        else:
-            raise ValueError(
-                f"Unexpected value for status in the transaction receipt: {status}"
-            )
-
-    if len(failed_tx_hashs) != 0:
-        raise TransactionsFailed(failed_tx_hashs)
-
-
-def send_function_call_transaction(
-    function_call, *, web3: Web3, transaction_options: Dict = None, private_key=None
-):
-    """
-    Creates, signs and sends a transaction from a function call (for example created with `contract.functions.foo()`.
-    Will either use an account of the node(default), or a local private key(if given) to sign the transaction.
-    It will not block until tx is sent
-
-    Returns: The transaction hash
-    """
-    # TODO: refactor in deploy tools?
-    if transaction_options is None:
-        transaction_options = {}
-
-    if private_key is not None:
-        signed_transaction = _build_and_sign_transaction(
-            function_call,
-            web3=web3,
-            transaction_options=transaction_options,
-            private_key=private_key,
-        )
-        fill_nonce(web3, transaction_options)
-        tx_hash = web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
-
-    else:
-        _set_from_address(web3, transaction_options)
-        fill_nonce(web3, transaction_options)
-        tx_hash = function_call.transact(transaction_options)
-
-    return tx_hash
-
-
-def fill_nonce(web3, transaction_options):
-    if "from" in transaction_options and "nonce" not in transaction_options:
-        transaction_options["nonce"] = web3.eth.getTransactionCount(
-            transaction_options["from"], block_identifier="pending"
-        )

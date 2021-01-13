@@ -118,10 +118,15 @@ def test_interest_calculation(
                 interest_rate_received,
             ).call()
     else:
-        assert test_currency_network_contract.functions.testCalculateBalanceWithInterests(
-            balance, start_time, end_time, interest_rate_given, interest_rate_received
-        ).call() == pytest.approx(
-            result, abs=1
+        assert (
+            test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+                balance,
+                start_time,
+                end_time,
+                interest_rate_given,
+                interest_rate_received,
+            ).call()
+            == pytest.approx(result, abs=1)
         )
 
 
@@ -853,9 +858,11 @@ def test_interest_calculation_sane(
     raw_rate = int(rate_percent * 100)
     assert raw_rate / 100 == rate_percent, "Not correctly representable rate"
 
-    new_balance = test_currency_network_contract.functions.testCalculateBalanceWithInterests(
-        balance, 0, years_to_seconds(duration_years), raw_rate, raw_rate
-    ).call()
+    new_balance = (
+        test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+            balance, 0, years_to_seconds(duration_years), raw_rate, raw_rate
+        ).call()
+    )
 
     assert balance * new_balance >= 0, "Balance has switched signs"
     assert abs(new_balance) <= abs(
@@ -905,9 +912,11 @@ def test_interest_calculation_accuracy(
     raw_rate = int(rate_percent * 100)
     assert raw_rate / 100 == rate_percent, "Not correctly representable rate"
 
-    new_balance = test_currency_network_contract.functions.testCalculateBalanceWithInterests(
-        balance, 0, years_to_seconds(duration_years), raw_rate, raw_rate
-    ).call()
+    new_balance = (
+        test_currency_network_contract.functions.testCalculateBalanceWithInterests(
+            balance, 0, years_to_seconds(duration_years), raw_rate, raw_rate
+        ).call()
+    )
     # within the allowed boundaries the balance change should not be more off than
     # ALLOWED_PERCENTAGE% of the correct balance change
     correct_balance = min(
