@@ -1,7 +1,6 @@
 #! pytest
 
 import pytest
-import eth_tester.exceptions
 
 from tests.conftest import EXTRA_DATA, NETWORK_SETTINGS
 from tests.currency_network.conftest import deploy_test_network
@@ -23,6 +22,13 @@ def currency_network_contract_with_trustlines(web3, accounts):
             accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0
         ).transact()
     return contract
+
+
+@pytest.fixture(scope="session")
+def currency_network_adapter_with_trustlines(
+    currency_network_contract_with_trustlines, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_contract_with_trustlines)
 
 
 @pytest.fixture(scope="session")
@@ -61,13 +67,11 @@ def test_transfer_0_mediators(currency_network_contract_with_trustlines, account
 
 
 def test_transfer_0_mediators_fail_not_enough_credit(
-    currency_network_contract_with_trustlines, accounts
+    currency_network_adapter_with_trustlines, accounts
 ):
-    contract = currency_network_contract_with_trustlines
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transferReceiverPays(
-            151, 0, [accounts[0], accounts[1]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+    currency_network_adapter_with_trustlines.transfer_receiver_pays(
+        151, path=[accounts[0], accounts[1]], should_fail=True
+    )
 
 
 def test_transfer_1_mediators(currency_network_contract_with_trustlines, accounts):
@@ -110,23 +114,19 @@ def test_rounding_fee(currency_network_contract_with_trustlines, accounts):
     assert contract.functions.balance(accounts[2], accounts[1]).call() == 100 - 1
 
 
-def test_max_fee(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transferReceiverPays(
-            110, 1, [accounts[0], accounts[1], accounts[2]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+def test_max_fee(currency_network_adapter_with_trustlines, accounts):
+    currency_network_adapter_with_trustlines.transfer_receiver_pays(
+        110, max_fee=1, path=[accounts[0], accounts[1], accounts[2]], should_fail=True
+    )
 
 
-def test_max_fee_3_mediators(currency_network_contract_with_trustlines, accounts):
-    contract = currency_network_contract_with_trustlines
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transferReceiverPays(
-            50,
-            2,
-            [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]],
-            EXTRA_DATA,
-        ).transact({"from": accounts[0]})
+def test_max_fee_3_mediators(currency_network_adapter_with_trustlines, accounts):
+    currency_network_adapter_with_trustlines.transfer_receiver_pays(
+        50,
+        max_fee=2,
+        path=[accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]],
+        should_fail=True,
+    )
 
 
 def test_send_back_with_fees(currency_network_contract_with_trustlines, accounts):

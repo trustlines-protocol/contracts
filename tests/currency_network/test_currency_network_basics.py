@@ -2,13 +2,12 @@
 
 import pytest
 
-import eth_tester.exceptions
+from web3.exceptions import SolidityError
 
 from tests.conftest import (
     EXTRA_DATA,
     EXPIRATION_TIME,
     MAX_UINT_64,
-    CurrencyNetworkAdapter,
 )
 from tests.currency_network.conftest import (
     NETWORK_SETTING,
@@ -46,17 +45,18 @@ def test_meta_decimal(currency_network_contract):
     assert currency_network_contract.functions.decimals().call() == 6
 
 
-def test_init_only_once(currency_network_contract):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+def test_init_only_once(currency_network_contract, assert_failing_transaction):
+    assert_failing_transaction(
         currency_network_contract.functions.init(
             "TestCoin", "T", 6, 0, 0, False, False, EXPIRATION_TIME, []
-        ).transact()
+        )
+    )
 
 
 def test_default_interests_rates_out_of_bounds(web3, invalid_interest_rate):
     invalid_settings = NETWORK_SETTING.copy()
     invalid_settings["default_interest_rate"] = invalid_interest_rate
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+    with pytest.raises(SolidityError):
         deploy_test_network(web3, invalid_settings)
 
 
@@ -175,9 +175,9 @@ def test_set_get_Account_default_interests(currency_network_contract, accounts):
     ]
 
 
-def test_balance(currency_network_contract, accounts):
+def test_balance(currency_network_contract, accounts, make_currency_network_adapter):
     contract = currency_network_contract
-    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+    currency_network_adapter = make_currency_network_adapter(currency_network_contract)
 
     currency_network_adapter.set_account(
         accounts[0], accounts[1], creditline_given=10, creditline_received=20, balance=4
@@ -198,22 +198,21 @@ def test_transfer_0_mediators_fail_not_enough_credit(
 ):
     currency_network_adapter = currency_network_adapter_with_trustlines
     A, B, *rest = accounts
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.transfer(151, path=[A, B])
+    currency_network_adapter.transfer(151, path=[A, B], should_fail=True)
 
 
 def test_transfer_0_mediators_fail_wrong_path(
-    currency_network_contract_with_trustlines, accounts
+    currency_network_contract_with_trustlines, accounts, assert_failing_transaction
 ):
     contract = currency_network_contract_with_trustlines
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(
-            110, 0, [accounts[0], accounts[2]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(
-            1, 0, [accounts[2], accounts[1]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+    assert_failing_transaction(
+        contract.functions.transfer(110, 0, [accounts[0], accounts[2]], EXTRA_DATA),
+        {"from": accounts[0]},
+    )
+    assert_failing_transaction(
+        contract.functions.transfer(1, 0, [accounts[2], accounts[1]], EXTRA_DATA),
+        {"from": accounts[0]},
+    )
 
 
 def test_transfer_1_mediators(currency_network_adapter_with_trustlines, accounts):
@@ -231,18 +230,15 @@ def test_transfer_1_mediators_not_enough_credit(
     currency_network_adapter = currency_network_adapter_with_trustlines
     A, B, C, *rest = accounts
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.transfer(151, path=[A, B, C])
+    currency_network_adapter.transfer(151, path=[A, B, C], should_fail=True)
 
 
 def test_transfer_1_mediators_not_enough_wrong_path(
-    currency_network_contract_with_trustlines, accounts
+    currency_network_adapter_with_trustlines, accounts
 ):
-    contract = currency_network_contract_with_trustlines
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(
-            110, 0, [accounts[0], accounts[1], accounts[3]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+    currency_network_adapter_with_trustlines.transfer(
+        value=110, path=[accounts[0], accounts[1], accounts[3]], should_fail=True
+    )
 
 
 def test_transfer_3_mediators(currency_network_adapter_with_trustlines, accounts):
@@ -331,10 +327,9 @@ def test_can_always_reduce(currency_network_adapter_with_trustlines, accounts):
 def test_update_cannot_open_zero_trustline(currency_network_adapter, accounts):
     A, C, *rest = accounts
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.update_trustline(
-            A, C, creditline_given=0, creditline_received=0
-        )
+    currency_network_adapter.update_trustline(
+        A, C, creditline_given=0, creditline_received=0, should_fail=True
+    )
 
     assert currency_network_adapter.events("TrustlineUpdate") == []
 
@@ -619,10 +614,9 @@ def test_update_trustline_with_custom_while_forbidden(
     """Verifies that if the network uses default interests of 0, no custom interests can be put"""
 
     A, B, *rest = accounts
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.update_trustline(
-            A, B, interest_rate_given=2, interest_rate_received=1
-        )
+    currency_network_adapter.update_trustline(
+        A, B, interest_rate_given=2, interest_rate_received=1, should_fail=True
+    )
 
 
 def test_update_trustline_with_custom_while_forbidden_lowering_interests(
@@ -638,10 +632,9 @@ def test_update_trustline_with_custom_while_forbidden_lowering_interests(
         A, B, 200, 200, False, 0, 0
     ).transact()
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.update_trustline(
-            A, B, interest_rate_given=1, interest_rate_received=1
-        )
+    currency_network_adapter.update_trustline(
+        A, B, interest_rate_given=1, interest_rate_received=1, should_fail=True
+    )
 
 
 def test_update_trustline_lowering_interest_given(currency_network_adapter, accounts):
@@ -683,13 +676,13 @@ def test_setting_trustline_with_negative_interests_with_custom_interests(
     ).transact()
     A, B, *rest = accounts
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.set_account(
-            A, B, interest_rate_given=-1000, interest_rate_received=-1000
-        )
+    currency_network_adapter.set_account(
+        A, B, interest_rate_given=-1000, interest_rate_received=-1000, should_fail=True
+    )
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.update_trustline(A, B, interest_rate_given=-2)
+    currency_network_adapter.update_trustline(
+        A, B, interest_rate_given=-2, should_fail=True
+    )
 
 
 @pytest.mark.parametrize(
@@ -706,14 +699,20 @@ def test_update_trustline_interests_out_of_bounds(
 
     param_dict = {interest_rate_param: invalid_interest_rate}
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.update_trustline(
-            A, B, creditline_given=50, creditline_received=50, **param_dict
-        )
+    currency_network_adapter.update_trustline(
+        A,
+        B,
+        creditline_given=50,
+        creditline_received=50,
+        **param_dict,
+        should_fail=True,
+    )
 
 
 def test_cancel_trustline_update(
-    currency_network_contract_with_trustline_update, accounts
+    currency_network_contract_with_trustline_update,
+    accounts,
+    assert_failing_transaction,
 ):
     """Test that a trustline update is canceled when calling `cancelTrustlineUpdate`"""
     contract = currency_network_contract_with_trustline_update
@@ -726,14 +725,17 @@ def test_cancel_trustline_update(
     contract.functions.updateTrustline(accounts[0], 1, 1, 0, 0, False).transact(
         {"from": accounts[1]}
     )
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(
-            1, 1, [accounts[1], accounts[0]], EXTRA_DATA
-        ).transact({"from": accounts[1]})
+
+    assert_failing_transaction(
+        contract.functions.transfer(1, 1, [accounts[1], accounts[0]], EXTRA_DATA),
+        {"from": accounts[1]},
+    )
 
 
 def test_cancel_trustline_update_not_initiator(
-    currency_network_contract_with_trustline_update, accounts
+    currency_network_contract_with_trustline_update,
+    accounts,
+    assert_failing_transaction,
 ):
     """Test that a trustline update canceled while not initiator"""
     contract = currency_network_contract_with_trustline_update
@@ -746,19 +748,21 @@ def test_cancel_trustline_update_not_initiator(
     contract.functions.updateTrustline(accounts[1], 1, 1, 0, 0, False).transact(
         {"from": accounts[0]}
     )
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(
-            1, 1, [accounts[0], accounts[1]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+
+    assert_failing_transaction(
+        contract.functions.transfer(1, 1, [accounts[0], accounts[1]], EXTRA_DATA),
+        {"from": accounts[0]},
+    )
 
 
-def test_cancel_no_trustline_update(currency_network_contract, accounts):
-    contract = currency_network_contract
+def test_cancel_no_trustline_update(
+    currency_network_adapter,
+    accounts,
+):
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.cancelTrustlineUpdate(accounts[0]).transact(
-            {"from": accounts[1]}
-        )
+    currency_network_adapter.cancel_trustline_update(
+        accounts[1], accounts[0], should_fail=True
+    )
 
 
 def test_cancel_trustline_update_event(
@@ -864,19 +868,18 @@ def test_overflow_max_transfer(currency_network_adapter, accounts):
         accept=True,
     )
     currency_network_adapter.transfer(MAX_CREDITLINE, path=[A, B])
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.transfer(1, path=[A, B])
+
+    currency_network_adapter.transfer(1, path=[A, B], should_fail=True)
 
 
-def test_transfer_no_path(currency_network_adapter, accounts):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.contract.functions.transfer(
-            1, 100, [], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+def test_transfer_no_path(
+    currency_network_adapter, accounts, assert_failing_transaction
+):
+    assert_failing_transaction(
+        currency_network_adapter.contract.functions.transfer(1, 100, [], EXTRA_DATA),
+        {"from": accounts[0]},
+    )
 
 
 def test_transfer_too_short_path(currency_network_adapter, accounts):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.contract.functions.transfer(
-            1, 100, [accounts[0]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+    currency_network_adapter.transfer(1, path=[accounts[0]], should_fail=True)

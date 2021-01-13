@@ -1,10 +1,7 @@
 #! pytest
-
 import pytest
 
-import eth_tester.exceptions
-
-from tests.conftest import EXTRA_DATA, EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import EXTRA_DATA, EXPIRATION_TIME
 from tests.currency_network.conftest import deploy_test_network
 
 trustlines = [
@@ -37,10 +34,12 @@ def currency_network_contract(web3):
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract_with_trustlines(web3, accounts):
+def currency_network_contract_with_trustlines(
+    web3, accounts, make_currency_network_adapter
+):
     contract = deploy_test_network(web3, NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
-        CurrencyNetworkAdapter(contract).set_account(
+        make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
         )
     return contract
@@ -69,6 +68,13 @@ def currency_network_contract_with_trustlines_and_debt(
         creditor, debt_value
     ).transact({"from": debtor})
     return currency_network_contract_with_trustlines
+
+
+@pytest.fixture(scope="session")
+def currency_network_adapter_with_trustlines_and_debt(
+    currency_network_contract_with_trustlines, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_contract_with_trustlines)
 
 
 @pytest.mark.parametrize("creditor, debtor", [(0, 1), (1, 0)])
@@ -136,39 +142,35 @@ def test_debit_transfer(
 
 
 def test_debit_transfer_over_value(
-    currency_network_contract_with_trustlines_and_debt,
+    currency_network_adapter_with_trustlines_and_debt,
     accounts,
     creditor,
     debtor,
     debt_value,
 ):
-    network = currency_network_contract_with_trustlines_and_debt
-
     path = [debtor, accounts[1], accounts[2], creditor]
-    transfer_fees = 2
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.debitTransfer(
-            debt_value + 1, transfer_fees, path, EXTRA_DATA
-        ).transact({"from": creditor})
+    currency_network_adapter_with_trustlines_and_debt.debit_transfer(
+        debt_value + 1, path=path, should_fail=True
+    )
 
 
 def test_debit_transfer_under_value(
-    currency_network_contract_with_trustlines_and_debt,
+    currency_network_adapter_with_trustlines_and_debt,
     accounts,
     creditor,
     debtor,
     debt_value,
 ):
-    network = currency_network_contract_with_trustlines_and_debt
+    network = currency_network_adapter_with_trustlines_and_debt.contract
 
     path = [debtor, accounts[1], accounts[2], creditor]
     transfer_value = debt_value // 2
     transfer_fees = 2
 
-    network.functions.debitTransfer(
-        transfer_value, transfer_fees, path, EXTRA_DATA
-    ).transact({"from": creditor})
+    currency_network_adapter_with_trustlines_and_debt.debit_transfer(
+        transfer_value, max_fee=transfer_fees, path=path
+    )
 
     assert (
         network.functions.getDebt(debtor, creditor).call()
@@ -182,22 +184,19 @@ def test_debit_transfer_under_value(
 
 
 def test_debit_transfer_revert(
-    currency_network_contract_with_trustlines_and_debt,
+    currency_network_adapter_with_trustlines_and_debt,
     accounts,
     creditor,
     debtor,
     debt_value,
 ):
-    network = currency_network_contract_with_trustlines_and_debt
-
     path = [debtor, accounts[1], accounts[1], creditor]
     transfer_value = debt_value // 2
     invalid_transfer_fees = 0
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.debitTransfer(
-            transfer_value, invalid_transfer_fees, path, EXTRA_DATA
-        ).transact({"from": creditor})
+    currency_network_adapter_with_trustlines_and_debt.debit_transfer(
+        transfer_value, max_fee=invalid_transfer_fees, path=path, should_fail=True
+    )
 
 
 def test_debit_transfer_events(
@@ -254,22 +253,26 @@ def test_safe_sum_no_error(currency_network_contract, a, b):
         (min_int256, min_int256),
     ],
 )
-def test_safe_sum_raises_error(currency_network_contract, a, b):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.testSafeSumInt256(a, b).call()
+def test_safe_sum_raises_error(currency_network_contract, a, b, assert_failing_call):
+    assert_failing_call(currency_network_contract.functions.testSafeSumInt256(a, b))
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 0), (0, 1)])
 def test_add_to_debt_min_int256_fails(
-    currency_network_contract, accounts, creditor_index, debtor_index
+    currency_network_contract,
+    accounts,
+    creditor_index,
+    debtor_index,
+    assert_failing_transaction,
 ):
     """we should not be able to add to debt min_int256"""
     creditor = accounts[creditor_index]
     debtor = accounts[debtor_index]
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.testAddToDebt(
-            debtor, creditor, min_int256
-        ).transact({"from": debtor})
+
+    assert_failing_transaction(
+        currency_network_contract.functions.testAddToDebt(debtor, creditor, min_int256),
+        {"from": debtor},
+    )
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(0, 1), (2, 3)])
@@ -293,7 +296,11 @@ def test_add_to_debt_max_int256_succeeds(
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 0), (0, 1)])
 def test_add_to_debt_twice_to_reach_min_int(
-    currency_network_contract, accounts, creditor_index, debtor_index
+    currency_network_contract,
+    accounts,
+    creditor_index,
+    debtor_index,
+    assert_failing_transaction,
 ):
     """We should not be able to overflow the debt by adding twice to it to reach min_int"""
     max_int = 2 ** 255 - 1
@@ -302,7 +309,7 @@ def test_add_to_debt_twice_to_reach_min_int(
     currency_network_contract.functions.testAddToDebt(
         debtor, creditor, max_int
     ).transact({"from": debtor})
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.testAddToDebt(debtor, creditor, 2).transact(
-            {"from": debtor}
-        )
+    assert_failing_transaction(
+        currency_network_contract.functions.testAddToDebt(debtor, creditor, 2),
+        {"from": debtor},
+    )

@@ -1,6 +1,3 @@
-import eth_tester.exceptions
-import pytest
-
 from tests.conftest import get_single_event_of_contract
 
 
@@ -22,12 +19,12 @@ def test_update_implementation(proxy_beacon, upgraded_implementation, owner):
 
 
 def test_update_implementation_not_owner(
-    proxy_beacon, upgraded_implementation, not_owner
+    proxy_beacon, upgraded_implementation, not_owner, assert_failing_transaction
 ):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxy_beacon.functions.upgradeTo(upgraded_implementation.address).transact(
-            {"from": not_owner}
-        )
+    assert_failing_transaction(
+        proxy_beacon.functions.upgradeTo(upgraded_implementation.address),
+        {"from": not_owner},
+    )
 
 
 def test_update_implementation_event(proxy_beacon, upgraded_implementation, owner):

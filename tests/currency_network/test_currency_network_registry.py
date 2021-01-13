@@ -1,6 +1,5 @@
 #! pytest
 import pytest
-import eth_tester.exceptions
 
 from tests.currency_network.conftest import NETWORK_SETTING
 
@@ -135,11 +134,14 @@ def test_add_network_multiple_events(
     assert currency_added_event_list[0].args._registeredBy == accounts[1]
 
 
-def test_add_invalid_network(initialized_currency_network_registry_contract, accounts):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+def test_add_invalid_network(
+    initialized_currency_network_registry_contract, accounts, assert_failing_transaction
+):
+    assert_failing_transaction(
         initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
             accounts[2]
-        ).transact()
+        )
+    )
 
 
 def test_get_address(

@@ -3,7 +3,6 @@
 import pytest
 from tldeploy.core import NetworkMigrater
 
-from tests.conftest import CurrencyNetworkAdapter
 from tests.currency_network.conftest import (
     trustlines,
     NETWORK_SETTING,
@@ -28,7 +27,15 @@ def new_contract(web3, owner):
 
 @pytest.fixture(scope="session")
 def old_contract(
-    web3, accounts, chain, on_boarders, on_boardees, creditors, debtors, debt_values
+    web3,
+    accounts,
+    chain,
+    on_boarders,
+    on_boardees,
+    creditors,
+    debtors,
+    debt_values,
+    make_currency_network_adapter,
 ):
     """Create a currency network with on boardees, debts, and trustlines to migrate from"""
 
@@ -36,7 +43,7 @@ def old_contract(
     expiration_time = web3.eth.getBlock("latest")["timestamp"] + 1000
     settings["expiration_time"] = expiration_time
     contract = deploy_test_network(web3, settings)
-    currency_network = CurrencyNetworkAdapter(contract)
+    currency_network = make_currency_network_adapter(contract)
 
     # set on boardees by opening trustlines from on boarder
     for (on_boarder, on_boardee) in zip(on_boarders, on_boardees):
@@ -67,7 +74,7 @@ def old_contract(
 
     # set trustlines
     for (A, B, clAB, clBA) in trustlines:
-        CurrencyNetworkAdapter(contract).set_account(
+        make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
         )
 
@@ -131,11 +138,13 @@ def debt_values():
 
 
 @pytest.fixture(scope="session")
-def assert_debts_migrated(new_contract, creditors, debtors, debt_values):
+def assert_debts_migrated(
+    new_contract, creditors, debtors, debt_values, make_currency_network_adapter
+):
     def assert_debt():
         for (creditor, debtor, debt_value) in zip(creditors, debtors, debt_values):
             assert (
-                CurrencyNetworkAdapter(new_contract).get_debt(debtor, creditor)
+                make_currency_network_adapter(new_contract).get_debt(debtor, creditor)
                 == debt_value
             )
 

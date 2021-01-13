@@ -1,15 +1,12 @@
 import time
 
 import pytest
-import eth_tester.exceptions
 from math import exp
 
-from eth_tester.exceptions import TransactionFailed
 from tldeploy.core import deploy_network
 from tests.conftest import (
     EXTRA_DATA,
     MAX_UINT_64,
-    CurrencyNetworkAdapter,
     NETWORK_SETTINGS,
 )
 
@@ -106,17 +103,19 @@ def test_interest_calculation(
     interest_rate_given,
     interest_rate_received,
     result,
+    assert_failing_call,
 ):
 
     if result is None:
-        with pytest.raises(TransactionFailed):
+        assert_failing_call(
             test_currency_network_contract.functions.testCalculateBalanceWithInterests(
                 balance,
                 start_time,
                 end_time,
                 interest_rate_given,
                 interest_rate_received,
-            ).call()
+            )
+        )
     else:
         assert (
             test_currency_network_contract.functions.testCalculateBalanceWithInterests(
@@ -348,7 +347,7 @@ def test_custom_interests_postive_balance(
 
 def test_setting_default_and_custom_interests_fails(web3):
     """Tests that we cannot set default and custom interests at the same time"""
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+    with pytest.raises(Exception):
         settings = {
             **NETWORK_SETTINGS,
             "default_interest_rate": 1,
@@ -404,6 +403,7 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
     currency_network_contract_custom_interests_safe_ripple,
     accounts,
     transfer_function_name,
+    assert_failing_transaction,
 ):
     """Tests that the safeInterestRippling prevents transaction where the mediator would loose money,
     because of interests"""
@@ -418,10 +418,12 @@ def test_safe_interest_disallows_transactions_mediated_if_interests_increase(
         accounts[1], accounts[2], 1_000_000, 2_000_000, 100, 200, False, current_time, 0
     ).transact()
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+    assert_failing_transaction(
         getattr(contract.functions, transfer_function_name)(
             1, 2, [accounts[0], accounts[1], accounts[2]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+        ),
+        {"from": accounts[0]},
+    )
 
 
 def test_safe_interest_allows_transactions_mediated_solves_imbalance(
@@ -468,6 +470,7 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
     currency_network_contract_custom_interests_safe_ripple,
     accounts,
     transfer_function_name,
+    assert_failing_transaction,
 ):
     """Tests that the safeInterestRippling disallows transactions that make mediators loose money"""
 
@@ -497,10 +500,12 @@ def test_safe_interest_disallows_transactions_mediated_solves_imbalance_but_over
         100,
     ).transact()
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+    assert_failing_transaction(
         getattr(contract.functions, transfer_function_name)(
             201, 2, [accounts[0], accounts[1], accounts[2]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+        ),
+        {"from": accounts[0]},
+    )
 
 
 def test_negative_interests_default_positive_balance(
@@ -607,7 +612,10 @@ def test_interests_overflow(
 
 
 def test_interests_underflow(
-    chain, currency_network_contract_custom_interests_safe_ripple, accounts
+    chain,
+    currency_network_contract_custom_interests_safe_ripple,
+    accounts,
+    assert_failing_transaction,
 ):
     """Test that the interests will not put the balance below min uint64"""
     contract = currency_network_contract_custom_interests_safe_ripple
@@ -628,10 +636,10 @@ def test_interests_underflow(
 
     chain.time_travel(current_time + int(2.23 * SECONDS_PER_YEAR))
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        contract.functions.transfer(
-            1, 0, [accounts[0], accounts[1]], EXTRA_DATA
-        ).transact({"from": accounts[0]})
+    assert_failing_transaction(
+        contract.functions.transfer(1, 0, [accounts[0], accounts[1]], EXTRA_DATA),
+        {"from": accounts[0]},
+    )
 
     contract.functions.transfer(1, 0, [accounts[1], accounts[0]], EXTRA_DATA).transact(
         {"from": accounts[1]}
@@ -776,9 +784,14 @@ def test_correct_balance_update_event_on_interest_rate_change(
 @pytest.mark.parametrize("value", [10, 100_000, -10, -10000])
 @pytest.mark.parametrize("rate", [0, 10, 200])
 def test_apply_interests(
-    currency_network_contract_custom_interests_safe_ripple, chain, accounts, value, rate
+    currency_network_contract_custom_interests_safe_ripple,
+    chain,
+    accounts,
+    value,
+    rate,
+    make_currency_network_adapter,
 ):
-    adapter = CurrencyNetworkAdapter(
+    adapter = make_currency_network_adapter(
         currency_network_contract_custom_interests_safe_ripple
     )
     A, B, *rest = accounts
@@ -814,9 +827,12 @@ def test_apply_interests(
 
 
 def test_apply_interests_not_possible_when_frozen(
-    currency_network_contract_custom_interests_safe_ripple, accounts
+    currency_network_contract_custom_interests_safe_ripple,
+    accounts,
+    make_currency_network_adapter,
+    assert_failing_transaction,
 ):
-    adapter = CurrencyNetworkAdapter(
+    adapter = make_currency_network_adapter(
         currency_network_contract_custom_interests_safe_ripple
     )
     A, B, *rest = accounts
@@ -825,8 +841,9 @@ def test_apply_interests_not_possible_when_frozen(
     adapter.contract.functions.applyInterests(B).transact({"from": A})
 
     adapter.update_trustline(A, B, is_frozen=True, accept=True)
-    with pytest.raises(TransactionFailed):
-        adapter.contract.functions.applyInterests(B).transact({"from": A})
+    assert_failing_transaction(
+        adapter.contract.functions.applyInterests(B), {"from": A}
+    )
 
 
 @pytest.mark.parametrize("rate_percent", [-1, -10, -50, -100, -327.68])
@@ -872,12 +889,13 @@ def test_interest_calculation_sane(
 
 @pytest.mark.parametrize("balance", [MAX_BALANCE + 1, MIN_BALANCE - 1])
 def test_interests_calculation_balance_out_of_bounds(
-    test_currency_network_contract, balance
+    test_currency_network_contract, balance, assert_failing_call
 ):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+    assert_failing_call(
         test_currency_network_contract.functions.testCalculateBalanceWithInterests(
             balance, 0, 100, 10, 10
-        ).call()
+        )
+    )
 
 
 # Above these we should warn users that interest calculation can be inaccurate
