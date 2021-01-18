@@ -1,6 +1,5 @@
 from deploy_tools import deploy_compiled_contract
 import pytest
-import eth_tester.exceptions
 
 from tests.conftest import get_single_event_of_contract
 
@@ -87,9 +86,8 @@ def test_get_beacon(proxy, owner, proxy_beacon):
     assert proxy.functions.beacon().call({"from": owner}) == proxy_beacon.address
 
 
-def test_get_beacon_not_admin(proxy, not_owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxy.functions.beacon().call({"from": not_owner})
+def test_get_beacon_not_admin(proxy, not_owner, assert_failing_call):
+    assert_failing_call(proxy.functions.beacon(), {"from": not_owner})
 
 
 def test_get_implementation(proxy, owner, upgradeable_implementation):
@@ -99,9 +97,8 @@ def test_get_implementation(proxy, owner, upgradeable_implementation):
     )
 
 
-def test_get_implementation_not_admin(proxy, not_owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxy.functions.implementation().call({"from": not_owner})
+def test_get_implementation_not_admin(proxy, not_owner, assert_failing_call):
+    assert_failing_call(proxy.functions.implementation(), {"from": not_owner})
 
 
 def test_call_proxied_function(proxied_upgradeable_contract, not_owner):
@@ -115,18 +112,21 @@ def test_call_proxied_function(proxied_upgradeable_contract, not_owner):
     )
 
 
-def test_call_proxied_function_admin(proxied_upgradeable_contract, owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxied_upgradeable_contract.functions.setTestValue(456).transact(
-            {"from": owner}
-        )
+def test_call_proxied_function_admin(
+    proxied_upgradeable_contract, owner, assert_failing_transaction
+):
+    assert_failing_transaction(
+        proxied_upgradeable_contract.functions.setTestValue(456), {"from": owner}
+    )
 
 
-def test_call_payable_proxied_function_admin(proxied_upgradeable_contract, owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxied_upgradeable_contract.functions.setTestValue(456).transact(
-            {"from": owner, "value": 1}
-        )
+def test_call_payable_proxied_function_admin(
+    proxied_upgradeable_contract, owner, assert_failing_transaction
+):
+    assert_failing_transaction(
+        proxied_upgradeable_contract.functions.setTestValue(456),
+        {"from": owner, "value": 1},
+    )
 
 
 def test_call_proxied_init_value(
@@ -145,9 +145,8 @@ def test_change_admin(proxy, not_owner, owner):
     assert proxy.functions.admin().call({"from": not_owner}) == not_owner
 
 
-def test_change_admin_not_admin(proxy, not_owner, owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxy.functions.changeAdmin(owner).transact({"from": not_owner})
+def test_change_admin_not_admin(proxy, not_owner, owner, assert_failing_transaction):
+    assert_failing_transaction(proxy.functions.changeAdmin(owner), {"from": not_owner})
 
 
 def test_change_admin_event(proxy, not_owner, owner):
@@ -177,11 +176,12 @@ def test_change_beacon(
     )
 
 
-def test_change_beacon_not_admin(proxy, not_owner, new_proxy_beacon):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxy.functions.changeBeacon(new_proxy_beacon.address).transact(
-            {"from": not_owner}
-        )
+def test_change_beacon_not_admin(
+    proxy, not_owner, new_proxy_beacon, assert_failing_transaction
+):
+    assert_failing_transaction(
+        proxy.functions.changeBeacon(new_proxy_beacon.address), {"from": not_owner}
+    )
 
 
 def test_change_beacon_event(proxy, new_proxy_beacon, proxy_beacon, owner):
@@ -222,14 +222,15 @@ def test_change_beacon_and_call_not_admin(
     proxied_upgraded_contract,
     new_proxy_beacon,
     upgraded_initialized_value,
+    assert_failing_transaction,
 ):
     init_call = proxied_upgraded_contract.encodeABI(
         "init", (upgraded_initialized_value,)
     )
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        proxy.functions.changeBeaconAndCall(
-            new_proxy_beacon.address, init_call
-        ).transact({"from": not_owner})
+    assert_failing_transaction(
+        proxy.functions.changeBeaconAndCall(new_proxy_beacon.address, init_call),
+        {"from": not_owner},
+    )
 
 
 def test_change_beacon_and_call_event(

@@ -4,7 +4,7 @@ import pytest
 
 from tldeploy.core import deploy_network
 
-from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import EXPIRATION_TIME
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 NO_ONBOARDER = "0x0000000000000000000000000000000000000001"
@@ -54,23 +54,27 @@ def currency_network_contract(web3):
 
 
 @pytest.fixture(scope="session")
-def currency_network_adapter(currency_network_contract):
-    return CurrencyNetworkAdapter(currency_network_contract)
+def currency_network_adapter(currency_network_contract, make_currency_network_adapter):
+    return make_currency_network_adapter(currency_network_contract)
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract_with_trustlines(web3, accounts):
+def currency_network_contract_with_trustlines(
+    web3, accounts, make_currency_network_adapter
+):
     contract = deploy_test_network(web3, NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
-        CurrencyNetworkAdapter(contract).set_account(
+        make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
         )
     return contract
 
 
 @pytest.fixture(scope="session")
-def currency_network_adapter_with_trustlines(currency_network_contract_with_trustlines):
-    return CurrencyNetworkAdapter(currency_network_contract_with_trustlines)
+def currency_network_adapter_with_trustlines(
+    currency_network_contract_with_trustlines, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_contract_with_trustlines)
 
 
 @pytest.fixture(scope="session")
@@ -89,8 +93,10 @@ def currency_network_contract_custom_interest(web3):
 
 
 @pytest.fixture(scope="session")
-def currency_network_adapter_custom_interest(currency_network_contract_custom_interest):
-    return CurrencyNetworkAdapter(currency_network_contract_custom_interest)
+def currency_network_adapter_custom_interest(
+    currency_network_contract_custom_interest, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_contract_custom_interest)
 
 
 @pytest.fixture(scope="session")
@@ -100,8 +106,10 @@ def currency_network_contract_with_fees(web3):
 
 
 @pytest.fixture(scope="session")
-def currency_network_adapter_with_fees(currency_network_contract_with_fees):
-    return CurrencyNetworkAdapter(currency_network_contract_with_fees)
+def currency_network_adapter_with_fees(
+    currency_network_contract_with_fees, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_contract_with_fees)
 
 
 @pytest.fixture(scope="session")

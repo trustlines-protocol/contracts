@@ -1,6 +1,3 @@
-import pytest
-from eth_tester.exceptions import TransactionFailed
-
 from tests.currency_network.conftest import ADDRESS_0, NO_ONBOARDER
 
 
@@ -106,14 +103,16 @@ def test_onboarding_event_with_onboarder(currency_network_contract, web3, accoun
     assert event_onboarding_3[0]["args"]["_onboarder"] == accounts[2]
 
 
-def test_onboarding_no_accept_tl(currency_network_contract, accounts):
+def test_onboarding_no_accept_tl(
+    currency_network_contract, accounts, assert_failing_transaction
+):
     """Test that users cannot attempt to open a TL with (0, 0, 0, 0) to onboard someone"""
     open_trustline(currency_network_contract, accounts[1], accounts[2])
 
-    with pytest.raises(TransactionFailed):
-        currency_network_contract.functions.updateCreditlimits(
-            accounts[3], 0, 0
-        ).transact({"from": accounts[1]})
+    assert_failing_transaction(
+        currency_network_contract.functions.updateCreditlimits(accounts[3], 0, 0),
+        {"from": accounts[1]},
+    )
 
     assert (
         currency_network_contract.functions.onboarder(accounts[3]).call() == ADDRESS_0

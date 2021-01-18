@@ -3,7 +3,7 @@ import pytest
 from web3 import Web3
 
 from tldeploy.identity import MetaTransaction, Identity, get_pinned_proxy_interface
-from eth_tester.exceptions import TransactionFailed
+from web3.exceptions import SolidityError
 
 from tldeploy.identity import deploy_proxied_identity, build_create2_address
 
@@ -221,7 +221,7 @@ def test_deploy_proxy_wrong_signature(
     constructor_args = [owner]
     identity_proxy_initcode = get_proxy_initcode(constructor_args)
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(SolidityError):
         proxy_factory.functions.deployProxy(
             identity_proxy_initcode,
             identity_implementation.address,

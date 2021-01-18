@@ -2,9 +2,6 @@
 
 import pytest
 
-import eth_tester.exceptions
-
-from tests.conftest import CurrencyNetworkAdapter
 from tests.currency_network.conftest import deploy_test_network, NETWORK_SETTING
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
@@ -19,7 +16,7 @@ def global_authorized_address(accounts):
 
 @pytest.fixture(scope="session")
 def currency_network_contract_authorized_with_trustlines(
-    web3, global_authorized_address, accounts
+    web3, global_authorized_address, accounts, make_currency_network_adapter
 ):
     network_setting = {**NETWORK_SETTING, "fee_divisor": 100, "custom_interests": True}
     contract = deploy_test_network(
@@ -27,7 +24,7 @@ def currency_network_contract_authorized_with_trustlines(
     )
 
     for (A, B, clAB, clBA) in trustlines:
-        CurrencyNetworkAdapter(contract).set_account(
+        make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
         )
     return contract
@@ -40,8 +37,12 @@ def possible_transfer_path(accounts):
 
 
 @pytest.fixture(scope="session")
-def currency_network_adapter(currency_network_contract_authorized_with_trustlines):
-    return CurrencyNetworkAdapter(currency_network_contract_authorized_with_trustlines)
+def currency_network_adapter(
+    currency_network_contract_authorized_with_trustlines, make_currency_network_adapter
+):
+    return make_currency_network_adapter(
+        currency_network_contract_authorized_with_trustlines
+    )
 
 
 def test_transfer_from_global_authorized(
@@ -59,10 +60,10 @@ def test_transfer_from_not_authorized(
     possible_transfer_path,
 ):
     assert accounts[1] != global_authorized_address
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.transfer_from(
-            accounts[1], 1, path=possible_transfer_path
-        )
+
+    currency_network_adapter.transfer_from(
+        accounts[1], 1, path=possible_transfer_path, should_fail=True
+    )
 
 
 def test_transfer_from_personal_authorized(
@@ -88,17 +89,19 @@ def test_transfer_from_removed_personal_authorized(
     currency_network_adapter.remove_authorized_address(
         target=authorized_address, sender=sender
     )
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.transfer_from(
-            authorized_address, 1, path=possible_transfer_path
-        )
+
+    currency_network_adapter.transfer_from(
+        authorized_address, 1, path=possible_transfer_path, should_fail=True
+    )
 
 
 def test_cannot_remove_not_authorized(currency_network_adapter, accounts):
     target = accounts[3]
     sender = accounts[4]
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.remove_authorized_address(target=target, sender=sender)
+
+    currency_network_adapter.remove_authorized_address(
+        target=target, sender=sender, should_fail=True
+    )
 
 
 def test_add_global_authorized_event(

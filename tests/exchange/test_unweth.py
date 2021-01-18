@@ -1,6 +1,5 @@
 #! pytest
 
-import eth_tester.exceptions
 import pytest
 
 from tldeploy.core import deploy
@@ -48,15 +47,16 @@ def test_deposit_withdraw(unweth_contract, web3, accounts):
     )  # approx, because ot gas costs
 
 
-def test_transfer_from(unweth_contract, web3, accounts):
+def test_transfer_from(unweth_contract, web3, accounts, assert_failing_transaction):
     A, B, C, *rest = accounts
     wei = 10 ** 18
 
     balance = web3.eth.getBalance(B)
     unweth_contract.functions.deposit().transact({"from": A, "value": wei})
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        unweth_contract.functions.transferFrom(A, B, wei).transact({"from": C})
+    assert_failing_transaction(
+        unweth_contract.functions.transferFrom(A, B, wei), {"from": C}
+    )
 
     unweth_contract.functions.addAuthorizedAddress(C).transact({"from": C})
     unweth_contract.functions.transferFrom(A, B, wei).transact({"from": C})

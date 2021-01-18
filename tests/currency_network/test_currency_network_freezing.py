@@ -1,7 +1,6 @@
-import eth_tester.exceptions
 import pytest
 
-from tests.conftest import EXPIRATION_TIME, CurrencyNetworkAdapter
+from tests.conftest import EXPIRATION_TIME
 from tests.currency_network.conftest import deploy_test_network, NETWORK_SETTING
 
 trustlines = [
@@ -15,20 +14,24 @@ trustlines = [
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract(web3):
-    return deploy_test_network(web3, NETWORK_SETTING)
-
-
-@pytest.fixture(scope="session")
 def currency_network_contract_without_expiration(web3):
     return deploy_test_network(web3, {**NETWORK_SETTING, "expiration_time": 0})
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract_with_trustlines(web3, accounts, chain):
+def currency_network_adapter_without_expiration(
+    currency_network_contract_without_expiration, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_contract_without_expiration)
+
+
+@pytest.fixture(scope="session")
+def currency_network_contract_with_trustlines(
+    web3, accounts, chain, make_currency_network_adapter
+):
     contract = deploy_test_network(web3, NETWORK_SETTING)
     for (A, B, clAB, clBA) in trustlines:
-        CurrencyNetworkAdapter(contract).set_account(
+        make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
         )
 
@@ -41,6 +44,13 @@ def frozen_currency_network_contract(currency_network_contract, chain):
     chain.mine_block()
     currency_network_contract.functions.freezeNetwork().transact()
     return currency_network_contract
+
+
+@pytest.fixture()
+def frozen_currency_network_adapter(
+    frozen_currency_network_contract, make_currency_network_adapter
+):
+    return make_currency_network_adapter(frozen_currency_network_contract)
 
 
 @pytest.fixture()
@@ -64,6 +74,15 @@ def currency_network_contract_with_frozen_trustline(
 
 
 @pytest.fixture()
+def currency_network_adapter_with_frozen_trustline(
+    currency_network_contract_with_frozen_trustline, make_currency_network_adapter
+):
+    return make_currency_network_adapter(
+        currency_network_contract_with_frozen_trustline
+    )
+
+
+@pytest.fixture()
 def frozen_currency_network_contract_with_trustlines(
     currency_network_contract_with_trustlines, chain
 ):
@@ -71,6 +90,15 @@ def frozen_currency_network_contract_with_trustlines(
     chain.mine_block()
     currency_network_contract_with_trustlines.functions.freezeNetwork().transact()
     return currency_network_contract_with_trustlines
+
+
+@pytest.fixture()
+def frozen_currency_network_adapter_with_trustlines(
+    frozen_currency_network_contract_with_trustlines, make_currency_network_adapter
+):
+    return make_currency_network_adapter(
+        frozen_currency_network_contract_with_trustlines
+    )
 
 
 @pytest.fixture(scope="session")
@@ -93,21 +121,16 @@ def frozen_functions_and_args(accounts):
     ]
 
 
-def test_freeze_too_soon(currency_network_contract):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.freezeNetwork().transact()
+def test_freeze_too_soon(currency_network_adapter):
+    currency_network_adapter.freeze_network(should_fail=True)
 
 
 def test_cannot_freeze_with_disabled_expiration(
-    currency_network_contract_without_expiration,
+    currency_network_adapter_without_expiration,
 ):
-    assert (
-        currency_network_contract_without_expiration.functions.expirationTime().call()
-        == 0
-    )
+    assert currency_network_adapter_without_expiration.expiration_time == 0
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract_without_expiration.functions.freezeNetwork().transact()
+    currency_network_adapter_without_expiration.freeze_network(should_fail=True)
 
 
 def test_freeze(currency_network_contract, chain):
@@ -122,7 +145,7 @@ def test_freeze(currency_network_contract, chain):
 
 
 def test_trustline_frozen_if_network_frozen(
-    frozen_currency_network_contract_with_trustlines, chain, accounts
+    frozen_currency_network_contract_with_trustlines, accounts
 ):
     assert (
         frozen_currency_network_contract_with_trustlines.functions.isTrustlineFrozen(
@@ -142,6 +165,7 @@ def test_interaction_fails_if_network_frozen(
     frozen_currency_network_contract_with_trustlines,
     frozen_functions_and_args,
     accounts,
+    assert_failing_transaction,
 ):
     network = frozen_currency_network_contract_with_trustlines
 
@@ -149,21 +173,23 @@ def test_interaction_fails_if_network_frozen(
     network.functions.addAuthorizedAddress(accounts[0]).transact()
 
     for (function_name, arguments) in frozen_functions_and_args:
-        with pytest.raises(eth_tester.exceptions.TransactionFailed):
-            getattr(network.functions, function_name)(*arguments).transact(
-                {"from": accounts[0]}
-            )
+        assert_failing_transaction(
+            getattr(network.functions, function_name)(*arguments), {"from": accounts[0]}
+        )
 
 
 def test_cannot_open_trustline_if_network_frozen(
-    frozen_currency_network_contract, accounts
+    frozen_currency_network_adapter, accounts
 ):
-    network = frozen_currency_network_contract
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.updateTrustline(
-            accounts[1], 101, 101, 101, 101, True
-        ).transact({"from": accounts[0]})
+    frozen_currency_network_adapter.update_trustline(
+        accounts[0],
+        accounts[1],
+        creditline_given=101,
+        creditline_received=101,
+        is_frozen=True,
+        should_fail=True,
+    )
 
 
 def test_freezing_trustline(currency_network_contract_with_trustlines, accounts):
@@ -229,22 +255,25 @@ def test_unfreezing_trustline_requires_counter_party_agreement(
 
 
 def test_cannot_unfreeze_trustline_if_network_frozen(
-    frozen_currency_network_contract_with_trustlines, accounts
+    frozen_currency_network_adapter_with_trustlines, accounts
 ):
-
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        frozen_currency_network_contract_with_trustlines.functions.updateTrustline(
-            accounts[0], 100, 150, 0, 0, True
-        ).transact({"from": accounts[1]})
+    frozen_currency_network_adapter_with_trustlines.update_trustline(
+        accounts[1],
+        accounts[0],
+        creditline_received=100,
+        creditline_given=150,
+        is_frozen=True,
+        should_fail=True,
+    )
 
 
 def test_freezing_trustline_via_set_account(
-    currency_network_contract_with_trustlines, accounts
+    currency_network_contract_with_trustlines, accounts, make_currency_network_adapter
 ):
     network = currency_network_contract_with_trustlines
     A, B, *rest = accounts
 
-    CurrencyNetworkAdapter(network).set_account(A, B, is_frozen=True)
+    make_currency_network_adapter(network).set_account(A, B, is_frozen=True)
 
     assert network.functions.isTrustlineFrozen(accounts[0], accounts[1]).call() is True
 
@@ -306,29 +335,34 @@ def test_freezing_trustline_event(
 
 
 def test_interaction_fails_if_trustline_frozen(
-    currency_network_contract_with_frozen_trustline, frozen_functions_and_args, accounts
+    currency_network_adapter_with_frozen_trustline,
+    frozen_functions_and_args,
+    accounts,
+    assert_failing_transaction,
 ):
-    network = currency_network_contract_with_frozen_trustline
-
     # we need to authorize this address for testing transferFrom()
-    network.functions.addAuthorizedAddress(accounts[0]).transact()
+    currency_network_adapter_with_frozen_trustline.add_authorized_address(
+        target=accounts[0], sender=accounts[0]
+    )
 
     for (function_name, arguments) in frozen_functions_and_args:
-        with pytest.raises(eth_tester.exceptions.TransactionFailed):
-            getattr(network.functions, function_name)(*arguments).transact(
-                {"from": accounts[0]}
-            )
+        assert_failing_transaction(
+            getattr(
+                currency_network_adapter_with_frozen_trustline.contract.functions,
+                function_name,
+            )(*arguments),
+            {"from": accounts[0]},
+        )
 
 
 def test_mediate_transfer_fails_if_intermediate_trustline_frozen(
-    currency_network_contract_with_frozen_trustline, accounts
+    currency_network_adapter_with_frozen_trustline, accounts
 ):
     """
     The trustline in between 0 and 1 is frozen, tests that it cannot be used in a mediate transfer
     """
-    network = currency_network_contract_with_frozen_trustline
-
     path = [accounts[4], accounts[0], accounts[1], accounts[2]]
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        network.functions.transfer(10, 10, path, b"").transact({"from": accounts[4]})
+    currency_network_adapter_with_frozen_trustline.transfer(
+        10, path=path, should_fail=True
+    )

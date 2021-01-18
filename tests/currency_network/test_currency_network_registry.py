@@ -1,6 +1,5 @@
 #! pytest
 import pytest
-import eth_tester.exceptions
 
 from tests.currency_network.conftest import NETWORK_SETTING
 
@@ -113,8 +112,10 @@ def test_add_network_multiple_events(
     registrar.
     """
 
-    currency_added_event_filter = currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
-        fromBlock=0
+    currency_added_event_filter = (
+        currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
+            fromBlock=0
+        )
     )
     currency_network_registry_contract.functions.addCurrencyNetwork(
         currency_network_contract.address
@@ -133,11 +134,14 @@ def test_add_network_multiple_events(
     assert currency_added_event_list[0].args._registeredBy == accounts[1]
 
 
-def test_add_invalid_network(initialized_currency_network_registry_contract, accounts):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
+def test_add_invalid_network(
+    initialized_currency_network_registry_contract, accounts, assert_failing_transaction
+):
+    assert_failing_transaction(
         initialized_currency_network_registry_contract.functions.addCurrencyNetwork(
             accounts[2]
-        ).transact()
+        )
+    )
 
 
 def test_get_address(
@@ -166,9 +170,11 @@ def test_get_metadata(
 
 
 def test_no_events(currency_network_registry_contract):
-    events = currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
-        fromBlock=0
-    ).get_all_entries()
+    events = (
+        currency_network_registry_contract.events.CurrencyNetworkAdded.createFilter(
+            fromBlock=0
+        ).get_all_entries()
+    )
     assert len(events) == 0
 
 

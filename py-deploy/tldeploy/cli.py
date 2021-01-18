@@ -14,7 +14,7 @@ from deploy_tools.cli import (
     retrieve_private_key,
     validate_address,
 )
-from deploy_tools.deploy import build_transaction_options
+from deploy_tools.transact import build_transaction_options
 from eth_utils import is_checksum_address, to_checksum_address
 
 import pendulum
@@ -254,7 +254,7 @@ def exchange(
     jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
 ):
     """Deploy an exchange contract and a contract to wrap Ether into an ERC 20
-  token.
+    token.
     """
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
@@ -320,8 +320,7 @@ def identity_implementation(
 def identity_proxy_factory(
     jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
 ):
-    """Deploy an identity proxy factory, which can be used to create proxies for identity contracts.
-    """
+    """Deploy an identity proxy factory, which can be used to create proxies for identity contracts."""
 
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)

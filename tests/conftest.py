@@ -1,9 +1,11 @@
 import pathlib
 
+from deploy_tools.transact import wait_for_successful_function_call, TransactionFailed
 import pytest
 import eth_tester.backends.pyevm.main
 
 import tldeploy.core
+from web3.exceptions import SolidityError
 
 from tests.utils import (
     find_gas_values_for_call,
@@ -54,8 +56,14 @@ def bind_contracts(contract_assets):
 
 
 class CurrencyNetworkAdapter:
-    def __init__(self, contract):
+    def __init__(self, contract, assert_failing_transaction, assert_failing_call):
         self.contract = contract
+        self.assert_failing_transaction = assert_failing_transaction
+        self.assert_failing_call = assert_failing_call
+
+    @property
+    def expiration_time(self):
+        return self.contract.functions.expirationTime().call()
 
     def set_account(
         self,
@@ -69,8 +77,10 @@ class CurrencyNetworkAdapter:
         is_frozen=False,
         m_time=0,
         balance=0,
+        should_fail=False,
+        transaction_options=None,
     ):
-        self.contract.functions.setAccount(
+        function_call = self.contract.functions.setAccount(
             a_address,
             b_address,
             creditline_given,
@@ -80,7 +90,12 @@ class CurrencyNetworkAdapter:
             is_frozen,
             m_time,
             balance,
-        ).transact()
+        )
+        self._transact_with_function_call(
+            function_call,
+            transaction_options=transaction_options,
+            should_fail=should_fail,
+        )
 
     def check_account(
         self,
@@ -114,6 +129,16 @@ class CurrencyNetworkAdapter:
                 )
                 result = False
         return result
+
+    def set_on_boarder(
+        self, on_boardee, on_boarder, transaction_options=None, should_fail=False
+    ):
+        function_call = self.contract.functions.setOnboarder(on_boardee, on_boarder)
+        self._transact_with_function_call(
+            function_call,
+            transaction_options=transaction_options,
+            should_fail=should_fail,
+        )
 
     def get_on_boarder(self, user):
         return self.contract.functions.onboarder(user).call()
@@ -149,15 +174,19 @@ class CurrencyNetworkAdapter:
         interest_rate_received=0,
         is_frozen=False,
         accept=False,
+        should_fail=False,
     ):
-        self.contract.functions.updateTrustline(
+        function_call = self.contract.functions.updateTrustline(
             debtor_address,
             creditline_given,
             creditline_received,
             interest_rate_given,
             interest_rate_received,
             is_frozen,
-        ).transact({"from": creditor_address})
+        )
+        self._transact_with_function_call(
+            function_call, {"from": creditor_address}, should_fail
+        )
 
         if accept:
             self.contract.functions.updateTrustline(
@@ -168,6 +197,12 @@ class CurrencyNetworkAdapter:
                 interest_rate_given,
                 is_frozen,
             ).transact({"from": debtor_address})
+
+    def cancel_trustline_update(self, from_address, to_address, should_fail=False):
+        function_call = self.contract.functions.cancelTrustlineUpdate(to_address)
+        self._transact_with_function_call(
+            function_call, {"from": from_address}, should_fail
+        )
 
     def close_trustline(
         self, user_address, other_address, *, path=None, max_fee=MAX_FEE
@@ -195,21 +230,74 @@ class CurrencyNetworkAdapter:
             and b_address not in self.contract.functions.getFriends(a_address).call()
         )
 
-    def transfer(self, value: int, *, path, max_fee=MAX_FEE, extra_data=EXTRA_DATA):
-        self.contract.functions.transfer(value, max_fee, path, extra_data).transact(
-            {"from": path[0]}
+    def transfer(
+        self,
+        value: int,
+        *,
+        path,
+        max_fee=MAX_FEE,
+        extra_data=EXTRA_DATA,
+        should_fail=False,
+    ):
+        function_call = self.contract.functions.transfer(
+            value, max_fee, path, extra_data
         )
+        self._transact_with_function_call(function_call, {"from": path[0]}, should_fail)
+
+    def transfer_receiver_pays(
+        self,
+        value: int,
+        *,
+        path,
+        max_fee=MAX_FEE,
+        extra_data=EXTRA_DATA,
+        should_fail=False,
+    ):
+        function_call = self.contract.functions.transferReceiverPays(
+            value, max_fee, path, extra_data
+        )
+        self._transact_with_function_call(function_call, {"from": path[0]}, should_fail)
 
     def transfer_from(
-        self, msg_sender, value: int, *, path, max_fee=MAX_FEE, extra_data=EXTRA_DATA
+        self,
+        msg_sender,
+        value: int,
+        *,
+        path,
+        max_fee=MAX_FEE,
+        extra_data=EXTRA_DATA,
+        should_fail=False,
     ):
-        self.contract.functions.transferFrom(value, max_fee, path, extra_data).transact(
-            {"from": msg_sender}
+        function_call = self.contract.functions.transferFrom(
+            value, max_fee, path, extra_data
+        )
+        self._transact_with_function_call(
+            function_call, {"from": msg_sender}, should_fail
+        )
+
+    def debit_transfer(
+        self, value, *, max_fee=MAX_FEE, path, extra_data=EXTRA_DATA, should_fail=False
+    ):
+        function_call = self.contract.functions.debitTransfer(
+            value, max_fee, path, extra_data
+        )
+        self._transact_with_function_call(
+            function_call, {"from": path[len(path) - 1]}, should_fail
         )
 
     def increase_debt(self, debtor, creditor, value):
         return self.contract.functions.increaseDebt(creditor, value).transact(
             {"from": debtor}
+        )
+
+    def set_debt(
+        self, debtor, creditor, value, transaction_options=None, should_fail=False
+    ):
+        function_call = self.contract.functions.setDebt(debtor, creditor, value)
+        self._transact_with_function_call(
+            function_call,
+            transaction_options=transaction_options,
+            should_fail=should_fail,
         )
 
     def get_debt(self, debtor, creditor):
@@ -218,13 +306,38 @@ class CurrencyNetworkAdapter:
     def add_authorized_address(self, *, target, sender):
         self.contract.functions.addAuthorizedAddress(target).transact({"from": sender})
 
-    def remove_authorized_address(self, *, target, sender):
-        self.contract.functions.removeAuthorizedAddress(target).transact(
-            {"from": sender}
+    def remove_authorized_address(self, *, target, sender, should_fail=False):
+        function_call = self.contract.functions.removeAuthorizedAddress(target)
+        self._transact_with_function_call(function_call, {"from": sender}, should_fail)
+
+    def remove_owner(self, sender, should_fail=False):
+        function_call = self.contract.functions.removeOwner()
+        self._transact_with_function_call(
+            function_call, transaction_options={"from": sender}, should_fail=should_fail
+        )
+
+    def freeze_network(self, should_fail=False):
+        function_call = self.contract.functions.freezeNetwork()
+        self._transact_with_function_call(function_call, should_fail=should_fail)
+
+    def unfreeze_network(self, transaction_options=None, should_fail=False):
+        function_call = self.contract.functions.unFreezeNetwork()
+        self._transact_with_function_call(
+            function_call,
+            transaction_options=transaction_options,
+            should_fail=should_fail,
         )
 
     def events(self, event_name: str):
         return list(getattr(self.contract.events, event_name).getLogs(fromBlock=0))
+
+    def _transact_with_function_call(
+        self, function_call, transaction_options=None, should_fail=False
+    ):
+        if should_fail:
+            self.assert_failing_transaction(function_call, transaction_options)
+        else:
+            function_call.transact(transaction_options)
 
 
 UPDATE_GAS_VALUES_OPTION = "--update-gas-values"
@@ -298,3 +411,56 @@ def get_single_event_of_contract(contract, event_name, from_block=0):
     events = get_events_of_contract(contract, event_name, from_block)
     assert len(events) == 1, f"No single event of type {event_name}"
     return events[0]
+
+
+@pytest.fixture(scope="session")
+def assert_failing_transaction(web3):
+    def asserting_function(function_transact, transaction_options=None):
+        """Assert that a transaction will fail.
+        `function_transact` is prepared from a web3 contract via contract.functions.functionName(args)"""
+
+        if transaction_options is None:
+            transaction_options = {}
+        if "gas" not in transaction_options.keys():
+            # We use a gas limit to prevent eth_tester from failing prematurely
+            transaction_options["gas"] = 2_000_000
+
+        with pytest.raises(TransactionFailed):
+            wait_for_successful_function_call(
+                function_transact, web3=web3, transaction_options=transaction_options
+            )
+
+    return asserting_function
+
+
+@pytest.fixture(scope="session")
+def assert_failing_call(
+    web3,
+):
+    def asserting_function(function_call, transaction_options=None):
+        """Assert that a call will fail.
+        `function_call` is prepared from a web3 contract via contract.functions.functionName(args)"""
+
+        if transaction_options is None:
+            transaction_options = {}
+        if "gas" not in transaction_options.keys():
+            # We use a gas limit even though it makes no sense for a call
+            # to prevent eth_tester from failing prematurely
+            transaction_options["gas"] = 2_000_000
+
+        with pytest.raises(SolidityError):
+            function_call.call(transaction_options)
+
+    return asserting_function
+
+
+@pytest.fixture(scope="session")
+def make_currency_network_adapter(assert_failing_transaction, assert_failing_call):
+    def make(contract):
+        return CurrencyNetworkAdapter(
+            contract,
+            assert_failing_transaction=assert_failing_transaction,
+            assert_failing_call=assert_failing_call,
+        )
+
+    return make

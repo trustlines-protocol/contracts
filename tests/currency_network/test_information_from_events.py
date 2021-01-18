@@ -142,11 +142,15 @@ def get_interests_for_trustline(currency_network_contract, a, b):
 
 def get_all_balance_update_events_for_trustline(currency_network_contract, a, b):
     """Get all balance update events of a trustline in sorted order"""
-    forward_balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
-        fromBlock=0, argument_filters={"_from": a, "_to": b}
+    forward_balance_update_events = (
+        currency_network_contract.events.BalanceUpdate().getLogs(
+            fromBlock=0, argument_filters={"_from": a, "_to": b}
+        )
     )
-    reverse_balance_update_events = currency_network_contract.events.BalanceUpdate().getLogs(
-        fromBlock=0, argument_filters={"_from": b, "_to": a}
+    reverse_balance_update_events = (
+        currency_network_contract.events.BalanceUpdate().getLogs(
+            fromBlock=0, argument_filters={"_from": b, "_to": a}
+        )
     )
     balance_update_events = []
     balance_update_events.extend(forward_balance_update_events)
@@ -186,8 +190,8 @@ def get_balance_update_events_for_transfer(currency_network_contract, transfer_e
     tx_hash = transfer_event["transactionHash"]
 
     receipt = currency_network_contract.web3.eth.getTransactionReceipt(tx_hash)
-    balance_update_events = currency_network_contract.events.BalanceUpdate().processReceipt(
-        receipt
+    balance_update_events = (
+        currency_network_contract.events.BalanceUpdate().processReceipt(receipt)
     )
 
     sender = transfer_event["args"]["_from"]
@@ -447,8 +451,7 @@ def test_get_balance_update_events(
 def test_get_interests_for_trustline(
     currency_network_contract_with_trustlines, web3, chain, accounts, years, interests
 ):
-    """Sending 10 with a time difference of x years where the interest rate is 10%
-    """
+    """Sending 10 with a time difference of x years where the interest rate is 10%"""
     currency_network = currency_network_contract_with_trustlines
     currency_network.functions.transfer(
         10, 1000, [accounts[1], accounts[2]], b""

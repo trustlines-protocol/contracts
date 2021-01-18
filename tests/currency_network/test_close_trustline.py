@@ -3,9 +3,7 @@
 import time
 import pytest
 
-import eth_tester.exceptions
-
-from tests.conftest import EXPIRATION_TIME, MAX_UINT_64, CurrencyNetworkAdapter
+from tests.conftest import EXPIRATION_TIME, MAX_UINT_64
 from tests.currency_network.conftest import deploy_test_network
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
@@ -27,9 +25,11 @@ def interest_rate(request):
 
 
 @pytest.fixture()
-def currency_network_contract_with_trustlines(chain, web3, accounts, interest_rate):
+def currency_network_contract_with_trustlines(
+    chain, web3, accounts, interest_rate, make_currency_network_adapter
+):
     currency_network_contract = deploy_test_network(web3, NETWORK_SETTING)
-    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+    currency_network_adapter = make_currency_network_adapter(currency_network_contract)
     current_time = int(time.time())
     chain.time_travel(current_time + 10)
 
@@ -55,11 +55,15 @@ def currency_network_contract_with_trustlines(chain, web3, accounts, interest_ra
 
 @pytest.fixture()
 def currency_network_contract_with_max_uint_trustlines(
-    currency_network_contract_custom_interest, chain, web3, accounts
+    currency_network_contract_custom_interest,
+    chain,
+    web3,
+    accounts,
+    make_currency_network_adapter,
 ):
     """Currency network that uses max_unit64 for all credit limits"""
     currency_network_contract = currency_network_contract_custom_interest
-    currency_network_adapter = CurrencyNetworkAdapter(currency_network_contract)
+    currency_network_adapter = make_currency_network_adapter(currency_network_contract)
 
     for a in accounts[:3]:
         for b in accounts[:3]:
@@ -89,7 +93,9 @@ def test_close_trustline(currency_network_adapter_with_fees, accounts):
     assert currency_network_adapter.is_trustline_closed(A, B)
 
 
-def test_cannot_close_with_balance(currency_network_adapter_with_fees, accounts):
+def test_cannot_close_with_balance(
+    currency_network_adapter_with_fees, accounts, assert_failing_transaction
+):
     currency_network_adapter = currency_network_adapter_with_fees
     A, B, *rest = accounts
 
@@ -98,8 +104,9 @@ def test_cannot_close_with_balance(currency_network_adapter_with_fees, accounts)
     )
     currency_network_adapter.transfer(20, path=[A, B])
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.close_trustline(A, B)
+    assert_failing_transaction(
+        currency_network_adapter.contract.functions.closeTrustline(B), {"from": A}
+    )
 
 
 def test_cannot_reopen_closed_trustline(currency_network_adapter_with_fees, accounts):
@@ -117,9 +124,9 @@ def test_cannot_reopen_closed_trustline(currency_network_adapter_with_fees, acco
 
 
 def test_close_trustline_negative_balance(
-    currency_network_contract_with_trustlines, accounts
+    currency_network_contract_with_trustlines, accounts, make_currency_network_adapter
 ):
-    currency_network_adapter = CurrencyNetworkAdapter(
+    currency_network_adapter = make_currency_network_adapter(
         currency_network_contract_with_trustlines
     )
     A, B, C, D, E, *rest = accounts
@@ -136,9 +143,9 @@ def test_close_trustline_negative_balance(
 
 
 def test_close_trustline_positive_balance(
-    currency_network_contract_with_trustlines, accounts
+    currency_network_contract_with_trustlines, accounts, make_currency_network_adapter
 ):
-    currency_network_adapter = CurrencyNetworkAdapter(
+    currency_network_adapter = make_currency_network_adapter(
         currency_network_contract_with_trustlines
     )
     A, B, C, D, E, *rest = accounts
@@ -155,10 +162,12 @@ def test_close_trustline_positive_balance(
 
 
 def test_close_trustline_max_balance(
-    currency_network_contract_with_max_uint_trustlines, accounts
+    currency_network_contract_with_max_uint_trustlines,
+    accounts,
+    make_currency_network_adapter,
 ):
     """Test that closing a trustline with a triangular transfer as big as max_uint64 succeed"""
-    currency_network_adapter = CurrencyNetworkAdapter(
+    currency_network_adapter = make_currency_network_adapter(
         currency_network_contract_with_max_uint_trustlines
     )
     max_uint64 = 2 ** 64 - 1

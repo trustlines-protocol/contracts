@@ -2,8 +2,6 @@
 
 import pytest
 
-import eth_tester.exceptions
-
 from tests.conftest import (
     CurrencyNetworkAdapter,
     get_single_event_of_contract,
@@ -32,8 +30,8 @@ def currency_network_contract(owned_currency_network):
 
 
 @pytest.fixture(scope="session")
-def currency_network_adapter(currency_network_contract):
-    return CurrencyNetworkAdapter(currency_network_contract)
+def currency_network_adapter(currency_network_contract, make_currency_network_adapter):
+    return make_currency_network_adapter(currency_network_contract)
 
 
 def test_remove_owner(currency_network_contract, owner):
@@ -41,9 +39,8 @@ def test_remove_owner(currency_network_contract, owner):
     assert currency_network_contract.functions.owner().call() == ADDRESS_0
 
 
-def test_remover_owner_not_owner(currency_network_contract, not_owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.removeOwner().transact({"from": not_owner})
+def test_remover_owner_not_owner(currency_network_adapter, not_owner):
+    currency_network_adapter.remove_owner(sender=not_owner, should_fail=True)
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
@@ -105,21 +102,22 @@ def test_set_account_not_owner(
     interest_rate_given = 1
     interest_rate_received = 2
     is_frozen = True
-    mtime = 123456
+    m_time = 123456
     balance = 1000
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_adapter.contract.functions.setAccount(
-            creditor,
-            debtor,
-            creditline_given,
-            creditline_received,
-            interest_rate_given,
-            interest_rate_received,
-            is_frozen,
-            mtime,
-            balance,
-        ).transact({"from": not_owner})
+    currency_network_adapter.set_account(
+        creditor,
+        debtor,
+        creditline_given=creditline_given,
+        creditline_received=creditline_received,
+        interest_rate_given=interest_rate_given,
+        interest_rate_received=interest_rate_received,
+        is_frozen=is_frozen,
+        m_time=m_time,
+        balance=balance,
+        should_fail=True,
+        transaction_options={"from": not_owner},
+    )
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
@@ -275,14 +273,13 @@ def test_set_on_boarder(currency_network_contract, owner, accounts):
     assert currency_network_contract.functions.onboarder(user).call() == on_boarder
 
 
-def test_set_on_boarder_not_owner(currency_network_contract, not_owner, accounts):
+def test_set_on_boarder_not_owner(currency_network_adapter, not_owner, accounts):
     user = accounts[1]
     on_boarder = accounts[2]
 
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.setOnboarder(user, on_boarder).transact(
-            {"from": not_owner}
-        )
+    currency_network_adapter.set_on_boarder(
+        user, on_boarder, transaction_options={"from": not_owner}, should_fail=True
+    )
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
@@ -317,11 +314,14 @@ def test_set_debt(
     assert currency_network_contract.functions.getDebt(debtor, creditor).call() == value
 
 
-def test_set_debt_not_owner(currency_network_contract, not_owner, accounts):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.setDebt(
-            accounts[1], accounts[2], 123
-        ).transact({"from": not_owner})
+def test_set_debt_not_owner(currency_network_adapter, not_owner, accounts):
+    currency_network_adapter.set_debt(
+        accounts[1],
+        accounts[2],
+        123,
+        transaction_options={"from": not_owner},
+        should_fail=True,
+    )
 
 
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
@@ -354,8 +354,7 @@ def test_unfreeze_network(currency_network_contract, owner):
     assert not currency_network_contract.functions.isNetworkFrozen().call()
 
 
-def test_unfreeze_network_not_owner(currency_network_contract, not_owner):
-    with pytest.raises(eth_tester.exceptions.TransactionFailed):
-        currency_network_contract.functions.unFreezeNetwork().transact(
-            {"from": not_owner}
-        )
+def test_unfreeze_network_not_owner(currency_network_adapter, not_owner):
+    currency_network_adapter.unfreeze_network(
+        transaction_options={"from": not_owner}, should_fail=True
+    )
