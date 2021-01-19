@@ -333,6 +333,12 @@ class CurrencyNetworkAdapter:
     def get_debt(self, debtor, creditor):
         return self.contract.functions.getDebt(debtor, creditor).call()
 
+    def get_all_debtors(self):
+        return self.contract.functions.getAllDebtors().call()
+
+    def get_debtors_of_user(self, user):
+        return self.contract.functions.getDebtorsOfUser(user).call()
+
     def add_authorized_address(self, *, target, sender):
         self.contract.functions.addAuthorizedAddress(target).transact({"from": sender})
 
