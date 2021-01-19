@@ -867,7 +867,10 @@ def test_meta_transaction_create_contract(
     meta_transaction = each_identity.filled_and_signed_meta_transaction(
         meta_transaction
     )
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+    # It seems that web3 fails to estimate gas for deployment transactions
+    tx_id = delegate.send_signed_meta_transaction(
+        meta_transaction, transaction_options={"gas": 1_000_000}
+    )
 
     execution_event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
@@ -916,7 +919,10 @@ def test_meta_transaction_create_contract_fails(
     meta_transaction = each_identity.filled_and_signed_meta_transaction(
         meta_transaction
     )
-    tx_id = delegate.send_signed_meta_transaction(meta_transaction)
+    # It seems that web3 fails to estimate gas for deployment transactions
+    tx_id = delegate.send_signed_meta_transaction(
+        meta_transaction, transaction_options={"gas": 1_000_000}
+    )
 
     execution_event = each_identity.contract.events.TransactionExecution.createFilter(
         fromBlock=0
