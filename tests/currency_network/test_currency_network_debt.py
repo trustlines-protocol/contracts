@@ -72,9 +72,11 @@ def currency_network_contract_with_trustlines_and_debt(
 
 @pytest.fixture(scope="session")
 def currency_network_adapter_with_trustlines_and_debt(
-    currency_network_contract_with_trustlines, make_currency_network_adapter
+    currency_network_contract_with_trustlines_and_debt, make_currency_network_adapter
 ):
-    return make_currency_network_adapter(currency_network_contract_with_trustlines)
+    return make_currency_network_adapter(
+        currency_network_contract_with_trustlines_and_debt
+    )
 
 
 @pytest.mark.parametrize("creditor, debtor", [(0, 1), (1, 0)])
@@ -312,4 +314,39 @@ def test_add_to_debt_twice_to_reach_min_int(
     assert_failing_transaction(
         currency_network_contract.functions.testAddToDebt(debtor, creditor, 2),
         {"from": debtor},
+    )
+
+
+def test_get_debtor_from_state(
+    currency_network_adapter_with_trustlines_and_debt,
+    creditor,
+    debtor,
+):
+    assert set(currency_network_adapter_with_trustlines_and_debt.get_all_debtors()) == {
+        creditor,
+        debtor,
+    }
+    assert currency_network_adapter_with_trustlines_and_debt.get_debtors_of_user(
+        creditor
+    ) == [debtor]
+    assert currency_network_adapter_with_trustlines_and_debt.get_debtors_of_user(
+        debtor
+    ) == [creditor]
+
+
+def test_zeroing_debt_cleans_state(
+    currency_network_adapter_with_trustlines_and_debt, creditor, debtor, debt_value
+):
+    """Test that when we lower the debt from debt_value to zero, the debtors and creditors are removed from the list"""
+    currency_network_adapter_with_trustlines_and_debt.increase_debt(
+        debtor=creditor, creditor=debtor, value=debt_value
+    )
+    assert currency_network_adapter_with_trustlines_and_debt.get_all_debtors() == []
+    assert (
+        currency_network_adapter_with_trustlines_and_debt.get_debtors_of_user(creditor)
+        == []
+    )
+    assert (
+        currency_network_adapter_with_trustlines_and_debt.get_debtors_of_user(debtor)
+        == []
     )

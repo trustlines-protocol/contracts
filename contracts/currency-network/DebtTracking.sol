@@ -1,8 +1,16 @@
 pragma solidity ^0.8.0;
 
+import "../lib/it_set_lib.sol";
+
 contract DebtTracking {
     // mapping of a pair of user to the signed debt in the point of view of the lowest address
     mapping(bytes32 => int256) public debt;
+
+    using ItSet for ItSet.AddressSet;
+    // list of all debtors of given creditor
+    mapping(address => ItSet.AddressSet) internal debtorsOfGivenAddress;
+    // list of all debtors of the system
+    ItSet.AddressSet internal allDebtors;
 
     event DebtUpdate(address _debtor, address _creditor, int256 _newDebt);
 
@@ -39,6 +47,26 @@ contract DebtTracking {
         }
     }
 
+    /**
+     * @notice returns the list of all the debtors,
+     * That is a list of all the addresses that currently have a debt (positive or negative)
+     **/
+    function getAllDebtors() public view returns (address[] memory) {
+        return allDebtors.list;
+    }
+
+    /**
+     * @notice returns the list of debtors of a user
+     * That is the list of addresses towards with the user has a debt (positive or negative)
+     **/
+    function getDebtorsOfUser(address _user)
+        public
+        view
+        returns (address[] memory)
+    {
+        return debtorsOfGivenAddress[_user].list;
+    }
+
     function _reduceDebt(
         address debtor,
         address creditor,
@@ -58,16 +86,23 @@ contract DebtTracking {
         int256 value
     ) internal {
         int256 oldDebt = debt[uniqueIdentifier(debtor, creditor)];
+        int256 newDebt;
+
         if (debtor < creditor) {
-            int256 newDebt = oldDebt + value;
+            newDebt = oldDebt + value;
             checkIsNotMinInt256(newDebt);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
             emit DebtUpdate(debtor, creditor, newDebt);
         } else {
-            int256 newDebt = oldDebt + -value;
+            newDebt = oldDebt + -value;
             checkIsNotMinInt256(newDebt);
             debt[uniqueIdentifier(debtor, creditor)] = newDebt;
             emit DebtUpdate(debtor, creditor, -newDebt);
+        }
+        if (newDebt != 0) {
+            addToDebtors(debtor, creditor);
+        } else {
+            removeFromDebtors(debtor, creditor);
         }
     }
 
@@ -91,6 +126,24 @@ contract DebtTracking {
             return keccak256(abi.encodePacked(_b, _a));
         } else {
             revert("Unreachable");
+        }
+    }
+
+    function addToDebtors(address _a, address _b) internal {
+        allDebtors.insert(_a);
+        allDebtors.insert(_b);
+        debtorsOfGivenAddress[_a].insert(_b);
+        debtorsOfGivenAddress[_b].insert(_a);
+    }
+
+    function removeFromDebtors(address _a, address _b) internal {
+        debtorsOfGivenAddress[_a].remove(_b);
+        debtorsOfGivenAddress[_b].remove(_a);
+        if (debtorsOfGivenAddress[_a].size() == 0) {
+            allDebtors.remove(_a);
+        }
+        if (debtorsOfGivenAddress[_b].size() == 0) {
+            allDebtors.remove(_b);
         }
     }
 }
