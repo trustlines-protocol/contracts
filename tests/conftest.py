@@ -97,6 +97,9 @@ class CurrencyNetworkAdapter:
             should_fail=should_fail,
         )
 
+    def get_account(self, a_address, b_address):
+        return self.contract.functions.getAccount(a_address, b_address).call()
+
     def check_account(
         self,
         a_address,
@@ -213,6 +216,33 @@ class CurrencyNetworkAdapter:
             ).transact({"from": user_address})
         self.contract.functions.closeTrustline(other_address).transact(
             {"from": user_address}
+        )
+
+    def close_trustline_by_direct_transfer(
+        self,
+        from_address,
+        to_address,
+        min_balance=0,
+        max_balance=None,
+        transaction_options=None,
+        should_fail=False,
+    ):
+        if max_balance is None:
+            max_balance = self.contract.functions.balance(
+                from_address, to_address
+            ).call()
+        if transaction_options is None:
+            transaction_options = {}
+        if "from" not in transaction_options:
+            transaction_options["from"] = from_address
+
+        function_call = self.contract.functions.closeTrustlineByDirectTransfer(
+            to_address, min_balance, max_balance
+        )
+        self._transact_with_function_call(
+            function_call,
+            transaction_options=transaction_options,
+            should_fail=should_fail,
         )
 
     def is_trustline_closed(self, a_address, b_address):

@@ -293,6 +293,43 @@ contract CurrencyNetworkBasic is
         _closeTrustline(from, _otherParty);
     }
 
+    /** @notice Close the trustline between `msg.sender` and `_otherParty`
+                by doing a transfer from msg.sender to _otherParty to bring balance to zero
+        @param _otherParty Address of the other party to close the trustline with
+        @param _minBalance The maximum balance the trustline should have to close it
+        @param _maxBalance The minimum balance the trustline should have to close it
+     */
+    function closeTrustlineByDirectTransfer(
+        address _otherParty,
+        uint64 _minBalance,
+        uint64 _maxBalance
+    ) external {
+        // We load the trustline in the view of msg.sender, the balance is what msg.sender has to send to _otherParty
+        Trustline memory trustline = _loadTrustline(msg.sender, _otherParty);
+        _applyInterests(trustline);
+        require(
+            trustline.balances.balance <= _maxBalance,
+            "Balance on trustline exceeds _maxBalance"
+        );
+        require(
+            trustline.balances.balance >= _minBalance,
+            "Balance on trustline exceeds _minBalance"
+        );
+
+        address[] memory path = new address[](2);
+        path[0] = msg.sender;
+        path[1] = _otherParty;
+
+        _mediatedTransferSenderPays(
+            uint64(uint72(trustline.balances.balance)),
+            0,
+            path,
+            ""
+        );
+
+        _closeTrustline(msg.sender, _otherParty);
+    }
+
     /** @notice Close the trustline between `msg.sender` and `_otherParty` by doing a triangular transfer over `_path
         @param _otherParty Address of the other party to close the trustline with
         @param _maxFee maximum fees the sender is willing to pay
