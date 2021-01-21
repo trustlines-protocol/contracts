@@ -3,9 +3,25 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
+
+`1.2.0`_ (2020-01-25)
+-----------------------
 * Updated: limit interest rates in currency networks to `+-20%`
 * Updated: limit balance with negative interests to old balance to avoid increasing the balance
   instead of lowering it when calculation fails
+* Updated: all contracts updated to solc 0.8.0
+* Updated: functions to deploy network now use `tl-deploy.core.NetworkSettings` object to be more explicit as to
+  what settings it expects.
+
+* Added: function in currency network `closeTrustlineByDirectTransfer` to close a trustline
+  by making a direct transfer of the balance if the balance is in between min and max arguments
+* Added: owned currency network able to set trustlines before giving up ownership. Usable to migrate old networks
+* Added: command in tl-deploy for migrating old contracts to new ones:
+  `tl-deploy migration` and `tl-deploy verify-migration`
+* Added: Upgradeable currency networks via beacon and proxy pattern
+* Added: `tl-deploy beacon` command to deploy a beacon. Beacons are used as the source of information for the
+  implementation address to be used by currency network proxies
+* Added: `deploy-and-migrate` command to deploy new currency network proxies and migrate old networks to new ones
 
 `1.1.7`_ (2020-10-12)
 -----------------------
@@ -274,4 +290,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.5: https://github.com/trustlines-protocol/contracts/compare/1.1.4...1.1.5
 .. _1.1.6: https://github.com/trustlines-protocol/contracts/compare/1.1.5...1.1.6
 .. _1.1.7: https://github.com/trustlines-protocol/contracts/compare/1.1.6...1.1.7
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.1.6...master
+.. _1.2.0: https://github.com/trustlines-protocol/contracts/compare/1.1.7...1.2.0
+.. _next: https://github.com/trustlines-protocol/contracts/compare/1.2.0...master
