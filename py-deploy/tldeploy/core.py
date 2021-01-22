@@ -6,6 +6,7 @@ import collections
 import os
 from typing import Dict, Set
 
+import attr
 import click
 from deploy_tools import deploy_compiled_contract
 from deploy_tools.transact import (
@@ -21,6 +22,18 @@ from tlbin import load_packaged_contracts
 from web3.contract import Contract
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
+
+
+@attr.s
+class NetworkSettings(object):
+    name: str = attr.ib(default="Name")
+    symbol: str = attr.ib(default="N")
+    decimals: int = attr.ib(default=6)
+    fee_divisor: int = attr.ib(default=0)
+    default_interest_rate: int = attr.ib(default=0)
+    custom_interests: bool = attr.ib(default=False)
+    prevent_mediator_interests: bool = attr.ib(default=False)
+    expiration_time: int = attr.ib(default=0)
 
 
 # lazily load the contracts, so the compile_contracts fixture has a chance to
@@ -112,7 +125,7 @@ def deploy_unw_eth(
 
 def deploy_network(
     web3,
-    network_settings,
+    network_settings: NetworkSettings,
     exchange_address=None,
     currency_network_contract_name=None,
     transaction_options: Dict = None,
@@ -230,7 +243,7 @@ def deploy_beacon(
 def deploy_currency_network_proxy(
     *,
     web3,
-    network_settings,
+    network_settings: NetworkSettings,
     exchange_address=None,
     authorized_addresses=None,
     beacon_address,
@@ -298,7 +311,7 @@ def init_currency_network(
     *,
     web3,
     currency_network,
-    network_settings,
+    network_settings: NetworkSettings,
     exchange_address=None,
     authorized_addresses=None,
     transaction_options,
@@ -312,14 +325,14 @@ def init_currency_network(
         authorized_addresses.append(exchange_address)
 
     init_call = currency_network.functions.init(
-        network_settings["name"],
-        network_settings["symbol"],
-        network_settings["decimals"],
-        network_settings["fee_divisor"],
-        network_settings["default_interest_rate"],
-        network_settings["custom_interests"],
-        network_settings["prevent_mediator_interests"],
-        network_settings["expiration_time"],
+        network_settings.name,
+        network_settings.symbol,
+        network_settings.decimals,
+        network_settings.fee_divisor,
+        network_settings.default_interest_rate,
+        network_settings.custom_interests,
+        network_settings.prevent_mediator_interests,
+        network_settings.expiration_time,
         authorized_addresses,
     )
 
@@ -375,7 +388,7 @@ def deploy_and_migrate_network(
         transaction_options = {}
 
     network_settings = get_network_settings(old_network)
-    network_settings["expiration_time"] = 0
+    network_settings.expiration_time = 0
 
     new_network = deploy_currency_network_proxy(
         web3=web3,
@@ -400,16 +413,16 @@ def deploy_and_migrate_network(
 
 
 def get_network_settings(currency_network):
-    return {
-        "name": currency_network.functions.name().call(),
-        "symbol": currency_network.functions.symbol().call(),
-        "decimals": currency_network.functions.decimals().call(),
-        "fee_divisor": currency_network.functions.capacityImbalanceFeeDivisor().call(),
-        "default_interest_rate": currency_network.functions.defaultInterestRate().call(),
-        "custom_interests": currency_network.functions.customInterests().call(),
-        "expiration_time": currency_network.functions.expirationTime().call(),
-        "prevent_mediator_interests": currency_network.functions.preventMediatorInterests().call(),
-    }
+    return NetworkSettings(
+        name=currency_network.functions.name().call(),
+        symbol=currency_network.functions.symbol().call(),
+        decimals=currency_network.functions.decimals().call(),
+        fee_divisor=currency_network.functions.capacityImbalanceFeeDivisor().call(),
+        default_interest_rate=currency_network.functions.defaultInterestRate().call(),
+        custom_interests=currency_network.functions.customInterests().call(),
+        expiration_time=currency_network.functions.expirationTime().call(),
+        prevent_mediator_interests=currency_network.functions.preventMediatorInterests().call(),
+    )
 
 
 def migrate_networks(

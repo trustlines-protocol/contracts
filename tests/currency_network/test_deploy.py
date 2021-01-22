@@ -7,6 +7,7 @@ from tldeploy.core import (
     deploy_currency_network_proxy,
     verify_owner_not_deployer,
     deploy_and_migrate_network,
+    NetworkSettings,
 )
 
 from tests.conftest import EXPIRATION_TIME, NETWORK_SETTINGS
@@ -14,26 +15,26 @@ from tests.conftest import EXPIRATION_TIME, NETWORK_SETTINGS
 
 def test_deploy_networks(web3):
     example_settings = [
-        {
-            "name": "Test",
-            "symbol": "TST",
-            "decimals": 4,
-            "fee_divisor": 1000,
-            "default_interest_rate": 0,
-            "custom_interests": True,
-            "expiration_time": EXPIRATION_TIME,
-            "prevent_mediator_interests": False,
-        },
-        {
-            "name": "Test Coin",
-            "symbol": "TCN",
-            "decimals": 2,
-            "fee_divisor": 0,
-            "default_interest_rate": 1000,
-            "custom_interests": False,
-            "expiration_time": EXPIRATION_TIME,
-            "prevent_mediator_interests": False,
-        },
+        NetworkSettings(
+            name="Test",
+            symbol="TST",
+            decimals=4,
+            fee_divisor=1000,
+            default_interest_rate=0,
+            custom_interests=True,
+            expiration_time=EXPIRATION_TIME,
+            prevent_mediator_interests=False,
+        ),
+        NetworkSettings(
+            name="Test Coin",
+            symbol="TCN",
+            decimals=2,
+            fee_divisor=0,
+            default_interest_rate=1000,
+            custom_interests=False,
+            expiration_time=0,
+            prevent_mediator_interests=False,
+        ),
     ]
     networks, exchange, unw_eth = deploy_networks(web3, example_settings)
 
@@ -46,20 +47,17 @@ def test_deploy_networks(web3):
 def test_deploy_network(web3):
     network = deploy_network(web3, NETWORK_SETTINGS)
 
-    assert network.functions.name().call() == NETWORK_SETTINGS["name"]
-    assert network.functions.symbol().call() == NETWORK_SETTINGS["symbol"]
-    assert network.functions.decimals().call() == NETWORK_SETTINGS["decimals"]
+    assert network.functions.name().call() == NETWORK_SETTINGS.name
+    assert network.functions.symbol().call() == NETWORK_SETTINGS.symbol
+    assert network.functions.decimals().call() == NETWORK_SETTINGS.decimals
     assert (
-        network.functions.customInterests().call()
-        == NETWORK_SETTINGS["custom_interests"]
+        network.functions.customInterests().call() == NETWORK_SETTINGS.custom_interests
     )
     assert (
         network.functions.defaultInterestRate().call()
-        == NETWORK_SETTINGS["default_interest_rate"]
+        == NETWORK_SETTINGS.default_interest_rate
     )
-    assert (
-        network.functions.expirationTime().call() == NETWORK_SETTINGS["expiration_time"]
-    )
+    assert network.functions.expirationTime().call() == NETWORK_SETTINGS.expiration_time
 
 
 def test_deploy_beacon(web3, accounts, currency_network_contract, account_keys):
@@ -104,29 +102,29 @@ def test_deploy_currency_network_proxy(
     )
     assert (
         proxied_currency_network.functions.name().call({"from": deployer})
-        == NETWORK_SETTINGS["name"]
+        == NETWORK_SETTINGS.name
     )
     assert (
         proxied_currency_network.functions.symbol().call({"from": deployer})
-        == NETWORK_SETTINGS["symbol"]
+        == NETWORK_SETTINGS.symbol
     )
     assert (
         proxied_currency_network.functions.decimals().call({"from": deployer})
-        == NETWORK_SETTINGS["decimals"]
+        == NETWORK_SETTINGS.decimals
     )
     assert (
         proxied_currency_network.functions.customInterests().call({"from": deployer})
-        == NETWORK_SETTINGS["custom_interests"]
+        == NETWORK_SETTINGS.custom_interests
     )
     assert (
         proxied_currency_network.functions.defaultInterestRate().call(
             {"from": deployer}
         )
-        == NETWORK_SETTINGS["default_interest_rate"]
+        == NETWORK_SETTINGS.default_interest_rate
     )
     assert (
         proxied_currency_network.functions.expirationTime().call({"from": deployer})
-        == NETWORK_SETTINGS["expiration_time"]
+        == NETWORK_SETTINGS.expiration_time
     )
 
 

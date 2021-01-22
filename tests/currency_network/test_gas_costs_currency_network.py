@@ -16,9 +16,9 @@
  The gas limit values are rounded up to the thousands
 """
 import pytest
-from tldeploy.core import deploy_network
+from tldeploy.core import deploy_network, NetworkSettings
 
-from ..conftest import EXTRA_DATA, NETWORK_SETTINGS
+from ..conftest import EXTRA_DATA
 
 trustlines = [
     (0, 1, 100, 150),
@@ -35,7 +35,7 @@ trustlines = [
 def currency_network_contract(web3):
     return deploy_network(
         web3,
-        {**NETWORK_SETTINGS, "fee_divisor": 100},
+        NetworkSettings(fee_divisor=100, custom_interests=True),
         currency_network_contract_name="TestCurrencyNetwork",
     )
 
@@ -44,7 +44,7 @@ def currency_network_contract(web3):
 def currency_network_contract_with_trustlines(web3, accounts):
     contract = deploy_network(
         web3,
-        {**NETWORK_SETTINGS, "fee_divisor": 100},
+        NetworkSettings(fee_divisor=100, custom_interests=True),
         currency_network_contract_name="CurrencyNetwork",
     )
     for (A, B, clAB, clBA) in trustlines:

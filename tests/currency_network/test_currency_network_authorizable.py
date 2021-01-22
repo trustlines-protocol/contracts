@@ -1,5 +1,5 @@
 #! pytest
-
+import attr
 import pytest
 
 from tests.currency_network.conftest import deploy_test_network, NETWORK_SETTING
@@ -18,7 +18,9 @@ def global_authorized_address(accounts):
 def currency_network_contract_authorized_with_trustlines(
     web3, global_authorized_address, accounts, make_currency_network_adapter
 ):
-    network_setting = {**NETWORK_SETTING, "fee_divisor": 100, "custom_interests": True}
+    network_setting = attr.evolve(
+        NETWORK_SETTING, fee_divisor=100, custom_interests=True
+    )
     contract = deploy_test_network(
         web3, network_setting, authorized_addresses=[global_authorized_address]
     )

@@ -1,8 +1,9 @@
 #! pytest
 
 import pytest
+from tldeploy.core import NetworkSettings
 
-from tests.conftest import EXTRA_DATA, NETWORK_SETTINGS
+from tests.conftest import EXTRA_DATA
 from tests.currency_network.conftest import deploy_test_network
 
 trustlines = [
@@ -16,7 +17,7 @@ trustlines = [
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(web3, accounts):
-    contract = deploy_test_network(web3, {**NETWORK_SETTINGS, "fee_divisor": 100})
+    contract = deploy_test_network(web3, NetworkSettings(fee_divisor=100))
     for (A, B, clAB, clBA) in trustlines:
         contract.functions.setAccount(
             accounts[A], accounts[B], clAB, clBA, 0, 0, False, 0, 0
@@ -33,7 +34,7 @@ def currency_network_adapter_with_trustlines(
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_high_trustlines(web3, accounts):
-    contract = deploy_test_network(web3, {**NETWORK_SETTINGS, "fee_divisor": 100})
+    contract = deploy_test_network(web3, NetworkSettings(fee_divisor=100))
     creditline = 1000000
     contract.functions.setAccount(
         accounts[0], accounts[1], creditline, creditline, 0, 0, False, 0, 0

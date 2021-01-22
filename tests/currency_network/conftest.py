@@ -2,7 +2,7 @@
 from deploy_tools import deploy_compiled_contract
 import pytest
 
-from tldeploy.core import deploy_network
+from tldeploy.core import deploy_network, NetworkSettings
 
 from tests.conftest import EXPIRATION_TIME
 
@@ -18,16 +18,7 @@ trustlines = [
     (0, 4, 500, 550),
 ]  # (A, B, clAB, clBA)
 
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": False,
-    "prevent_mediator_interests": False,
-    "expiration_time": EXPIRATION_TIME,
-}
+NETWORK_SETTING = NetworkSettings(name="TestCoin", symbol="T")
 
 
 def deploy_test_network(web3, network_setting, **kwargs):
@@ -62,7 +53,9 @@ def currency_network_adapter(currency_network_contract, make_currency_network_ad
 def currency_network_contract_with_trustlines(
     web3, accounts, make_currency_network_adapter
 ):
-    contract = deploy_test_network(web3, NETWORK_SETTING)
+    contract = deploy_test_network(
+        web3, NetworkSettings(expiration_time=EXPIRATION_TIME)
+    )
     for (A, B, clAB, clBA) in trustlines:
         make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
@@ -79,16 +72,9 @@ def currency_network_adapter_with_trustlines(
 
 @pytest.fixture(scope="session")
 def currency_network_contract_custom_interest(web3):
-    network_settings = {
-        "name": "TestCoin",
-        "symbol": "T",
-        "decimals": 6,
-        "fee_divisor": 0,
-        "default_interest_rate": 0,
-        "custom_interests": True,
-        "prevent_mediator_interests": False,
-        "expiration_time": EXPIRATION_TIME,
-    }
+    network_settings = NetworkSettings(
+        custom_interests=True, expiration_time=EXPIRATION_TIME
+    )
     return deploy_test_network(web3, network_settings)
 
 
@@ -101,7 +87,7 @@ def currency_network_adapter_custom_interest(
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_fees(web3):
-    setting = {**NETWORK_SETTING, "fee_divisor": 100, "custom_interests": True}
+    setting = NetworkSettings(fee_divisor=100, custom_interests=True)
     return deploy_test_network(web3, setting)
 
 
@@ -157,7 +143,7 @@ def not_owner_key(account_keys):
 
 @pytest.fixture(scope="session")
 def owned_currency_network(web3, owner):
-    settings = {**NETWORK_SETTING, "custom_interests": True}
+    settings = NetworkSettings(custom_interests=True)
     return deploy_ownable_network(web3, settings, transaction_options={"from": owner})
 
 

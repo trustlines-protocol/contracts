@@ -30,16 +30,16 @@ MAX_UINT_64 = 2 ** 64 - 1
 MAX_FEE = MAX_UINT_64
 
 
-NETWORK_SETTINGS = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": True,
-    "prevent_mediator_interests": False,
-    "expiration_time": EXPIRATION_TIME,
-}
+NETWORK_SETTINGS = tldeploy.core.NetworkSettings(
+    name="TestCoin",
+    symbol="T",
+    decimals=6,
+    fee_divisor=0,
+    default_interest_rate=0,
+    custom_interests=False,
+    prevent_mediator_interests=False,
+    expiration_time=EXPIRATION_TIME,
+)
 
 
 def pytest_addoption(parser):

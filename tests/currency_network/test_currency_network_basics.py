@@ -1,5 +1,5 @@
 #! pytest
-
+import attr
 import pytest
 
 from web3.exceptions import SolidityError
@@ -54,8 +54,9 @@ def test_init_only_once(currency_network_contract, assert_failing_transaction):
 
 
 def test_default_interests_rates_out_of_bounds(web3, invalid_interest_rate):
-    invalid_settings = NETWORK_SETTING.copy()
-    invalid_settings["default_interest_rate"] = invalid_interest_rate
+    invalid_settings = attr.evolve(
+        NETWORK_SETTING, default_interest_rate=invalid_interest_rate
+    )
     with pytest.raises(SolidityError):
         deploy_test_network(web3, invalid_settings)
 

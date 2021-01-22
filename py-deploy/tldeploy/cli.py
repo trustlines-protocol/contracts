@@ -32,6 +32,7 @@ from .core import (
     verify_networks_migrations,
     deploy_beacon,
     deploy_and_migrate_networks_from_file,
+    NetworkSettings,
 )
 
 
@@ -371,36 +372,36 @@ def test(
     expiration_time = 4_102_444_800  # 01/01/2100
 
     network_settings = [
-        {
-            "name": "Cash",
-            "symbol": "CASH",
-            "decimals": 4,
-            "fee_divisor": 1000,
-            "default_interest_rate": 0,
-            "custom_interests": True,
-            "expiration_time": expiration_time,
-            "prevent_mediator_interests": False,
-        },
-        {
-            "name": "Work Hours",
-            "symbol": "HOU",
-            "decimals": 4,
-            "fee_divisor": 0,
-            "default_interest_rate": 1000,
-            "custom_interests": False,
-            "expiration_time": expiration_time,
-            "prevent_mediator_interests": False,
-        },
-        {
-            "name": "Beers",
-            "symbol": "BEER",
-            "decimals": 0,
-            "fee_divisor": 0,
-            "default_interest_rate": 0,
-            "custom_interests": False,
-            "expiration_time": expiration_time,
-            "prevent_mediator_interests": False,
-        },
+        NetworkSettings(
+            name="Cash",
+            symbol="CASH",
+            decimals=4,
+            fee_divisor=1000,
+            default_interest_rate=0,
+            custom_interests=True,
+            expiration_time=expiration_time,
+            prevent_mediator_interests=False,
+        ),
+        NetworkSettings(
+            name="Work Hours",
+            symbol="HOU",
+            decimals=4,
+            fee_divisor=0,
+            default_interest_rate=1000,
+            custom_interests=False,
+            expiration_time=expiration_time,
+            prevent_mediator_interests=False,
+        ),
+        NetworkSettings(
+            name="Beers",
+            symbol="BEER",
+            decimals=0,
+            fee_divisor=0,
+            default_interest_rate=0,
+            custom_interests=False,
+            expiration_time=expiration_time,
+            prevent_mediator_interests=False,
+        ),
     ]
 
     web3 = connect_to_json_rpc(jsonrpc)

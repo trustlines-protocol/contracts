@@ -1,8 +1,8 @@
 #! pytest
 
 import pytest
+from tldeploy.core import NetworkSettings
 
-from tests.conftest import EXPIRATION_TIME
 from tests.currency_network.conftest import deploy_test_network
 
 """
@@ -20,16 +20,9 @@ trustlines = [
     (3, 4, 400, 450),
 ]  # (A, B, clAB, clBA)
 
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 100,
-    "default_interest_rate": 1000,
-    "custom_interests": False,
-    "expiration_time": EXPIRATION_TIME,
-    "prevent_mediator_interests": False,
-}
+NETWORK_SETTING = NetworkSettings(
+    fee_divisor=100, default_interest_rate=1000, custom_interests=False
+)
 
 
 @pytest.fixture(scope="session")

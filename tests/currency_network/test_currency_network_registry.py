@@ -164,9 +164,9 @@ def test_get_metadata(
         currency_network_contract.address
     ).call()
     assert metadata[0] == default_account
-    assert metadata[1] == NETWORK_SETTING["name"]
-    assert metadata[2] == NETWORK_SETTING["symbol"]
-    assert metadata[3] == NETWORK_SETTING["decimals"]
+    assert metadata[1] == NETWORK_SETTING.name
+    assert metadata[2] == NETWORK_SETTING.symbol
+    assert metadata[3] == NETWORK_SETTING.decimals
 
 
 def test_no_events(currency_network_registry_contract):
@@ -185,6 +185,6 @@ def test_add_event(initialized_currency_network_registry_contract, default_accou
     assert len(events) == 1
     assert events[0]["event"] == "CurrencyNetworkAdded"
     assert events[0]["args"]["_registeredBy"] == default_account
-    assert events[0]["args"]["_name"] == NETWORK_SETTING["name"]
-    assert events[0]["args"]["_symbol"] == NETWORK_SETTING["symbol"]
-    assert events[0]["args"]["_decimals"] == NETWORK_SETTING["decimals"]
+    assert events[0]["args"]["_name"] == NETWORK_SETTING.name
+    assert events[0]["args"]["_symbol"] == NETWORK_SETTING.symbol
+    assert events[0]["args"]["_decimals"] == NETWORK_SETTING.decimals
