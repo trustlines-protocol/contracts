@@ -1,10 +1,9 @@
 #! pytest
-
+import attr
 import pytest
 
 from tests.conftest import (
     EXTRA_DATA,
-    EXPIRATION_TIME,
     NETWORK_SETTINGS,
 )
 from tests.currency_network.conftest import deploy_test_network
@@ -22,12 +21,8 @@ trustlines = [
 def currency_network_adapter_with_trustlines(
     web3, accounts, make_currency_network_adapter
 ):
-    network_settings = {
-        **NETWORK_SETTINGS,
-        "fee_divisor": 100,
-        "expiration_time": EXPIRATION_TIME,
-        "default_interest_rate": 0,
-    }
+    network_settings = attr.evolve(NETWORK_SETTINGS, fee_divisor=100)
+
     contract = deploy_test_network(web3, network_settings)
     adapter = make_currency_network_adapter(contract)
     for (A, B, clAB, clBA) in trustlines:

@@ -3,7 +3,7 @@ import pytest
 import attr
 from web3.exceptions import SolidityError
 from hexbytes import HexBytes
-from tldeploy.core import deploy_network, deploy_identity
+from tldeploy.core import deploy_network, deploy_identity, NetworkSettings
 from tldeploy.identity import (
     MetaTransaction,
     UnexpectedIdentityContractException,
@@ -12,7 +12,7 @@ from tldeploy.identity import (
 )
 from tldeploy.signing import solidity_keccak, sign_msg_hash
 
-from tests.conftest import EXTRA_DATA, EXPIRATION_TIME
+from tests.conftest import EXTRA_DATA
 from deploy_tools.compile import build_initcode
 
 
@@ -37,26 +37,14 @@ def test_contract(deploy_contract):
     return deploy_contract("TestContract")
 
 
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 0,
-    "default_interest_rate": 0,
-    "custom_interests": False,
-    "expiration_time": EXPIRATION_TIME,
-    "prevent_mediator_interests": False,
-}
-
-
 @pytest.fixture(scope="session")
 def currency_network_contract(web3):
-    return deploy_network(web3, NETWORK_SETTING)
+    return deploy_network(web3, NetworkSettings())
 
 
 @pytest.fixture(scope="session")
 def second_currency_network_contract(web3):
-    return deploy_network(web3, NETWORK_SETTING)
+    return deploy_network(web3, NetworkSettings())
 
 
 @pytest.fixture(scope="session")

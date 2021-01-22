@@ -1,3 +1,4 @@
+import attr
 import pytest
 
 from tests.conftest import EXPIRATION_TIME
@@ -14,22 +15,19 @@ trustlines = [
 
 
 @pytest.fixture(scope="session")
-def currency_network_contract_without_expiration(web3):
-    return deploy_test_network(web3, {**NETWORK_SETTING, "expiration_time": 0})
-
-
-@pytest.fixture(scope="session")
-def currency_network_adapter_without_expiration(
-    currency_network_contract_without_expiration, make_currency_network_adapter
+def currency_network_contract_with_expiration(
+    web3, accounts, chain, make_currency_network_adapter
 ):
-    return make_currency_network_adapter(currency_network_contract_without_expiration)
+    settings = attr.evolve(NETWORK_SETTING, expiration_time=EXPIRATION_TIME)
+    return deploy_test_network(web3, settings)
 
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(
     web3, accounts, chain, make_currency_network_adapter
 ):
-    contract = deploy_test_network(web3, NETWORK_SETTING)
+    settings = attr.evolve(NETWORK_SETTING, expiration_time=EXPIRATION_TIME)
+    contract = deploy_test_network(web3, settings)
     for (A, B, clAB, clBA) in trustlines:
         make_currency_network_adapter(contract).set_account(
             accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
@@ -39,11 +37,11 @@ def currency_network_contract_with_trustlines(
 
 
 @pytest.fixture()
-def frozen_currency_network_contract(currency_network_contract, chain):
+def frozen_currency_network_contract(currency_network_contract_with_expiration, chain):
     chain.time_travel(EXPIRATION_TIME)
     chain.mine_block()
-    currency_network_contract.functions.freezeNetwork().transact()
-    return currency_network_contract
+    currency_network_contract_with_expiration.functions.freezeNetwork().transact()
+    return currency_network_contract_with_expiration
 
 
 @pytest.fixture()
@@ -126,22 +124,28 @@ def test_freeze_too_soon(currency_network_adapter):
 
 
 def test_cannot_freeze_with_disabled_expiration(
-    currency_network_adapter_without_expiration,
+    currency_network_adapter,
 ):
-    assert currency_network_adapter_without_expiration.expiration_time == 0
+    assert currency_network_adapter.expiration_time == 0
 
-    currency_network_adapter_without_expiration.freeze_network(should_fail=True)
+    currency_network_adapter.freeze_network(should_fail=True)
 
 
-def test_freeze(currency_network_contract, chain):
-    assert currency_network_contract.functions.isNetworkFrozen().call() is False
+def test_freeze(currency_network_contract_with_expiration, chain):
+    assert (
+        currency_network_contract_with_expiration.functions.isNetworkFrozen().call()
+        is False
+    )
 
     chain.time_travel(EXPIRATION_TIME)
     chain.mine_block()
 
-    currency_network_contract.functions.freezeNetwork().transact()
+    currency_network_contract_with_expiration.functions.freezeNetwork().transact()
 
-    assert currency_network_contract.functions.isNetworkFrozen().call() is True
+    assert (
+        currency_network_contract_with_expiration.functions.isNetworkFrozen().call()
+        is True
+    )
 
 
 def test_trustline_frozen_if_network_frozen(

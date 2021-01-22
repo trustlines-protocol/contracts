@@ -1,11 +1,10 @@
 #! pytest
 
 import pytest
-from tldeploy.core import NetworkMigrater
+from tldeploy.core import NetworkMigrater, NetworkSettings
 
 from tests.currency_network.conftest import (
     trustlines,
-    NETWORK_SETTING,
     NO_ONBOARDER,
     ADDRESS_0,
     deploy_ownable_network,
@@ -21,7 +20,7 @@ def owner(accounts):
 @pytest.fixture(scope="session")
 def new_contract(web3, owner):
     return deploy_ownable_network(
-        web3, NETWORK_SETTING, transaction_options={"from": owner}
+        web3, NetworkSettings(), transaction_options={"from": owner}
     )
 
 
@@ -39,9 +38,8 @@ def old_contract(
 ):
     """Create a currency network with on boardees, debts, and trustlines to migrate from"""
 
-    settings = NETWORK_SETTING.copy()
     expiration_time = web3.eth.getBlock("latest")["timestamp"] + 1000
-    settings["expiration_time"] = expiration_time
+    settings = NetworkSettings(expiration_time=expiration_time)
     contract = deploy_test_network(web3, settings)
     currency_network = make_currency_network_adapter(contract)
 

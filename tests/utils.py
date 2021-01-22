@@ -9,6 +9,10 @@ class GasValues(NamedTuple):
     limit: int
 
 
+class GasCalculationError(Exception):
+    pass
+
+
 def assert_gas_costs(actual, expected, *, abs_delta=0):
     """Asserts the gas costs within the allowed delta"""
     assert (
@@ -119,11 +123,13 @@ def find_gas_values_for_call(web3, contract_call, transaction_options=None):
     if transaction_options is None:
         transaction_options = {}
 
-    gas_limit = 20000
+    gas_limit = 20_000
     tx_success = False
 
     while not tx_success:
-        gas_limit += 1000
+        if gas_limit >= 2_000_000:
+            raise GasCalculationError("Gas calculation reached 2_000_000 limit.")
+        gas_limit += 1_000
         transaction_options["gas"] = gas_limit
         try:
             tx_hash = contract_call.transact(transaction_options)

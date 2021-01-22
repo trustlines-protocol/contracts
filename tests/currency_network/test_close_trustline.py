@@ -2,9 +2,9 @@
 
 import time
 import pytest
+from tldeploy.core import NetworkSettings
 
 from tests.conftest import (
-    EXPIRATION_TIME,
     MAX_UINT_64,
     CurrencyNetworkAdapter,
     get_single_event_of_contract,
@@ -12,16 +12,7 @@ from tests.conftest import (
 from tests.currency_network.conftest import deploy_test_network
 
 SECONDS_PER_YEAR = 60 * 60 * 24 * 365
-NETWORK_SETTING = {
-    "name": "TestCoin",
-    "symbol": "T",
-    "decimals": 6,
-    "fee_divisor": 100,
-    "default_interest_rate": 0,
-    "custom_interests": True,
-    "prevent_mediator_interests": False,
-    "expiration_time": EXPIRATION_TIME,
-}
+NETWORK_SETTING = NetworkSettings(fee_divisor=100, custom_interests=True)
 
 
 @pytest.fixture(scope="session", params=[0, 100, 2000])  # 0% , 1%, 20%

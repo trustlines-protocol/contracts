@@ -1,9 +1,10 @@
 import time
 
+import attr
 import pytest
 from math import exp
 
-from tldeploy.core import deploy_network
+from tldeploy.core import deploy_network, NetworkSettings
 from tests.conftest import (
     EXTRA_DATA,
     MAX_UINT_64,
@@ -38,7 +39,7 @@ def test_currency_network_contract(deploy_contract):
 def currency_network_contract_no_interests(web3):
     return deploy_network(
         web3,
-        {**NETWORK_SETTINGS, "custom_interests": False},
+        NetworkSettings(custom_interests=False),
         currency_network_contract_name="TestCurrencyNetwork",
     )
 
@@ -47,7 +48,7 @@ def currency_network_contract_no_interests(web3):
 def currency_network_contract_default_interests(web3):
     return deploy_network(
         web3,
-        {**NETWORK_SETTINGS, "default_interest_rate": 100, "custom_interests": False},
+        attr.evolve(NETWORK_SETTINGS, default_interest_rate=100),
         currency_network_contract_name="TestCurrencyNetwork",
     )
 
@@ -56,7 +57,7 @@ def currency_network_contract_default_interests(web3):
 def currency_network_contract_negative_interests(web3):
     return deploy_network(
         web3,
-        {**NETWORK_SETTINGS, "default_interest_rate": -100, "custom_interests": False},
+        NetworkSettings(default_interest_rate=-100, custom_interests=False),
         currency_network_contract_name="TestCurrencyNetwork",
     )
 
@@ -65,7 +66,7 @@ def currency_network_contract_negative_interests(web3):
 def currency_network_contract_custom_interests_safe_ripple(web3):
     return deploy_network(
         web3,
-        {**NETWORK_SETTINGS, "prevent_mediator_interests": True},
+        NetworkSettings(prevent_mediator_interests=True, custom_interests=True),
         currency_network_contract_name="TestCurrencyNetwork",
     )
 
