@@ -204,16 +204,16 @@ def currencynetwork(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
 
-    network_settings = {
-        "name": name,
-        "symbol": symbol,
-        "decimals": decimals,
-        "fee_divisor": fee_divisor,
-        "default_interest_rate": default_interest_rate,
-        "custom_interests": custom_interests,
-        "prevent_mediator_interests": prevent_mediator_interests,
-        "expiration_time": expiration_time,
-    }
+    network_settings = NetworkSettings(
+        name=name,
+        symbol=symbol,
+        decimals=decimals,
+        fee_divisor=fee_divisor,
+        default_interest_rate=default_interest_rate,
+        custom_interests=custom_interests,
+        prevent_mediator_interests=prevent_mediator_interests,
+        expiration_time=expiration_time,
+    )
 
     contract = deploy_network(
         web3,
