@@ -8,7 +8,7 @@ templates:
 executors:
   ubuntu-builder:
     docker:
-      - image: trustlines/builder:master37
+      - image: trustlines/builder:master61
         environment:
           - SOLC_VERSION=v0.8.0
     working_directory: ~/repo
@@ -21,12 +21,16 @@ executors:
 commands:
   create-venv:
     description: "Create venv"
+    parameters:
+      python-version:
+        default: "3.8"
+        type: string
     steps:
       - run:
           name: Create python venv
           command: |
-            python3 -m venv venv
-            pip install -r dev-requirements.txt wheel
+            python<<parameters.python-version>> -m venv venv
+            pip install -U pip wheel setuptools
 
   config-path:
     description: "set environment variables and change PATH"
@@ -34,8 +38,43 @@ commands:
     - run:
         name: Configuring PATH
         command: |
-          echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:${PATH}'
+          echo >> ${BASH_ENV} 'export PATH=~/bin:~/repo/venv/bin:~/.cargo/bin:${PATH}'
           echo >> ${BASH_ENV} '. ~/.nvm/nvm.sh'
+
+  install:
+    description: "Install the requirements and the checked out source"
+    parameters:
+      python-version:
+        default: "3.8"
+        type: string
+    steps:
+      - checkout
+      - config-path
+      - restore_cache:
+          key: venv-<<parameters.python-version>>-{{ checksum "dev-requirements.txt" }}
+      - create-venv:
+          python-version: <<parameters.python-version>>
+      - run:
+          name: Install requirements
+          command: |
+            make install-requirements
+      - save_cache:
+          key: venv-<<parameters.python-version>>-{{ checksum "dev-requirements.txt" }}
+          paths:
+            - venv
+            - .requirements-installed
+      - run:
+          name: Install py-bin/py-deploy
+          command: |
+            make install
+      - run:
+          name: Build python distributions
+          command: |
+            make dist
+      - run:
+          name: Verify installed packages have compatible dependencies
+          command: |
+            pip check
 
   publish-npm:
     description: Publish npm package
@@ -83,39 +122,21 @@ jobs:
           command: |
             black --check py-bin py-deploy tests
 
-  install:
+  install-py38:
     executor: ubuntu-builder
     steps:
-      - checkout
-      - config-path
-      - restore_cache:
-          key: venv-v2-{{ checksum "dev-requirements.txt" }}
-      - create-venv
-      - run:
-          name: Install requirements
-          command: |
-            make install-requirements
-      - save_cache:
-          key: venv-v2-{{ checksum "dev-requirements.txt" }}
-          paths:
-            - venv
-            - .requirements-installed
-      - run:
-          name: Install py-bin/py-deploy
-          command: |
-            make install
-      - run:
-          name: Build python distributions
-          command: |
-            make dist
-      - run:
-          name: Verify installed packages have compatible dependencies
-          command: |
-            pip check
+      - install:
+          python-version: "3.8"
       - persist_to_workspace:
           root: "~"
           paths:
             - repo
+
+  install-py39:
+    executor: ubuntu-builder
+    steps:
+      - install:
+          python-version: "3.9"
 
   upload-pypi:
     executor: ubuntu-builder
@@ -265,26 +286,29 @@ workflows:
   version: 2
   default:
     jobs:
-
       - run-flake8:
           requires:
-            - install
+            - install-py38
           filters:
             <<: *tagged-filter
 
       - run-black:
           requires:
-            - install
+            - install-py38
           filters:
             <<: *tagged-filter
 
       - run-mypy:
           requires:
-            - install
+            - install-py38
           filters:
             <<: *tagged-filter
 
-      - install:
+      - install-py38:
+          filters:
+            <<: *tagged-filter
+
+      - install-py39:
           filters:
             <<: *tagged-filter
 
@@ -292,7 +316,7 @@ workflows:
           filters:
             <<: *tagged-filter
           requires:
-            - install
+            - install-py38
 
       - upload-npm-dev: &upload-npm
           context: npm-credentials
@@ -305,7 +329,7 @@ workflows:
             - run-flake8
             - run-black
             - run-mypy
-            - install
+            - install-py38
             - run-pytest
             - run-smoketests
 
@@ -327,7 +351,7 @@ workflows:
             - run-black
             - run-mypy
             - run-pytest
-            - install
+            - install-py38
             - run-smoketests
 
       - build-docker-image:
@@ -351,7 +375,7 @@ workflows:
             - run-black
             - run-pytest
             - run-mypy
-            - install
+            - install-py38
             - build-docker-image
             - run-smoketests
 
