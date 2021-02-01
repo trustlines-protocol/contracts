@@ -1,15 +1,26 @@
 #! pytest
 
 import pytest
-from tldeploy.core import NetworkMigrater, NetworkSettings
+from tldeploy.core import (
+    NetworkMigrater,
+    NetworkSettings,
+    get_last_frozen_status_of_account,
+)
 
 from tests.currency_network.conftest import (
-    trustlines,
     NO_ONBOARDER,
     ADDRESS_0,
     deploy_ownable_network,
     deploy_test_network,
 )
+
+trustlines = [
+    (0, 1, 100, 150, False),
+    (1, 2, 200, 250, False),
+    (3, 2, 300, 350, False),
+    (4, 3, 400, 450, True),
+    (0, 4, 500, 550, True),
+]  # (A, B, clAB, clBA, is_frozen)
 
 
 @pytest.fixture(scope="session")
@@ -71,9 +82,14 @@ def old_contract(
         ), "Failed at setting up debts"
 
     # set trustlines
-    for (A, B, clAB, clBA) in trustlines:
-        make_currency_network_adapter(contract).set_account(
-            accounts[A], accounts[B], creditline_given=clAB, creditline_received=clBA
+    for (A, B, clAB, clBA, is_frozen) in trustlines:
+        make_currency_network_adapter(contract).update_trustline(
+            accounts[A],
+            accounts[B],
+            creditline_given=clAB,
+            creditline_received=clBA,
+            is_frozen=is_frozen,
+            accept=True,
         )
 
     chain.time_travel(expiration_time)
@@ -83,18 +99,38 @@ def old_contract(
 
 
 @pytest.fixture(scope="session")
+def old_contract_adapter(old_contract, make_currency_network_adapter):
+    return make_currency_network_adapter(old_contract)
+
+
+@pytest.fixture(scope="session")
+def new_contract_adapter(new_contract, make_currency_network_adapter):
+    return make_currency_network_adapter(new_contract)
+
+
+@pytest.fixture(scope="session")
 def assert_accounts_migrated(new_contract, accounts):
     def assert_migrated():
-        for (first_user, second_user, credit_given, credit_received) in trustlines:
+        for (
+            first_user,
+            second_user,
+            credit_given,
+            credit_received,
+            is_frozen,
+        ) in trustlines:
             (
                 effective_credit_given,
                 effective_credit_received,
+                effective_interest_given,
+                effective_interest_received,
+                effective_is_frozen,
                 *rest,
             ) = new_contract.functions.getAccount(
                 accounts[first_user], accounts[second_user]
             ).call()
             assert effective_credit_given == credit_given
             assert effective_credit_received == credit_received
+            assert effective_is_frozen == is_frozen
 
     return assert_migrated
 
@@ -161,6 +197,8 @@ def network_migrater(web3, new_contract, owner, old_contract):
 
 def test_migrate_network_accounts(network_migrater, assert_accounts_migrated):
     network_migrater.migrate_accounts()
+    # we want to unfreeze_network to truthfully test the `isFrozen` status of trustlines
+    network_migrater.unfreeze_network()
     assert_accounts_migrated()
 
 
@@ -200,3 +238,30 @@ def test_migrate_network_global(
     assert_debts_migrated()
     assert new_contract.functions.isNetworkFrozen().call() is False
     assert new_contract.functions.owner().call() == ADDRESS_0
+
+
+def test_get_last_frozen_status_of_account(old_contract_adapter, accounts):
+    old_contract_adapter.freeze_network_if_not_frozen()
+    for (
+        first_user,
+        second_user,
+        credit_given,
+        credit_received,
+        is_frozen,
+    ) in trustlines:
+        assert (
+            get_last_frozen_status_of_account(
+                old_contract_adapter.contract,
+                accounts[first_user],
+                accounts[second_user],
+            )
+            == is_frozen
+        )
+        assert (
+            get_last_frozen_status_of_account(
+                old_contract_adapter.contract,
+                accounts[second_user],
+                accounts[first_user],
+            )
+            == is_frozen
+        )

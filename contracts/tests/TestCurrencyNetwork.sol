@@ -203,6 +203,18 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         addToUsersAndFriends(_a, _b);
         _applyOnboardingRules(_a, NO_ONBOARDER);
         _applyOnboardingRules(_b, NO_ONBOARDER);
+
+        emit TrustlineUpdate(
+            _a,
+            _b,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _isFrozen
+        );
+        // Be aware that a BalanceUpdate event is missing, as it would not inform about the balance
+        // at the correct `_mtime` since `_mtime` is not an argument of the event.
     }
 }
 

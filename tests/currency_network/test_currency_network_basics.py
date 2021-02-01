@@ -458,6 +458,7 @@ def test_cannot_accept_old_trustline(currency_network_adapter, accounts):
     "new_creditlimit_given, new_creditlmit_received", [(99, 150), (0, 0)]
 )
 def test_update_reduce_need_no_accept_trustline(
+    web3,
     currency_network_adapter_with_trustlines,
     accounts,
     new_creditlimit_given,
@@ -478,9 +479,9 @@ def test_update_reduce_need_no_accept_trustline(
     assert currency_network_adapter.creditline(A, B) == new_creditlimit_given
     assert currency_network_adapter.creditline(B, A) == new_creditlmit_received
     assert (
-        currency_network_adapter.events("TrustlineUpdate")[0]["args"][
-            "_creditlineGiven"
-        ]
+        currency_network_adapter.events(
+            "TrustlineUpdate", from_block=web3.eth.blockNumber
+        )[0]["args"]["_creditlineGiven"]
         == new_creditlimit_given
     )
 

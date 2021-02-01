@@ -323,10 +323,10 @@ def test_freezing_trustline_event(
     )
 
     trustline_update_request_event = network.events.TrustlineUpdateRequest.createFilter(
-        fromBlock=initial_block
+        fromBlock=initial_block + 1
     ).get_all_entries()[0]
     trustline_update_event = network.events.TrustlineUpdate.createFilter(
-        fromBlock=initial_block
+        fromBlock=initial_block + 1
     ).get_all_entries()[0]
 
     assert trustline_update_event["args"]["_debtor"] == accounts[0]

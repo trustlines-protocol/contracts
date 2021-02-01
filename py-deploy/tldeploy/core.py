@@ -3,6 +3,7 @@
 # contracts when running tests in this project.
 
 import collections
+import math
 import os
 from typing import Dict, Set
 
@@ -677,6 +678,12 @@ class NetworkMigrater(NetworkMigrationVerifier):
                     mtime,
                     balance_ab,
                 ) = self.old_network.functions.getAccount(user, friend).call()
+
+                # the value of is_frozen we get from `getAccount` on a frozen network is always true, so not correct.
+                is_frozen = get_last_frozen_status_of_account(
+                    self.old_network, user, friend
+                )
+
                 set_account_call = self.new_network.functions.setAccount(
                     user,
                     friend,
@@ -742,6 +749,51 @@ class NetworkMigrater(NetworkMigrationVerifier):
     def wait_for_successfull_txs_in_queue(self):
         wait_for_successful_transaction_receipts(self.web3, self.tx_queue)
         self.tx_queue = set()
+
+
+def get_last_frozen_status_of_account(currency_network, user, friend):
+    """Return the last frozen status of a trustline
+    The difference with the value returned by `contract.function.getAccount(user, friend).call()` is that the value
+    will always be true for a frozen network via `getAccout` while `get_last_status_of_old_account` will give the
+    value of the trustline before the network froze."""
+
+    last_event = get_last_trustline_update_event(currency_network, user, friend)
+    return last_event["args"]["_isFrozen"]
+
+
+def get_last_trustline_update_event(currency_network, user, friend):
+    trustline_updates_from_user = currency_network.events.TrustlineUpdate().getLogs(
+        fromBlock=0, argument_filters={"_creditor": user, "_debtor": friend}
+    )
+    trustline_updates_from_friend = currency_network.events.TrustlineUpdate().getLogs(
+        fromBlock=0, argument_filters={"_creditor": friend, "_debtor": user}
+    )
+    all_trustline_updates = trustline_updates_from_user + trustline_updates_from_friend
+    sorted_trustline_updates = sorted_events(all_trustline_updates)
+
+    assert (
+        len(sorted_trustline_updates) >= 1
+    ), f"Did not find any trustline update in between {user} and {friend}"
+
+    return sorted_trustline_updates[len(sorted_trustline_updates) - 1]
+
+
+def sorted_events(events, reverse=False):
+    def log_index_key(event):
+        if event.get("logIndex") is None:
+            raise RuntimeError("No log index, events cannot be ordered truthfully.")
+        return event.get("logIndex")
+
+    def block_number_key(event):
+        if event.get("blockNumber") is None:
+            return math.inf
+        return event.get("logIndex")
+
+    return sorted(
+        events,
+        key=lambda event: (block_number_key(event), log_index_key(event)),
+        reverse=reverse,
+    )
 
 
 def get_all_debts_of_currency_network(currency_network):
