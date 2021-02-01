@@ -356,6 +356,12 @@ class CurrencyNetworkAdapter:
         function_call = self.contract.functions.freezeNetwork()
         self._transact_with_function_call(function_call, should_fail=should_fail)
 
+    def freeze_network_if_not_frozen(self, should_fail=False):
+        if self.contract.functions.isNetworkFrozen().call():
+            return
+        function_call = self.contract.functions.freezeNetwork()
+        self._transact_with_function_call(function_call, should_fail=should_fail)
+
     def unfreeze_network(self, transaction_options=None, should_fail=False):
         function_call = self.contract.functions.unFreezeNetwork()
         self._transact_with_function_call(
@@ -364,8 +370,13 @@ class CurrencyNetworkAdapter:
             should_fail=should_fail,
         )
 
-    def events(self, event_name: str):
-        return list(getattr(self.contract.events, event_name).getLogs(fromBlock=0))
+    def is_trustline_frozen(self, a, b):
+        return self.contract.functions.isTrustlineFrozen(a, b).call()
+
+    def events(self, event_name: str, from_block: int = 0):
+        return list(
+            getattr(self.contract.events, event_name).getLogs(fromBlock=from_block)
+        )
 
     def _transact_with_function_call(
         self, function_call, transaction_options=None, should_fail=False
