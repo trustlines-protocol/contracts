@@ -50,3 +50,5 @@ contract Authorizable {
         emit GlobalAuthorizedAddressRemove(target);
     }
 }
+
+// SPDX-License-Identifier: MIT

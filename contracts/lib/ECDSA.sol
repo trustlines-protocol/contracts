@@ -96,3 +96,5 @@ library ECDSA {
             );
     }
 }
+
+// SPDX-License-Identifier: MIT

@@ -53,3 +53,5 @@ contract ERC165Query {
         }
     }
 }
+
+// SPDX-License-Identifier: MIT
