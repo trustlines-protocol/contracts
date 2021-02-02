@@ -28,12 +28,11 @@ from .core import (
     deploy_network,
     deploy_networks,
     deploy_unw_eth,
-    migrate_networks,
-    verify_networks_migrations,
     deploy_beacon,
     deploy_and_migrate_networks_from_file,
     NetworkSettings,
 )
+from tldeploy.migration import migrate_networks, verify_networks_migrations
 
 
 def report_version():

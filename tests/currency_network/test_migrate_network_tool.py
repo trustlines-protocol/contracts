@@ -2,10 +2,9 @@
 
 import pytest
 from tldeploy.core import (
-    NetworkMigrater,
     NetworkSettings,
-    get_last_frozen_status_of_account,
 )
+from tldeploy.migration import NetworkMigrater, get_last_frozen_status_of_account
 
 from tests.currency_network.conftest import (
     NO_ONBOARDER,
