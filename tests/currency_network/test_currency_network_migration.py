@@ -264,6 +264,126 @@ def test_set_account_add_users(
     assert debtor in new_users
 
 
+@pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
+def test_set_trustline_request(
+    currency_network_adapter: CurrencyNetworkAdapter,
+    owner,
+    accounts,
+    creditor_index,
+    debtor_index,
+):
+    creditor = accounts[creditor_index]
+    debtor = accounts[debtor_index]
+    creditline_given = 123
+    creditline_received = 321
+    interest_rate_given = 1
+    interest_rate_received = 2
+    is_frozen = True
+
+    currency_network_adapter.set_trustline_request(
+        creditor,
+        debtor,
+        creditline_given,
+        creditline_received,
+        interest_rate_given,
+        interest_rate_received,
+        is_frozen,
+        transaction_options={"from": owner},
+    )
+
+    # Check that the trustline request was successfully set by accepting it from the debtor
+    currency_network_adapter.unfreeze_network(transaction_options={"from": owner})
+    currency_network_adapter.update_trustline(
+        creditor_address=debtor,
+        debtor_address=creditor,
+        creditline_given=creditline_received,
+        creditline_received=creditline_given,
+        interest_rate_given=interest_rate_received,
+        interest_rate_received=interest_rate_given,
+        is_frozen=is_frozen,
+    )
+    currency_network_adapter.check_account(
+        a_address=creditor,
+        b_address=debtor,
+        creditline_given=creditline_given,
+        creditline_received=creditline_received,
+        interest_rate_given=interest_rate_given,
+        interest_rate_received=interest_rate_received,
+        is_frozen=is_frozen,
+        balance=0,
+    )
+
+
+def test_set_trustline_request_not_owner(
+    currency_network_adapter: CurrencyNetworkAdapter,
+    not_owner,
+    accounts,
+):
+    creditor = accounts[0]
+    debtor = accounts[1]
+    creditline_given = 123
+    creditline_received = 321
+    interest_rate_given = 1
+    interest_rate_received = 2
+    is_frozen = True
+
+    currency_network_adapter.set_trustline_request(
+        creditor,
+        debtor,
+        creditline_given,
+        creditline_received,
+        interest_rate_given,
+        interest_rate_received,
+        is_frozen,
+        transaction_options={"from": not_owner},
+        should_fail=True,
+    )
+
+
+def test_set_trustline_request_event(
+    currency_network_adapter: CurrencyNetworkAdapter, owner, accounts, web3
+):
+    creditor = accounts[0]
+    debtor = accounts[1]
+    creditline_given = 123
+    creditline_received = 321
+    interest_rate_given = 1
+    interest_rate_received = 2
+    is_frozen = True
+
+    currency_network_adapter.set_trustline_request(
+        creditor,
+        debtor,
+        creditline_given,
+        creditline_received,
+        interest_rate_given,
+        interest_rate_received,
+        is_frozen,
+        transaction_options={"from": owner},
+    )
+    trustline_update_request_event_args = get_single_event_of_contract(
+        currency_network_adapter.contract,
+        "TrustlineUpdateRequest",
+        web3.eth.blockNumber,
+    )["args"]
+
+    assert trustline_update_request_event_args["_creditor"] == creditor
+    assert trustline_update_request_event_args["_debtor"] == debtor
+    assert trustline_update_request_event_args["_creditlineGiven"] == creditline_given
+    assert (
+        trustline_update_request_event_args["_creditlineReceived"]
+        == creditline_received
+    )
+    assert (
+        trustline_update_request_event_args["_interestRateGiven"] == interest_rate_given
+    )
+    assert (
+        trustline_update_request_event_args["_interestRateReceived"]
+        == interest_rate_received
+    )
+    assert trustline_update_request_event_args["_isFrozen"] == is_frozen
+
+
 def test_set_on_boarder(currency_network_contract, owner, accounts):
     user = accounts[1]
     on_boarder = accounts[2]
