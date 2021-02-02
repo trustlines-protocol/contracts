@@ -55,7 +55,7 @@ contract AdministrativeProxy {
      *
      * - `beacon` must be a contract with the interface {IBeacon}.
      */
-    constructor(address beacon, bytes memory data) payable {
+    constructor(address beacon_, bytes memory data) payable {
         assert(
             _BEACON_SLOT ==
                 bytes32(uint256(keccak256("eip1967.proxy.beacon")) - 1)
@@ -64,7 +64,7 @@ contract AdministrativeProxy {
             _ADMIN_SLOT ==
                 bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
         );
-        _setBeaconAndCall(beacon, data);
+        _setBeaconAndCall(beacon_, data);
         _setAdmin(msg.sender);
     }
 
@@ -202,11 +202,11 @@ contract AdministrativeProxy {
     /**
      * @dev Returns the current beacon address.
      */
-    function _beacon() internal view returns (address beacon) {
+    function _beacon() internal view returns (address beacon_) {
         bytes32 slot = _BEACON_SLOT;
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            beacon := sload(slot)
+            beacon_ := sload(slot)
         }
     }
 
@@ -227,8 +227,8 @@ contract AdministrativeProxy {
      * - `beacon` must be a contract.
      * - The implementation returned by `beacon` must be a contract.
      */
-    function _setBeaconAndCall(address beacon, bytes memory data) internal {
-        _setBeacon(beacon);
+    function _setBeaconAndCall(address beacon_, bytes memory data) internal {
+        _setBeacon(beacon_);
 
         if (data.length > 0) {
             Address.functionDelegateCall(
@@ -249,20 +249,20 @@ contract AdministrativeProxy {
      * - `beacon` must be a contract.
      * - The implementation returned by `beacon` must be a contract.
      */
-    function _setBeacon(address beacon) internal {
+    function _setBeacon(address beacon_) internal {
         require(
-            Address.isContract(beacon),
+            Address.isContract(beacon_),
             "BeaconProxy: beacon is not a contract"
         );
         require(
-            Address.isContract(IBeacon(beacon).implementation()),
+            Address.isContract(IBeacon(beacon_).implementation()),
             "BeaconProxy: beacon implementation is not a contract"
         );
         bytes32 slot = _BEACON_SLOT;
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            sstore(slot, beacon)
+            sstore(slot, beacon_)
         }
     }
 

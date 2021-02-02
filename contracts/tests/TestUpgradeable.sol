@@ -17,7 +17,7 @@ contract TestUpgradeable {
         return 1;
     }
 
-    function admin() external returns (address) {
+    function admin() external view returns (address) {
         // This is a test function that clashes with the `admin` function of the proxy
         return address(this);
     }

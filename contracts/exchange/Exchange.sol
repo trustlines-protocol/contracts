@@ -109,6 +109,7 @@ contract Exchange {
         bytes32 r,
         bytes32 s
     ) public returns (uint256 filledTakerTokenAmount) {
+        shouldThrowOnInsufficientBalanceOrAllowance; // This line is just to disable solc warnings
         Order memory order =
             Order({
                 maker: orderAddresses[0],
