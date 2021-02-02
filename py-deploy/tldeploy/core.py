@@ -647,6 +647,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
 
         self.freeze_old_network()
         self.migrate_accounts()
+        self.migrate_trustline_update_requests()
         self.migrate_on_boarders()
         self.migrate_debts()
         self.unfreeze_network()
@@ -723,6 +724,25 @@ class NetworkMigrater(NetworkMigrationVerifier):
         self.wait_for_successfull_txs_in_queue()
         click.secho("Debts migration complete")
 
+    def migrate_trustline_update_requests(self):
+        click.secho("Trustline requests migration")
+        request_events = get_pending_trustline_update_requests(self.old_network)
+        for request_event in request_events:
+            event_args = request_event["args"]
+            set_trustline_request_call = self.new_network.functions.setTrustlineRequest(
+                event_args["_creditor"],
+                event_args["_debtor"],
+                event_args["_creditlineGiven"],
+                event_args["_creditlineReceived"],
+                event_args["_interestRateGiven"],
+                event_args["_interestRateReceived"],
+                event_args["_isFrozen"],
+            )
+            self.call_contract_function_with_tx(set_trustline_request_call)
+
+        self.wait_for_successfull_txs_in_queue()
+        click.secho("Trustline requests migration complete")
+
     def unfreeze_network(self):
         unfreeze_call = self.new_network.functions.unFreezeNetwork()
         self.call_contract_function_with_tx(unfreeze_call)
@@ -787,7 +807,7 @@ def sorted_events(events, reverse=False):
     def block_number_key(event):
         if event.get("blockNumber") is None:
             return math.inf
-        return event.get("logIndex")
+        return event.get("blockNumber")
 
     return sorted(
         events,
@@ -813,6 +833,45 @@ def get_all_debts_of_currency_network(currency_network):
             debts[creditor][debtor] = -value
 
     return debts
+
+
+def get_pending_trustline_update_requests(currency_network):
+    all_requests = currency_network.events.TrustlineUpdateRequest().getLogs(fromBlock=0)
+    # we need to delete trustline requests that have been canceled
+    all_cancel = currency_network.events.TrustlineUpdateCancel().getLogs(fromBlock=0)
+    # we need to delete trustline requests that have been accepted and resulted in a trustline update
+    all_updates = currency_network.events.TrustlineUpdate().getLogs(fromBlock=0)
+
+    all_events = all_requests + all_cancel + all_updates
+    all_events = sorted_events(all_events)
+
+    latest_trustline_updates = dict()
+
+    for event in all_events:
+        if event.get("event") == "TrustlineUpdateRequest":
+            uid = unique_id(event["args"]["_creditor"], event["args"]["_debtor"])
+            latest_trustline_updates[uid] = event
+        elif event.get("event") == "TrustlineUpdateCancel":
+            uid = unique_id(event["args"]["_initiator"], event["args"]["_counterparty"])
+            del latest_trustline_updates[uid]
+        elif event.get("event") == "TrustlineUpdate":
+            uid = unique_id(event["args"]["_creditor"], event["args"]["_debtor"])
+            if uid in latest_trustline_updates.keys():
+                del latest_trustline_updates[uid]
+        else:
+            raise RuntimeError(
+                f"Expected event of type TrustlineUpdateRequest, TrustlineUpdateCancel, or TrustlineUpdate, "
+                f"got: {event}"
+            )
+
+    return list(latest_trustline_updates.values())
+
+
+def unique_id(user_1: str, user_2: str):
+    if user_1 < user_2:
+        return user_1 + user_2
+    else:
+        return user_2 + user_1
 
 
 class TransactionsFailed(Exception):

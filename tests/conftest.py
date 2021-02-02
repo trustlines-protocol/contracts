@@ -397,6 +397,9 @@ class CurrencyNetworkAdapter:
             should_fail=should_fail,
         )
 
+    def is_network_frozen(self):
+        return self.contract.functions.isNetworkFrozen().call()
+
     def is_trustline_frozen(self, a, b):
         return self.contract.functions.isTrustlineFrozen(a, b).call()
 
