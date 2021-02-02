@@ -79,6 +79,36 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         emit BalanceUpdate(_creditor, _debtor, balanceWithInterests);
     }
 
+    /**
+     * @dev Set a trustline request in between two users
+     * @param _creditor The first party of the trustline request
+     * @param _debtor The other party of the trustline request
+     * @param _creditlineGiven The creditline limit given by _creditor
+     * @param _creditlineReceived The creditline limit given _debtor
+     * @param _interestRateGiven The interest given by _creditor
+     * @param _interestRateReceived The interest given by _debtor
+     * @param _isFrozen Whether the trustline should be frozen
+     */
+    function setTrustlineRequest(
+        address _creditor,
+        address _debtor,
+        uint64 _creditlineGiven,
+        uint64 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
+        bool _isFrozen
+    ) external onlyOwner {
+        _requestTrustlineUpdate(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _isFrozen
+        );
+    }
+
     function setOnboarder(address user, address onBoarder) external onlyOwner {
         onboarder[user] = onBoarder;
         emit Onboard(onBoarder, user);

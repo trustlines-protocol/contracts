@@ -133,6 +133,33 @@ class CurrencyNetworkAdapter:
                 result = False
         return result
 
+    def set_trustline_request(
+        self,
+        creditor,
+        debtor,
+        creditline_given=None,
+        creditline_received=None,
+        interest_rate_given=None,
+        interest_rate_received=None,
+        is_frozen=None,
+        transaction_options=None,
+        should_fail=False,
+    ):
+        function_call = self.contract.functions.setTrustlineRequest(
+            creditor,
+            debtor,
+            creditline_given,
+            creditline_received,
+            interest_rate_given,
+            interest_rate_received,
+            is_frozen,
+        )
+        self._transact_with_function_call(
+            function_call,
+            transaction_options=transaction_options,
+            should_fail=should_fail,
+        )
+
     def set_on_boarder(
         self, on_boardee, on_boarder, transaction_options=None, should_fail=False
     ):
