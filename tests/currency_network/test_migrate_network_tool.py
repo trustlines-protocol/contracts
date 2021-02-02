@@ -22,6 +22,14 @@ trustlines = [
     (0, 4, 500, 550, True),
 ]  # (A, B, clAB, clBA, is_frozen)
 
+pending_trustlines_requests = [
+    (0, 1, 1000, 1500, 1, 2, False),
+    (1, 2, 2000, 2500, 4, 3, False),
+    (3, 2, 3000, 3500, 5, 6, False),
+    (4, 3, 4000, 4500, 4, 2, False),
+    (0, 4, 5000, 5500, 1, 0, False),
+]  # (A, B, clAB, clBA, interestAB, interestBA, is_frozen)
+
 
 @pytest.fixture(scope="session")
 def owner(accounts):
@@ -31,7 +39,9 @@ def owner(accounts):
 @pytest.fixture(scope="session")
 def new_contract(web3, owner):
     return deploy_ownable_network(
-        web3, NetworkSettings(), transaction_options={"from": owner}
+        web3,
+        NetworkSettings(custom_interests=True),
+        transaction_options={"from": owner},
     )
 
 
@@ -50,7 +60,7 @@ def old_contract(
     """Create a currency network with on boardees, debts, and trustlines to migrate from"""
 
     expiration_time = web3.eth.getBlock("latest")["timestamp"] + 1000
-    settings = NetworkSettings(expiration_time=expiration_time)
+    settings = NetworkSettings(expiration_time=expiration_time, custom_interests=True)
     contract = deploy_test_network(web3, settings)
     currency_network = make_currency_network_adapter(contract)
 
@@ -83,13 +93,34 @@ def old_contract(
 
     # set trustlines
     for (A, B, clAB, clBA, is_frozen) in trustlines:
-        make_currency_network_adapter(contract).update_trustline(
+        currency_network.update_trustline(
             accounts[A],
             accounts[B],
             creditline_given=clAB,
             creditline_received=clBA,
             is_frozen=is_frozen,
             accept=True,
+        )
+
+    # set pending trustline requests
+    for (
+        A,
+        B,
+        clAB,
+        clBA,
+        interest_AB,
+        interest_BA,
+        is_frozen,
+    ) in pending_trustlines_requests:
+        currency_network.update_trustline(
+            accounts[A],
+            accounts[B],
+            creditline_given=clAB,
+            creditline_received=clBA,
+            interest_rate_given=interest_AB,
+            interest_rate_received=interest_BA,
+            is_frozen=is_frozen,
+            accept=False,
         )
 
     chain.time_travel(expiration_time)
@@ -131,6 +162,45 @@ def assert_accounts_migrated(new_contract, accounts):
             assert effective_credit_given == credit_given
             assert effective_credit_received == credit_received
             assert effective_is_frozen == is_frozen
+
+    return assert_migrated
+
+
+@pytest.fixture(scope="session")
+def assert_pending_trusltines_migrated(new_contract_adapter, accounts):
+    def assert_migrated():
+        # test that the pending trustline updates were properly migrated by accepting them
+        assert (
+            new_contract_adapter.is_network_frozen() is False
+        ), "Cannot test out the trustlines migration if network is still frozen"
+
+        for (
+            A,
+            B,
+            clAB,
+            clBA,
+            interest_AB,
+            interest_BA,
+            is_frozen,
+        ) in pending_trustlines_requests:
+            new_contract_adapter.update_trustline(
+                accounts[B],
+                accounts[A],
+                creditline_given=clBA,
+                creditline_received=clAB,
+                interest_rate_given=interest_BA,
+                interest_rate_received=interest_AB,
+                is_frozen=is_frozen,
+            )
+            assert new_contract_adapter.check_account(
+                accounts[A],
+                accounts[B],
+                clAB,
+                clBA,
+                interest_AB,
+                interest_BA,
+                is_frozen,
+            )
 
     return assert_migrated
 
@@ -228,6 +298,7 @@ def test_migrate_network_global(
     assert_debts_migrated,
     assert_on_boarders_migrated,
     assert_accounts_migrated,
+    assert_pending_trusltines_migrated,
 ):
     """Test that calling `migrate_network` will migrate accounts, on boarders, debts,
     unfreeze the network and remove the owner"""
@@ -236,6 +307,7 @@ def test_migrate_network_global(
     assert_accounts_migrated()
     assert_on_boarders_migrated()
     assert_debts_migrated()
+    assert_pending_trusltines_migrated()
     assert new_contract.functions.isNetworkFrozen().call() is False
     assert new_contract.functions.owner().call() == ADDRESS_0
 
@@ -265,3 +337,11 @@ def test_get_last_frozen_status_of_account(old_contract_adapter, accounts):
             )
             == is_frozen
         )
+
+
+def test_get_pending_trustline_requests(
+    network_migrater, assert_pending_trusltines_migrated
+):
+    network_migrater.migrate_trustline_update_requests()
+    network_migrater.unfreeze_network()
+    assert_pending_trusltines_migrated()
