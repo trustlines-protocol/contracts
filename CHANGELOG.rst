@@ -3,6 +3,9 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
+* Updated: properly get the `isFrozen` status for trustlines during migration, no longer resulting
+  in constantly frozen trustlines.
+* Updated: now migrate pending trustline requests when migrating networks.
 
 `1.2.0`_ (2020-01-25)
 -----------------------
