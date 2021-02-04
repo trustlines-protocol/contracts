@@ -1,7 +1,7 @@
 # This file has been copied and adapted from the trustlines-contracts project.
 # We like to get rid of the populus dependency and we don't want to compile the
 # contracts when running tests in this project.
-
+import json
 from typing import Dict
 
 import attr
@@ -331,6 +331,7 @@ def deploy_and_migrate_networks_from_file(
     addresses_file_path: str,
     private_key: bytes = None,
     transaction_options: Dict = None,
+    output_file_path: str,
 ):
     """Deploy new owned currency network proxies and migrate old networks to it"""
     if transaction_options is None:
@@ -338,18 +339,26 @@ def deploy_and_migrate_networks_from_file(
 
     verify_owner_not_deployer(web3, owner_address, private_key)
     currency_network_interface = get_contract_interface("CurrencyNetwork")
+    network_addresses_mapping = {}
 
     for old_address in read_addresses_in_csv(addresses_file_path):
         old_network = web3.eth.contract(
             abi=currency_network_interface["abi"], address=old_address
         )
-        deploy_and_migrate_network(
+        new_network = deploy_and_migrate_network(
             web3=web3,
             beacon_address=beacon_address,
             owner_address=owner_address,
             old_network=old_network,
             private_key=private_key,
             transaction_options=transaction_options,
+        )
+        network_addresses_mapping[old_network.address] = new_network.address
+
+    with open(output_file_path, "w") as file:
+        json.dump(network_addresses_mapping, file)
+        click.secho(
+            "Wrote mapping {old_address: new_address} to " + output_file_path, fg="blue"
         )
 
 
@@ -389,6 +398,7 @@ def deploy_and_migrate_network(
     click.secho(
         f"Migration of {old_network.address} to {new_address} complete", fg="green"
     )
+    return new_network
 
 
 def get_network_settings(currency_network):

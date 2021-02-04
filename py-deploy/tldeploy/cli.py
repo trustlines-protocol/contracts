@@ -623,6 +623,13 @@ def beacon(
     type=str,
     callback=validate_address,
 )
+@click.option(
+    "--output",
+    "output_file_path",
+    help="Path of the file to print the mapping of old network to new network to",
+    default="output.json",
+    type=click.Path(dir_okay=False, writable=True),
+)
 @jsonrpc_option
 @gas_price_option
 @nonce_option
@@ -630,6 +637,7 @@ def beacon(
 @keystore_option
 def deploy_and_migrate(
     addresses_file_path: str,
+    output_file_path: str,
     beacon_address: str,
     owner_address: str,
     jsonrpc: str,
@@ -654,4 +662,5 @@ def deploy_and_migrate(
         owner_address=owner_address,
         private_key=private_key,
         transaction_options=transaction_options,
+        output_file_path=output_file_path,
     )
