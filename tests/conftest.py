@@ -390,7 +390,7 @@ class CurrencyNetworkAdapter:
         self._transact_with_function_call(function_call, should_fail=should_fail)
 
     def unfreeze_network(self, transaction_options=None, should_fail=False):
-        function_call = self.contract.functions.unFreezeNetwork()
+        function_call = self.contract.functions.unfreezeNetwork()
         self._transact_with_function_call(
             function_call,
             transaction_options=transaction_options,
