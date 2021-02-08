@@ -6,9 +6,9 @@ pragma solidity ^0.8.0;
   implementation of these functions
 */
 
-import "../currency-network/CurrencyNetwork.sol";
+import "../currency-network/CurrencyNetworkOwnable.sol";
 
-contract TestCurrencyNetwork is CurrencyNetwork {
+contract TestCurrencyNetwork is CurrencyNetworkOwnable {
     function setCapacityImbalanceFeeDivisor(uint16 divisor) external {
         capacityImbalanceFeeDivisor = divisor;
     }
@@ -47,10 +47,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         _mediatedTransferReceiverPays(_value, _maxFee, _path, "");
     }
 
-    /**
-     * Set the trustline account between two users.
-     * Can be removed once structs are supported in the ABI
-     */
     function setAccount(
         address _a,
         address _b,
@@ -61,20 +57,7 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         bool _isFrozen,
         uint32 _mtime,
         int72 _balance
-    ) external {
-        require(
-            customInterests ||
-                (_interestRateGiven == defaultInterestRate &&
-                    _interestRateReceived == defaultInterestRate),
-            "Interest rates given and received must be equal to default interest rates."
-        );
-        if (customInterests) {
-            require(
-                _interestRateGiven >= 0 && _interestRateReceived >= 0,
-                "Only positive interest rates are supported."
-            );
-        }
-
+    ) external override {
         _setAccount(
             _a,
             _b,
@@ -88,10 +71,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         );
     }
 
-    /**
-     * Set the trustline account between two users with default interests.
-     * Can be removed once structs are supported in the ABI
-     */
     function setAccountDefaultInterests(
         address _a,
         address _b,
@@ -120,15 +99,6 @@ contract TestCurrencyNetwork is CurrencyNetwork {
         int256 value
     ) external {
         _addToDebt(debtor, creditor, value);
-    }
-
-    function testSafeSumInt256(int256 a, int256 b)
-        external
-        pure
-        returns (int256 sum)
-    {
-        return a + b;
-        //return safeSumInt256(a, b);
     }
 
     function testCalculateFees(
@@ -173,6 +143,40 @@ contract TestCurrencyNetwork is CurrencyNetwork {
                 _interestRateGiven,
                 _interestRateReceived
             );
+    }
+
+    function testFreezeNetwork() public {
+        isNetworkFrozen = true;
+        emit NetworkFreeze();
+    }
+
+    function testUnfreezeNetwork() public {
+        isNetworkFrozen = false;
+        emit NetworkUnfreeze();
+    }
+
+    function init(
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        uint16 _capacityImbalanceFeeDivisor,
+        int16 _defaultInterestRate,
+        bool _customInterests,
+        bool _preventMediatorInterests,
+        uint256 _expirationTime,
+        address[] memory authorizedAddresses
+    ) public override {
+        CurrencyNetworkBasic.init(
+            _name,
+            _symbol,
+            _decimals,
+            _capacityImbalanceFeeDivisor,
+            _defaultInterestRate,
+            _customInterests,
+            _preventMediatorInterests,
+            _expirationTime,
+            authorizedAddresses
+        );
     }
 
     function _setAccount(

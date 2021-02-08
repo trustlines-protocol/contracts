@@ -45,7 +45,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         bool _isFrozen,
         uint32 _mtime,
         int72 _balance
-    ) external onlyOwner {
+    ) external virtual onlyOwner {
         TrustlineAgreement memory trustlineAgreement;
         trustlineAgreement.creditlineGiven = _creditlineGiven;
         trustlineAgreement.creditlineReceived = _creditlineReceived;
@@ -155,10 +155,9 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         bool _preventMediatorInterests,
         uint256 _expirationTime,
         address[] memory authorizedAddresses
-    ) public override {
+    ) public virtual override {
         owner = msg.sender;
         isNetworkFrozen = true;
-        // super.init(_name, _symbol, _decimals);
         CurrencyNetworkBasic.init(
             _name,
             _symbol,
