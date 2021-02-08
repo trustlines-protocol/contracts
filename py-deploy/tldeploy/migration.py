@@ -335,7 +335,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
         click.secho("Trustline requests migration complete")
 
     def unfreeze_network(self):
-        unfreeze_call = self.new_network.functions.unFreezeNetwork()
+        unfreeze_call = self.new_network.functions.unfreezeNetwork()
         self.call_contract_function_with_tx(unfreeze_call)
         self.wait_for_successfull_txs_in_queue()
 

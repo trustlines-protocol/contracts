@@ -43,6 +43,18 @@ def test_remover_owner_not_owner(currency_network_adapter, not_owner):
     currency_network_adapter.remove_owner(sender=not_owner, should_fail=True)
 
 
+def test_remove_owner_event(currency_network_contract, owner, web3):
+    currency_network_contract.functions.removeOwner().transact({"from": owner})
+    assert (
+        get_single_event_of_contract(
+            currency_network_contract,
+            "OwnerRemoval",
+            web3.eth.blockNumber,
+        )
+        is not None
+    )
+
+
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 2), (2, 1)])
 def test_set_account(
     currency_network_adapter: CurrencyNetworkAdapter,
@@ -469,12 +481,24 @@ def test_network_starts_frozen(currency_network_contract):
     assert currency_network_contract.functions.isNetworkFrozen().call()
 
 
-def test_unfreeze_network(currency_network_contract, owner):
-    currency_network_contract.functions.unFreezeNetwork().transact({"from": owner})
-    assert not currency_network_contract.functions.isNetworkFrozen().call()
+def test_unfreeze_network(currency_network_adapter, owner):
+    currency_network_adapter.unfreeze_network(transaction_options={"from": owner})
+    assert not currency_network_adapter.is_network_frozen()
 
 
 def test_unfreeze_network_not_owner(currency_network_adapter, not_owner):
     currency_network_adapter.unfreeze_network(
         transaction_options={"from": not_owner}, should_fail=True
+    )
+
+
+def test_unfreeze_network_event(currency_network_adapter, owner, web3):
+    currency_network_adapter.unfreeze_network(transaction_options={"from": owner})
+    assert (
+        get_single_event_of_contract(
+            currency_network_adapter.contract,
+            "NetworkUnfreeze",
+            web3.eth.blockNumber,
+        )
+        is not None
     )

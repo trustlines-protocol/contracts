@@ -6,6 +6,9 @@ import "./CurrencyNetworkBasic.sol";
 contract CurrencyNetworkOwnable is CurrencyNetwork {
     address public owner;
 
+    event NetworkUnfreeze();
+    event OwnerRemoval();
+
     /**
      * @dev Throws if called by any account other than the owner.
      */
@@ -16,6 +19,7 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
 
     function removeOwner() external onlyOwner {
         owner = address(0);
+        emit OwnerRemoval();
     }
 
     /**
@@ -122,9 +126,10 @@ contract CurrencyNetworkOwnable is CurrencyNetwork {
         _addToDebt(debtor, creditor, value);
     }
 
-    function unFreezeNetwork() external onlyOwner {
+    function unfreezeNetwork() external onlyOwner {
         require(isNetworkFrozen == true, "Network is not frozen");
         isNetworkFrozen = false;
+        emit NetworkUnfreeze();
     }
 
     /**
