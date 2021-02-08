@@ -221,35 +221,6 @@ def test_debit_transfer_events(
     assert transfer_event["_value"] == debt_value
 
 
-@pytest.mark.parametrize(
-    "a, b",
-    [
-        (0, 1),
-        (1, 0),
-        (max_int256, 0),
-        (max_int256, -1),
-        (max_int256, min_int256),
-        (min_int256, 0),
-        (min_int256, 1),
-    ],
-)
-def test_safe_sum_no_error(currency_network_contract, a, b):
-    assert currency_network_contract.functions.testSafeSumInt256(a, b).call() == a + b
-
-
-@pytest.mark.parametrize(
-    "a, b",
-    [
-        (max_int256, max_int256),
-        (max_int256, 1),
-        (min_int256, -1),
-        (min_int256, min_int256),
-    ],
-)
-def test_safe_sum_raises_error(currency_network_contract, a, b, assert_failing_call):
-    assert_failing_call(currency_network_contract.functions.testSafeSumInt256(a, b))
-
-
 @pytest.mark.parametrize("creditor_index, debtor_index", [(1, 0), (0, 1)])
 def test_add_to_debt_min_int256_fails(
     currency_network_contract,
