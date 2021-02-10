@@ -8,6 +8,10 @@ Change Log
 * Updated: now migrate pending trustline requests when migrating networks.
 * Updated: `tl-deploy deploy-and-migrate` will now output JSON a file with a mapping from old to new network
   see `--output` option
+* Updated: force the user to provide --gas-price when deploying contracts.
+  Prevents the node from failing to provide a gas-price. (results from contract-deploy-tools dependency upgrade)
+* Updated: remove the --auto-nonce option, now used per default.
+  The tool will query the node for the nonce unless explicitly provided with`--nonce`. (results from contract-deploy-tools dependency upgrade)
 
 * Added: Event `NetworkUnfreeze` emitted when unfreezing a network after migration
 * Added: Event `OwnerRemoval` emitted when removing the owner of a network after migration

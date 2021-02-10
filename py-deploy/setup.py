@@ -48,8 +48,8 @@ setup(
     install_requires=[
         "web3>=5.7.0,<6.0",
         "click>=7.0",
-        "trustlines-contracts-bin>=1.1.5,<2.0.0",
-        "contract-deploy-tools>=0.9.0",
+        "trustlines-contracts-bin>=1.2.0,<2.0.0",
+        "contract-deploy-tools>=0.10.0",
         "attrs>=18.2",
         "pendulum>=2.0.0",
     ],
