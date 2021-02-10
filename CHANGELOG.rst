@@ -9,6 +9,9 @@ Change Log
 * Updated: `tl-deploy deploy-and-migrate` will now output JSON a file with a mapping from old to new network
   see `--output` option
 
+* Added: Event `NetworkUnfreeze` emitted when unfreezing a network after migration
+* Added: Event `OwnerRemoval` emitted when removing the owner of a network after migration
+
 `1.2.0`_ (2020-01-25)
 -----------------------
 * Updated: limit interest rates in currency networks to `+-20%`
