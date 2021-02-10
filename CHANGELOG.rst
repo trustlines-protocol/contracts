@@ -6,6 +6,8 @@ Change Log
 * Updated: properly get the `isFrozen` status for trustlines during migration, no longer resulting
   in constantly frozen trustlines.
 * Updated: now migrate pending trustline requests when migrating networks.
+* Updated: `tl-deploy deploy-and-migrate` will now output JSON a file with a mapping from old to new network
+  see `--output` option
 
 `1.2.0`_ (2020-01-25)
 -----------------------
