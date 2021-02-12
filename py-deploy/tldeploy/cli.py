@@ -3,7 +3,6 @@ import json
 import click
 import pkg_resources
 from deploy_tools.cli import (
-    auto_nonce_option,
     connect_to_json_rpc,
     gas_option,
     gas_price_option,
@@ -137,7 +136,6 @@ currency_network_contract_name_option = click.option(
 @gas_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 def currencynetwork(
     name: str,
@@ -155,7 +153,6 @@ def currencynetwork(
     gas: int,
     gas_price: int,
     nonce: int,
-    auto_nonce: bool,
     keystore: str,
 ):
     """Deploy a currency network contract with custom settings and optionally connect it to an exchange contract"""
@@ -196,9 +193,7 @@ def currencynetwork(
 
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
@@ -248,19 +243,14 @@ def currencynetwork(
 @gas_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
-def exchange(
-    jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
-):
+def exchange(jsonrpc: str, gas: int, gas_price: int, nonce: int, keystore: str):
     """Deploy an exchange contract and a contract to wrap Ether into an ERC 20
     token.
     """
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
@@ -284,19 +274,16 @@ def exchange(
 @gas_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 def identity_implementation(
-    jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
+    jsonrpc: str, gas: int, gas_price: int, nonce: int, keystore: str
 ):
     """Deploy an identity contract without initializing it. Can be used as the implementation for deployed
     identity proxies.
     """
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
@@ -315,18 +302,15 @@ def identity_implementation(
 @gas_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 def identity_proxy_factory(
-    jsonrpc: str, gas: int, gas_price: int, nonce: int, auto_nonce: bool, keystore: str
+    jsonrpc: str, gas: int, gas_price: int, nonce: int, keystore: str
 ):
     """Deploy an identity proxy factory, which can be used to create proxies for identity contracts."""
 
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
@@ -351,7 +335,6 @@ def identity_proxy_factory(
 @gas_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 @currency_network_contract_name_option
 def test(
@@ -360,7 +343,6 @@ def test(
     gas: int,
     gas_price: int,
     nonce: int,
-    auto_nonce: bool,
     keystore: str,
     currency_network_contract_name: str,
 ):
@@ -405,9 +387,7 @@ def test(
 
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
     )
@@ -415,6 +395,7 @@ def test(
         web3,
         network_settings,
         currency_network_contract_name=currency_network_contract_name,
+        transaction_options=transaction_options,
     )
     identity_implementation = deploy_identity_implementation(
         web3=web3, transaction_options=transaction_options, private_key=private_key
@@ -483,7 +464,6 @@ def test(
 @jsonrpc_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 def migration(
     old_addresses_file_path: str,
@@ -491,7 +471,6 @@ def migration(
     jsonrpc: str,
     gas_price: int,
     nonce: int,
-    auto_nonce: bool,
     keystore: str,
 ):
     """Used to migrate old currency networks to new ones
@@ -501,9 +480,7 @@ def migration(
 
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=None, gas_price=gas_price, nonce=nonce
     )
@@ -564,7 +541,6 @@ def verify_migration(
 @jsonrpc_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 def beacon(
     implementation_address: str,
@@ -572,16 +548,13 @@ def beacon(
     jsonrpc: str,
     gas_price: int,
     nonce: int,
-    auto_nonce: bool,
     keystore: str,
 ):
     """Used to deploy an owned beacon pointing to an implementation address"""
 
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=None, gas_price=gas_price, nonce=nonce
     )
@@ -633,7 +606,6 @@ def beacon(
 @jsonrpc_option
 @gas_price_option
 @nonce_option
-@auto_nonce_option
 @keystore_option
 def deploy_and_migrate(
     addresses_file_path: str,
@@ -643,14 +615,11 @@ def deploy_and_migrate(
     jsonrpc: str,
     gas_price: int,
     nonce: int,
-    auto_nonce: bool,
     keystore: str,
 ):
     web3 = connect_to_json_rpc(jsonrpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(
-        web3=web3, nonce=nonce, auto_nonce=auto_nonce, private_key=private_key
-    )
+    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=None, gas_price=gas_price, nonce=nonce
     )

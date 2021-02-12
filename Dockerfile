@@ -28,14 +28,13 @@ RUN apt-get -y update && \
 RUN python3 -m venv /opt/contracts
 WORKDIR /contracts
 ENV PATH "/opt/contracts/bin:${PATH}"
-COPY ./dev-requirements.txt /contracts/constraints.txt
-RUN pip install -c constraints.txt pip wheel setuptools
-COPY ./py-deploy/requirements.txt /contracts/requirements.txt
+RUN pip install pip wheel setuptools
 
+COPY ./py-deploy/requirements.txt /contracts/requirements.txt
 RUN pip install -r requirements.txt
 
 COPY . /contracts
-RUN pip install -c constraints.txt setuptools_scm
+RUN pip install setuptools_scm
 RUN make install-non-editable
 RUN python -c 'import pkg_resources; print(pkg_resources.get_distribution("trustlines-contracts-deploy").version)' >/opt/contracts/VERSION
 
@@ -52,4 +51,4 @@ FROM runner
 COPY --from=builder /opt/contracts /opt/contracts
 WORKDIR /opt/contracts
 ENTRYPOINT ["tl-deploy"]
-CMD ["test"]
+CMD ["test", "--gas-price", "0"]

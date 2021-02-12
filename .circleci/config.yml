@@ -26,7 +26,7 @@ commands:
           name: Create python venv
           command: |
             python3 -m venv venv
-            pip install -r dev-requirements.txt pip wheel setuptools
+            pip install -r dev-requirements.txt wheel
 
   config-path:
     description: "set environment variables and change PATH"

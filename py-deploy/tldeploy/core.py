@@ -89,15 +89,14 @@ def deploy_unw_eth(
     increase_transaction_options_nonce(transaction_options)
 
     if exchange_address is not None:
-        if exchange_address is not None:
-            function_call = unw_eth.functions.addAuthorizedAddress(exchange_address)
-            wait_for_successful_function_call(
-                function_call,
-                web3=web3,
-                transaction_options=transaction_options,
-                private_key=private_key,
-            )
-            increase_transaction_options_nonce(transaction_options)
+        function_call = unw_eth.functions.addAuthorizedAddress(exchange_address)
+        wait_for_successful_function_call(
+            function_call,
+            web3=web3,
+            transaction_options=transaction_options,
+            private_key=private_key,
+        )
+        increase_transaction_options_nonce(transaction_options)
 
     return unw_eth
 
@@ -151,8 +150,12 @@ def deploy_networks(
     currency_network_contract_name=None,
     transaction_options: Dict = None,
 ):
-    exchange = deploy_exchange(web3=web3)
-    unw_eth = deploy_unw_eth(web3=web3, exchange_address=exchange.address)
+    exchange = deploy_exchange(web3=web3, transaction_options=transaction_options)
+    unw_eth = deploy_unw_eth(
+        web3=web3,
+        exchange_address=exchange.address,
+        transaction_options=transaction_options,
+    )
 
     networks = [
         deploy_network(
