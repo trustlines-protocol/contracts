@@ -3,6 +3,9 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
+
+`1.3.0`_ (2002-02-12)
+-----------------------
 * Updated: properly get the `isFrozen` status for trustlines during migration, no longer resulting
   in constantly frozen trustlines.
 * Updated: now migrate pending trustline requests when migrating networks.
@@ -303,4 +306,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.6: https://github.com/trustlines-protocol/contracts/compare/1.1.5...1.1.6
 .. _1.1.7: https://github.com/trustlines-protocol/contracts/compare/1.1.6...1.1.7
 .. _1.2.0: https://github.com/trustlines-protocol/contracts/compare/1.1.7...1.2.0
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.2.0...master
+.. _1.3.0: https://github.com/trustlines-protocol/contracts/compare/1.2.0...1.3.0
+.. _next: https://github.com/trustlines-protocol/contracts/compare/1.3.0...master
