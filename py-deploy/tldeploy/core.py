@@ -417,6 +417,40 @@ def get_network_settings(currency_network):
     )
 
 
+def unfreeze_owned_network(
+    *, web3, transaction_options, private_key, currency_network_address: str
+):
+    network_interface = get_contract_interface("CurrencyNetworkOwnable")
+    network = web3.eth.contract(
+        address=currency_network_address, abi=network_interface["abi"]
+    )
+    function_call = network.functions.unfreezeNetwork()
+
+    wait_for_successful_function_call(
+        function_call,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+
+
+def remove_owner_of_network(
+    *, web3, transaction_options, private_key, currency_network_address: str
+):
+    network_interface = get_contract_interface("CurrencyNetworkOwnable")
+    network = web3.eth.contract(
+        address=currency_network_address, abi=network_interface["abi"]
+    )
+    function_call = network.functions.removeOwner()
+
+    wait_for_successful_function_call(
+        function_call,
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+
+
 class TransactionsFailed(Exception):
     def __init__(self, failed_tx_hashs):
         self.failed_tx_hashs = failed_tx_hashs
