@@ -60,8 +60,6 @@ cytoolz==0.11.0
     #   eth-keyfile
     #   eth-tester-rpc
     #   eth-utils
-dataclasses==0.8
-    # via black
 distlib==0.3.1
     # via virtualenv
 eth-abi==2.1.1
@@ -154,21 +152,6 @@ idna==2.10
     # via
     #   -r ./py-deploy/requirements.txt
     #   requests
-importlib-metadata==3.4.0
-    # via
-    #   -r ./py-deploy/requirements.txt
-    #   flake8
-    #   jsonschema
-    #   pluggy
-    #   pre-commit
-    #   pytest
-    #   virtualenv
-importlib-resources==5.0.0
-    # via
-    #   -r ./py-deploy/requirements.txt
-    #   netaddr
-    #   pre-commit
-    #   virtualenv
 iniconfig==1.1.1
     # via pytest
 ipfshttpclient==0.7.0a1
@@ -338,10 +321,8 @@ typing-extensions==3.7.4.3
     # via
     #   -r ./py-deploy/requirements.txt
     #   black
-    #   importlib-metadata
     #   mypy
     #   trie
-    #   web3
 urllib3==1.26.2
     # via
     #   -r ./py-deploy/requirements.txt
@@ -364,11 +345,6 @@ werkzeug==1.0.1
     # via
     #   -r ./py-deploy/requirements.txt
     #   eth-tester-rpc
-zipp==3.4.0
-    # via
-    #   -r ./py-deploy/requirements.txt
-    #   importlib-metadata
-    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 pip==20.3.3

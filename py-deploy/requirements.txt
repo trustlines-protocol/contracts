@@ -100,10 +100,6 @@ hexbytes==0.2.1
     #   web3
 idna==2.10
     # via requests
-importlib-metadata==3.4.0
-    # via jsonschema
-importlib-resources==5.0.0
-    # via netaddr
 ipfshttpclient==0.7.0a1
     # via web3
 json-rpc==1.13.0
@@ -179,10 +175,7 @@ trie==2.0.0-alpha.5
 trustlines-contracts-bin==1.2.0
     # via trustlines-contracts-deploy (setup.py)
 typing-extensions==3.7.4.3
-    # via
-    #   importlib-metadata
-    #   trie
-    #   web3
+    # via trie
 urllib3==1.26.2
     # via requests
 varint==1.0.2
@@ -195,10 +188,6 @@ websockets==8.1
     # via web3
 werkzeug==1.0.1
     # via eth-tester-rpc
-zipp==3.4.0
-    # via
-    #   importlib-metadata
-    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
