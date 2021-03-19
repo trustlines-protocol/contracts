@@ -65,6 +65,46 @@ class CurrencyNetworkAdapter:
     def expiration_time(self):
         return self.contract.functions.expirationTime().call()
 
+    @property
+    def name(self):
+        return self.contract.functions.name().call()
+
+    @property
+    def symbol(self):
+        return self.contract.functions.symbol().call()
+
+    @property
+    def decimals(self):
+        return self.contract.functions.decimals().call()
+
+    @property
+    def is_initialized(self):
+        return self.contract.functions.isInitialized().call()
+
+    @property
+    def is_network_frozen(self):
+        return self.contract.functions.isNetworkFrozen().call()
+
+    @property
+    def fee_divisor(self):
+        return self.contract.functions.capacityImbalanceFeeDivisor().call()
+
+    @property
+    def default_interest_rate(self):
+        return self.contract.functions.defaultInterestRate().call()
+
+    @property
+    def custom_interests(self):
+        return self.contract.functions.customInterests().call()
+
+    @property
+    def prevent_mediator_interests(self):
+        return self.contract.functions.preventMediatorInterests().call()
+
+    @property
+    def owner(self):
+        return self.contract.functions.owner().call()
+
     def set_account(
         self,
         a_address,
@@ -397,11 +437,14 @@ class CurrencyNetworkAdapter:
             should_fail=should_fail,
         )
 
-    def is_network_frozen(self):
-        return self.contract.functions.isNetworkFrozen().call()
-
     def is_trustline_frozen(self, a, b):
         return self.contract.functions.isTrustlineFrozen(a, b).call()
+
+    def get_friends(self, a):
+        return self.contract.functions.getFriends(a).call()
+
+    def get_users(self):
+        return self.contract.functions.getUsers().call()
 
     def events(self, event_name: str, from_block: int = 0):
         return list(

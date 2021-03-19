@@ -121,12 +121,12 @@ def proxy_beacon(owner_key, contract_assets, web3, upgradeable_implementation):
 
 @pytest.fixture(scope="session")
 def owner(accounts):
-    return accounts[0]
+    return accounts[5]
 
 
 @pytest.fixture(scope="session")
 def owner_key(account_keys):
-    return account_keys[0]
+    return account_keys[5]
 
 
 @pytest.fixture(scope="session")
