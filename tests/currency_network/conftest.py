@@ -50,6 +50,22 @@ def currency_network_adapter(currency_network_contract, make_currency_network_ad
 
 
 @pytest.fixture(scope="session")
+def currency_network_v2_contract(web3):
+    return deploy_network(
+        web3,
+        NETWORK_SETTING,
+        currency_network_contract_name="CurrencyNetworkV2",
+    )
+
+
+@pytest.fixture(scope="session")
+def currency_network_v2_adapter(
+    currency_network_v2_contract, make_currency_network_adapter
+):
+    return make_currency_network_adapter(currency_network_v2_contract)
+
+
+@pytest.fixture(scope="session")
 def currency_network_contract_with_trustlines(
     web3, accounts, make_currency_network_adapter
 ):

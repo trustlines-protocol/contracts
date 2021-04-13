@@ -243,30 +243,53 @@ class CurrencyNetworkAdapter:
         interest_rate_given=0,
         interest_rate_received=0,
         is_frozen=False,
+        transfer=None,
         accept=False,
         should_fail=False,
     ):
-        function_call = self.contract.functions.updateTrustline(
-            debtor_address,
-            creditline_given,
-            creditline_received,
-            interest_rate_given,
-            interest_rate_received,
-            is_frozen,
-        )
+        if transfer is not None:
+            function_call = self.contract.functions.updateTrustline(
+                debtor_address,
+                creditline_given,
+                creditline_received,
+                interest_rate_given,
+                interest_rate_received,
+                is_frozen,
+                transfer,
+            )
+        else:
+            function_call = self.contract.functions.updateTrustline(
+                debtor_address,
+                creditline_given,
+                creditline_received,
+                interest_rate_given,
+                interest_rate_received,
+                is_frozen,
+            )
         self._transact_with_function_call(
             function_call, {"from": creditor_address}, should_fail
         )
 
         if accept:
-            self.contract.functions.updateTrustline(
-                creditor_address,
-                creditline_received,
-                creditline_given,
-                interest_rate_received,
-                interest_rate_given,
-                is_frozen,
-            ).transact({"from": debtor_address})
+            if transfer is not None:
+                self.contract.functions.updateTrustline(
+                    creditor_address,
+                    creditline_received,
+                    creditline_given,
+                    interest_rate_received,
+                    interest_rate_given,
+                    is_frozen,
+                    -transfer,
+                ).transact({"from": debtor_address})
+            else:
+                self.contract.functions.updateTrustline(
+                    creditor_address,
+                    creditline_received,
+                    creditline_given,
+                    interest_rate_received,
+                    interest_rate_given,
+                    is_frozen,
+                ).transact({"from": debtor_address})
 
     def cancel_trustline_update(self, from_address, to_address, should_fail=False):
         function_call = self.contract.functions.cancelTrustlineUpdate(to_address)

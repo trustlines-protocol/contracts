@@ -1,9 +1,9 @@
 pragma solidity ^0.8.0;
 
-import "../lib/it_set_lib.sol";
-import "../lib/Authorizable.sol";
-import "../lib/ERC165.sol";
-import "./CurrencyNetworkInterface.sol";
+import "../../lib/it_set_lib.sol";
+import "../../lib/Authorizable.sol";
+import "../../lib/ERC165.sol";
+import "../CurrencyNetworkInterface.sol";
 
 /**
  * @title Basic functionalities of Currency Networks
@@ -57,7 +57,8 @@ contract CurrencyNetworkBasicV2 is
         uint256 _creditlineReceived,
         int256 _interestRateGiven,
         int256 _interestRateReceived,
-        bool _isFrozen
+        bool _isFrozen,
+        int72 _transfer
     );
 
     event TrustlineUpdate(
@@ -112,7 +113,7 @@ contract CurrencyNetworkBasicV2 is
         int16 interestRateReceived;
         bool isFrozen;
         address initiator;
-        int72 balance; // Balance to open the trustline with, in point of view of the initiator
+        int72 transfer; // Transfer to apply when trustline is first open
     }
 
     constructor() {
@@ -215,7 +216,50 @@ contract CurrencyNetworkBasicV2 is
             _creditlineReceived,
             _interestRateGiven,
             _interestRateReceived,
-            _isFrozen
+            _isFrozen,
+            0
+        );
+    }
+
+    /**
+     * @notice `msg.sender` offers a trustline update to `_debtor` of `_creditlineGiven` tokens for `_creditlineReceived`
+     * token
+     * Needs to be accepted by the other party, unless we reduce both values.
+     * @param _debtor The other party of the trustline agreement
+     * @param _creditlineGiven The creditline limit given by msg.sender
+     * @param _creditlineReceived The creditline limit given _debtor
+     * @param _interestRateGiven The interest given by msg.sender
+     * @param _interestRateReceived The interest given by _debtor
+     * @param _isFrozen Whether the initiator asks for freezing the trustline
+     * @param _transfer To apply a transfer when the trustline is accepted, >0 for a transfer from msg.sender to _debtor, <0 for the other way around
+     */
+    function updateTrustline(
+        address _debtor,
+        uint64 _creditlineGiven,
+        uint64 _creditlineReceived,
+        int16 _interestRateGiven,
+        int16 _interestRateReceived,
+        bool _isFrozen,
+        int72 _transfer
+    ) external {
+        address _creditor = msg.sender;
+
+        require(
+            !friends[_creditor].contains(_debtor),
+            "A trustline already exists"
+        );
+        require(MIN_BALANCE <= _transfer, "Transfer exceeds min balance");
+        require(MAX_BALANCE >= _transfer, "Transfer exceeds max balance");
+
+        _updateTrustline(
+            _creditor,
+            _debtor,
+            _creditlineGiven,
+            _creditlineReceived,
+            _interestRateGiven,
+            _interestRateReceived,
+            _isFrozen,
+            _transfer
         );
     }
 
@@ -1084,7 +1128,7 @@ contract CurrencyNetworkBasicV2 is
             .interestRateReceived;
         trustlineRequest.initiator = _trustlineRequest.initiator;
         trustlineRequest.isFrozen = _trustlineRequest.isFrozen;
-        trustlineRequest.balance = 0;
+        trustlineRequest.transfer = _trustlineRequest.transfer;
     }
 
     // in this function, it is assumed _creditor is the initator of the trustline update (see _requestTrustlineUpdate())
@@ -1095,7 +1139,8 @@ contract CurrencyNetworkBasicV2 is
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
-        bool _isFrozen
+        bool _isFrozen,
+        int72 _transfer
     ) internal {
         require(
             !isNetworkFrozen,
@@ -1173,7 +1218,8 @@ contract CurrencyNetworkBasicV2 is
                 _creditlineGiven <= trustlineRequest.creditlineReceived &&
                 _interestRateGiven <= trustlineRequest.interestRateReceived &&
                 _interestRateReceived == trustlineRequest.interestRateGiven &&
-                _isFrozen == trustlineRequest.isFrozen
+                _isFrozen == trustlineRequest.isFrozen &&
+                _transfer == -trustlineRequest.transfer
             ) {
                 _deleteTrustlineRequest(_creditor, _debtor);
                 // _debtor and _creditor is switched because we want the initiator of the trustline to be _debtor.
@@ -1187,6 +1233,24 @@ contract CurrencyNetworkBasicV2 is
                     _interestRateGiven,
                     _isFrozen
                 );
+
+                if (_transfer > 0) {
+                    _setBalance(_creditor, _debtor, -_transfer);
+                    emit Transfer(
+                        _creditor,
+                        _debtor,
+                        uint256(int256(_transfer)),
+                        ""
+                    );
+                } else if (_transfer < 0) {
+                    _setBalance(_debtor, _creditor, _transfer);
+                    emit Transfer(
+                        _debtor,
+                        _creditor,
+                        uint256(int256(-_transfer)),
+                        ""
+                    );
+                }
             } else {
                 _requestTrustlineUpdate(
                     _creditor,
@@ -1195,7 +1259,8 @@ contract CurrencyNetworkBasicV2 is
                     _creditlineReceived,
                     _interestRateGiven,
                     _interestRateReceived,
-                    _isFrozen
+                    _isFrozen,
+                    _transfer
                 );
             }
             // update the trustline request
@@ -1207,7 +1272,8 @@ contract CurrencyNetworkBasicV2 is
                 _creditlineReceived,
                 _interestRateGiven,
                 _interestRateReceived,
-                _isFrozen
+                _isFrozen,
+                _transfer
             );
         }
     }
@@ -1234,7 +1300,8 @@ contract CurrencyNetworkBasicV2 is
             _creditlineReceived,
             interestRateGiven,
             interestRateReceived,
-            isFrozen
+            isFrozen,
+            0
         );
     }
 
@@ -1281,6 +1348,18 @@ contract CurrencyNetworkBasicV2 is
         );
     }
 
+    function _setBalance(
+        address _creditor,
+        address _debtor,
+        int72 _balance
+    ) internal {
+        TrustlineBalances memory trustlineBalances;
+        trustlineBalances.balance = _balance;
+        trustlineBalances.mtime = uint32(block.timestamp);
+        _storeTrustlineBalances(_creditor, _debtor, trustlineBalances);
+        emit BalanceUpdate(_creditor, _debtor, _balance);
+    }
+
     function _requestTrustlineUpdate(
         address _creditor,
         address _debtor,
@@ -1288,7 +1367,8 @@ contract CurrencyNetworkBasicV2 is
         uint64 _creditlineReceived,
         int16 _interestRateGiven,
         int16 _interestRateReceived,
-        bool _isFrozen
+        bool _isFrozen,
+        int72 _transfer
     ) internal {
         _storeTrustlineRequest(
             _creditor,
@@ -1300,7 +1380,7 @@ contract CurrencyNetworkBasicV2 is
                 _interestRateReceived,
                 _isFrozen,
                 _creditor,
-                0
+                _transfer
             )
         );
 
@@ -1311,7 +1391,8 @@ contract CurrencyNetworkBasicV2 is
             _creditlineReceived,
             _interestRateGiven,
             _interestRateReceived,
-            _isFrozen
+            _isFrozen,
+            _transfer
         );
     }
 
