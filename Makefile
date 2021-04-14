@@ -16,6 +16,7 @@ test:: install
 .requirements-installed: dev-requirements.txt
 	@echo "===> Installing requirements in your local virtualenv"
 	pip install -q -r dev-requirements.txt
+	pip install -q -r py-deploy/requirements.txt
 	@echo "This file controls for make if the requirements in your virtual env are up to date" > $@
 
 install-requirements:: .requirements-installed
