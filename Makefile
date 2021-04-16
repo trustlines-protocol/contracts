@@ -25,6 +25,7 @@ compile:: install-requirements
 	@echo "==> Compiling contracts"
 	deploy-tools compile --optimize
 	cp -p build/contracts.json py-bin/tlbin
+	python py-bin/scripts/merge_abis.py py-bin/tlbin/legacy_currency_networks.json py-bin/tlbin/contracts.json py-bin/tlbin/merged_abis.json
 
 install0:: SETUPTOOLS_SCM_PRETEND_VERSION = $(shell python3 -c 'from setuptools_scm import get_version; print(get_version())')
 install0:: compile
