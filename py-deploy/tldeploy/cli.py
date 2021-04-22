@@ -73,7 +73,7 @@ currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
     help="name of the currency network contract to deploy, "
     "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
-    default="CurrencyNetwork",
+    default="CurrencyNetworkV2",
     hidden=False,
 )
 
