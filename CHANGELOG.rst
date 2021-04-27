@@ -4,7 +4,17 @@ Change Log
 `next`_ (unreleased)
 -----------------------
 
-`1.3.0`_ (2002-02-12)
+`2.0.0`_ (2021-04-27)
+-----------------------
+* Added: new contracts `CurrencyNetworkV2`, `CurrencyNetworkOwnableV2` and `CurrencyNetworkBasicV2`.
+  They have an option to add a payment request when opening a trustline via additional parameter `int72 _transfer` of
+  function `updateTrustline`.
+  The event `TrustlineUpdateRequest` now also has the additional corresponding argument `int72 _transfer`
+* Added: function in tlbin to load merged abi `load_packaged_merged_abis`. This return a dict object similar to
+  a regular `contracts.json` file with a key `MergedCurrencyNetworksAbi` that contains the merged abi of networks
+  version 1, version 2, and of proxies.
+
+`1.3.0`_ (2021-02-12)
 -----------------------
 * Updated: properly get the `isFrozen` status for trustlines during migration, no longer resulting
   in constantly frozen trustlines.
@@ -307,4 +317,5 @@ The rest of the changes are only interesting for developers:
 .. _1.1.7: https://github.com/trustlines-protocol/contracts/compare/1.1.6...1.1.7
 .. _1.2.0: https://github.com/trustlines-protocol/contracts/compare/1.1.7...1.2.0
 .. _1.3.0: https://github.com/trustlines-protocol/contracts/compare/1.2.0...1.3.0
-.. _next: https://github.com/trustlines-protocol/contracts/compare/1.3.0...master
+.. _2.0.0: https://github.com/trustlines-protocol/contracts/compare/1.3.0...2.0.0
+.. _next: https://github.com/trustlines-protocol/contracts/compare/2.0.0...master
