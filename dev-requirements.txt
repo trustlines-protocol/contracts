@@ -311,7 +311,7 @@ trie==2.0.0-alpha.5
     # via
     #   -r ./py-deploy/requirements.txt
     #   py-evm
-trustlines-contracts-bin==1.2.0
+trustlines-contracts-bin==2.0.0
     # via -r ./py-deploy/requirements.txt
 typed-ast==1.4.2
     # via
