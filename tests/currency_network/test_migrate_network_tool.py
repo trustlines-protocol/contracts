@@ -170,7 +170,7 @@ def assert_pending_trusltines_migrated(new_contract_adapter, accounts):
     def assert_migrated():
         # test that the pending trustline updates were properly migrated by accepting them
         assert (
-            new_contract_adapter.is_network_frozen() is False
+            new_contract_adapter.is_network_frozen is False
         ), "Cannot test out the trustlines migration if network is still frozen"
 
         for (

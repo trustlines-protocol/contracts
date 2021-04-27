@@ -1,1 +1,1 @@
-from .contracts import load_packaged_contracts  # noqa: F401
+from .contracts import load_packaged_contracts, load_packaged_merged_abis  # noqa: F401

@@ -71,4 +71,5 @@ target/
 #project
 networks
 /py-bin/tlbin/contracts.json
+/py-bin/tlbin/merged_abis.json
 /.requirements-installed

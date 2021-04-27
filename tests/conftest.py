@@ -65,6 +65,46 @@ class CurrencyNetworkAdapter:
     def expiration_time(self):
         return self.contract.functions.expirationTime().call()
 
+    @property
+    def name(self):
+        return self.contract.functions.name().call()
+
+    @property
+    def symbol(self):
+        return self.contract.functions.symbol().call()
+
+    @property
+    def decimals(self):
+        return self.contract.functions.decimals().call()
+
+    @property
+    def is_initialized(self):
+        return self.contract.functions.isInitialized().call()
+
+    @property
+    def is_network_frozen(self):
+        return self.contract.functions.isNetworkFrozen().call()
+
+    @property
+    def fee_divisor(self):
+        return self.contract.functions.capacityImbalanceFeeDivisor().call()
+
+    @property
+    def default_interest_rate(self):
+        return self.contract.functions.defaultInterestRate().call()
+
+    @property
+    def custom_interests(self):
+        return self.contract.functions.customInterests().call()
+
+    @property
+    def prevent_mediator_interests(self):
+        return self.contract.functions.preventMediatorInterests().call()
+
+    @property
+    def owner(self):
+        return self.contract.functions.owner().call()
+
     def set_account(
         self,
         a_address,
@@ -203,30 +243,53 @@ class CurrencyNetworkAdapter:
         interest_rate_given=0,
         interest_rate_received=0,
         is_frozen=False,
+        transfer=None,
         accept=False,
         should_fail=False,
     ):
-        function_call = self.contract.functions.updateTrustline(
-            debtor_address,
-            creditline_given,
-            creditline_received,
-            interest_rate_given,
-            interest_rate_received,
-            is_frozen,
-        )
+        if transfer is not None:
+            function_call = self.contract.functions.updateTrustline(
+                debtor_address,
+                creditline_given,
+                creditline_received,
+                interest_rate_given,
+                interest_rate_received,
+                is_frozen,
+                transfer,
+            )
+        else:
+            function_call = self.contract.functions.updateTrustline(
+                debtor_address,
+                creditline_given,
+                creditline_received,
+                interest_rate_given,
+                interest_rate_received,
+                is_frozen,
+            )
         self._transact_with_function_call(
             function_call, {"from": creditor_address}, should_fail
         )
 
         if accept:
-            self.contract.functions.updateTrustline(
-                creditor_address,
-                creditline_received,
-                creditline_given,
-                interest_rate_received,
-                interest_rate_given,
-                is_frozen,
-            ).transact({"from": debtor_address})
+            if transfer is not None:
+                self.contract.functions.updateTrustline(
+                    creditor_address,
+                    creditline_received,
+                    creditline_given,
+                    interest_rate_received,
+                    interest_rate_given,
+                    is_frozen,
+                    -transfer,
+                ).transact({"from": debtor_address})
+            else:
+                self.contract.functions.updateTrustline(
+                    creditor_address,
+                    creditline_received,
+                    creditline_given,
+                    interest_rate_received,
+                    interest_rate_given,
+                    is_frozen,
+                ).transact({"from": debtor_address})
 
     def cancel_trustline_update(self, from_address, to_address, should_fail=False):
         function_call = self.contract.functions.cancelTrustlineUpdate(to_address)
@@ -397,11 +460,14 @@ class CurrencyNetworkAdapter:
             should_fail=should_fail,
         )
 
-    def is_network_frozen(self):
-        return self.contract.functions.isNetworkFrozen().call()
-
     def is_trustline_frozen(self, a, b):
         return self.contract.functions.isTrustlineFrozen(a, b).call()
+
+    def get_friends(self, a):
+        return self.contract.functions.getFriends(a).call()
+
+    def get_users(self):
+        return self.contract.functions.getUsers().call()
 
     def events(self, event_name: str, from_block: int = 0):
         return list(

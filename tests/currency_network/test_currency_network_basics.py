@@ -1,6 +1,7 @@
 #! pytest
 import attr
 import pytest
+from tldeploy.core import deploy_network
 
 from web3.exceptions import SolidityError
 
@@ -20,7 +21,9 @@ MAX_CREDITLINE = MAX_UINT_64
 
 @pytest.fixture(scope="session")
 def currency_network_contract_with_trustline_update(web3, accounts):
-    contract = deploy_test_network(web3, NETWORK_SETTING)
+    contract = deploy_network(
+        web3, NETWORK_SETTING, currency_network_contract_name="CurrencyNetworkV2"
+    )
     contract.functions.updateTrustline(accounts[1], 1, 1, 0, 0, False).transact(
         {"from": accounts[0]}
     )

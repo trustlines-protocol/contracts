@@ -12,18 +12,6 @@ ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 
 
 @pytest.fixture(scope="session")
-def owner(accounts):
-    return accounts[0]
-
-
-@pytest.fixture(scope="session")
-def not_owner(accounts, owner):
-    not_owner = accounts[1]
-    assert not_owner != owner
-    return not_owner
-
-
-@pytest.fixture(scope="session")
 def currency_network_contract(owned_currency_network):
     # This is just an alias
     return owned_currency_network
@@ -483,7 +471,7 @@ def test_network_starts_frozen(currency_network_contract):
 
 def test_unfreeze_network(currency_network_adapter, owner):
     currency_network_adapter.unfreeze_network(transaction_options={"from": owner})
-    assert not currency_network_adapter.is_network_frozen()
+    assert not currency_network_adapter.is_network_frozen
 
 
 def test_unfreeze_network_not_owner(currency_network_adapter, not_owner):
