@@ -172,7 +172,7 @@ toolz==0.11.1
     # via cytoolz
 trie==2.0.0-alpha.5
     # via py-evm
-trustlines-contracts-bin==1.2.0
+trustlines-contracts-bin==2.0.0
     # via trustlines-contracts-deploy (setup.py)
 typing-extensions==3.7.4.3
     # via trie
