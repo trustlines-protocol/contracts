@@ -377,8 +377,8 @@ def test(
 
     network_settings = [
         NetworkSettings(
-            name="Cash",
-            symbol="CASH",
+            name="Euro",
+            symbol="EUR",
             decimals=4,
             fee_divisor=1000,
             default_interest_rate=0,
@@ -387,8 +387,8 @@ def test(
             prevent_mediator_interests=False,
         ),
         NetworkSettings(
-            name="Work Hours",
-            symbol="HOU",
+            name="Hours",
+            symbol="HOURS",
             decimals=4,
             fee_divisor=0,
             default_interest_rate=1000,
@@ -397,7 +397,7 @@ def test(
             prevent_mediator_interests=False,
         ),
         NetworkSettings(
-            name="Beers",
+            name="Beer",
             symbol="BEER",
             decimals=0,
             fee_divisor=0,
