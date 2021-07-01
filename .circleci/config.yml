@@ -138,6 +138,17 @@ jobs:
       - install:
           python-version: "3.9"
 
+  check-sdist:
+    executor: ubuntu-builder
+    steps:
+      - attach_workspace:
+          at: '~'
+      - config-path
+      - run:
+          name: Check distribution
+          command: |
+            twine check py-bin/dist/* py-deploy/dist/*
+
   upload-pypi:
     executor: ubuntu-builder
     steps:
@@ -324,7 +335,6 @@ workflows:
             branches:
               only:
                 - master
-
           requires:
             - run-flake8
             - run-black
@@ -339,6 +349,12 @@ workflows:
             <<: *tagged-filter
             branches:
               ignore: /.*/
+
+      - check-sdist:
+          filters:
+            <<: *tagged-filter
+          requires:
+            - install-py38
 
       - upload-pypi:
           context: pypi-credentials
