@@ -171,6 +171,39 @@ def deploy_networks(
     return networks, exchange, unw_eth
 
 
+def deploy_gnosis_safe(
+    web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    gnosis_safe = deploy(
+        "GnosisSafeL2",
+        web3=web3,
+        transaction_options=transaction_options,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    return gnosis_safe
+
+
+def deploy_gnosis_safe_proxy_factory(
+    web3,
+    transaction_options: Dict = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    gnosis_safe_proxy_factory = deploy(
+        "GnosisSafeProxyFactory",
+        web3=web3,
+        transaction_options=transaction_options,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    return gnosis_safe_proxy_factory
+
+
 def deploy_identity(
     web3, owner_address, chain_id=None, transaction_options: Dict = None
 ):

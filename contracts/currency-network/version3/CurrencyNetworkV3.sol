@@ -1,6 +1,7 @@
 pragma solidity ^0.8.0;
 
 import "../version2/CurrencyNetworkV2.sol";
+import "../DebtTracking.sol";
 
 /**
  * CurrencyNetwork
@@ -18,7 +19,9 @@ contract CurrencyNetworkV3 is CurrencyNetworkV2 {
      * @param _value The value to increase the debt by
      **/
     function transfer(address _creditor, uint256 _value) external {
-        increaseDebt(_creditor, _value);
+        DebtTracking debtContract = DebtTracking(address(this));
+
+        debtContract.increaseDebt(_creditor, _value);
     }
 }
 

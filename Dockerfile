@@ -13,16 +13,25 @@
 # docker run --net=host  --rm -it contracts test --file addresses.json
 #
 
-FROM ubuntu:18.04 as builder
+FROM ubuntu:20.04 as builder
 # python needs LANG
 ENV LANG C.UTF-8
 RUN apt-get -y update && \
     apt-get -y dist-upgrade && \
-    apt-get -y install --no-install-recommends libssl-dev curl python3 python3-distutils libpq5 ca-certificates \
-               pkg-config libsecp256k1-dev python3-dev python3-venv git build-essential libpq-dev && \
+    apt-get -y install --no-install-recommends libssl-dev curl libpq5 ca-certificates \
+               pkg-config libsecp256k1-dev python3.8 python3.8-distutils python3.8-dev python3-venv python3.8-venv  \
+                git build-essential libpq-dev && \
     rm -rf /var/lib/apt/lists/* && \
     curl -L -o /usr/bin/solc https://github.com/ethereum/solidity/releases/download/v0.8.0/solc-static-linux && \
     chmod +x /usr/bin/solc
+
+
+# Get Rust
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup default nightly
+
 
 # cache /opt/contracts with requirements installed
 RUN python3 -m venv /opt/contracts
@@ -33,13 +42,15 @@ RUN pip install pip wheel setuptools
 COPY ./py-deploy/requirements.txt /contracts/requirements.txt
 RUN pip install -r requirements.txt
 
+RUN rustup default nightly
+
 COPY . /contracts
 RUN pip install setuptools_scm
 RUN make install-non-editable
 RUN python -c 'import pkg_resources; print(pkg_resources.get_distribution("trustlines-contracts-deploy").version)' >/opt/contracts/VERSION
 
 
-FROM ubuntu:18.04 as runner
+FROM ubuntu:20.04 as runner
 ENV LANG C.UTF-8
 ENV PATH "/opt/contracts/bin:${PATH}"
 RUN apt-get -y update && \
