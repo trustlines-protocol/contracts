@@ -157,7 +157,8 @@ def test_deploy_and_migrate_network(
     chain.time_travel(expiration_time + 1)
     chain.mine_block()
     deploy_and_migrate_network(
-        web3=web3,
+        web3_source=web3,
+        web3_dest=web3,
         beacon_address=beacon_with_currency_network.address,
         owner_address=owner,
         old_network=currency_network_contract_with_trustlines,

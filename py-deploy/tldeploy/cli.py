@@ -594,12 +594,12 @@ def beacon(
 
 
 @cli.command(
-    short_help="Deploy new currrency networks and migrate old ones to deployed ones."
+    short_help="Deploy new currency networks and migrate old ones to deployed ones."
 )
 @click.option(
     "--addresses-file",
     "addresses_file_path",
-    help="Path to a csv file with addresses of old currency networks, order and number must match with new addresses",
+    help="Path to a csv file with addresses of old currency networks, order and number will match with new addresses",
     default="",
     type=click.Path(dir_okay=False, writable=True),
 )
@@ -612,34 +612,71 @@ def beacon(
     default="output.json",
     type=click.Path(dir_okay=False, writable=True),
 )
-@jsonrpc_option
+@click.option(
+    "--source-rpc",
+    help="JsonRPC URL of the source ethereum client, where currency networks are already deployed.",
+    default="http://127.0.0.1:8545",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_SOURCE",
+)
+@click.option(
+    "--dest-rpc",
+    help="JsonRPC URL of the destination ethereum client, where new currency networks will be deployed",
+    default="http://127.0.0.1:8546",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_DEST",
+)
 @gas_price_option
-@nonce_option
+@click.option(
+    "--source-nonce",
+    help="Nonce of the first transaction to be sent on source chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
+@click.option(
+    "--dest-nonce",
+    help="Nonce of the first transaction to be sent on destination chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
 @keystore_option
 def deploy_and_migrate(
     addresses_file_path: str,
     output_file_path: str,
     beacon_address: str,
     owner_address: str,
-    jsonrpc: str,
+    source_rpc: str,
+    dest_rpc: str,
     gas_price: int,
-    nonce: int,
+    nonce_source: int,
+    nonce_dest: int,
     keystore: str,
 ):
-    web3 = connect_to_json_rpc(jsonrpc)
+    web3_source = connect_to_json_rpc(source_rpc)
+    web3_dest = connect_to_json_rpc(dest_rpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
-    transaction_options = build_transaction_options(
-        gas=None, gas_price=gas_price, nonce=nonce
+    nonce_source = get_nonce(
+        web3=web3_source, nonce=nonce_source, private_key=private_key
+    )
+    nonce_dest = get_nonce(web3=web3_dest, nonce=nonce_dest, private_key=private_key)
+    transaction_options_source = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_source
+    )
+    transaction_options_dest = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_dest
     )
 
     deploy_and_migrate_networks_from_file(
-        web3=web3,
+        web3_source=web3_source,
+        web3_dest=web3_dest,
         addresses_file_path=addresses_file_path,
         beacon_address=beacon_address,
         owner_address=owner_address,
         private_key=private_key,
-        transaction_options=transaction_options,
+        transaction_options_source=transaction_options_source,
+        transaction_options_dest=transaction_options_dest,
         output_file_path=output_file_path,
     )
 

@@ -257,10 +257,12 @@ def assert_debts_migrated(
 @pytest.fixture()
 def network_migrater(web3, new_contract, owner, old_contract):
     return NetworkMigrater(
-        web3,
-        old_contract.address,
-        new_contract.address,
-        transaction_options={"from": owner},
+        web3_source=web3,
+        web3_dest=web3,
+        old_currency_network_address=old_contract.address,
+        new_currency_network_address=new_contract.address,
+        transaction_options_source={"from": owner},
+        transaction_options_dest={"from": owner},
     )
 
 

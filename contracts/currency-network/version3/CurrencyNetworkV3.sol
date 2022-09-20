@@ -18,7 +18,7 @@ contract CurrencyNetworkV3 is CurrencyNetworkV2 {
      * @param _value The value to increase the debt by
      **/
     function transfer(address _creditor, uint256 _value) external {
-        increaseDebt(_creditor, _value);
+        CurrencyNetworkV2(address(this)).increaseDebt(_creditor, _value);
     }
 }
 
