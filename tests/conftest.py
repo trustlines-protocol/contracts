@@ -18,15 +18,15 @@ from tests.utils import (
 
 # increase eth_tester's GAS_LIMIT
 # Otherwise we can't deploy our contract
-assert eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT < 8 * 10 ** 6
-eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 8 * 10 ** 6
+assert eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT < 8 * 10**6
+eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 8 * 10**6
 
 
 EXTRA_DATA = b"\x124Vx\x124Vx\x124Vx\x124Vx"
 EXPIRATION_TIME = 4_102_444_800  # 01/01/2100
 
 
-MAX_UINT_64 = 2 ** 64 - 1
+MAX_UINT_64 = 2**64 - 1
 MAX_FEE = MAX_UINT_64
 
 

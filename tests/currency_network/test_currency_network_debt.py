@@ -13,7 +13,7 @@ trustlines = [
     (0, 4, 500, 550),
 ]  # (A, B, clAB, clBA)
 
-max_int256 = 2 ** 255 - 1
+max_int256 = 2**255 - 1
 min_int256 = -(max_int256 + 1)
 
 NETWORK_SETTING = NetworkSettings(fee_divisor=100)
@@ -267,7 +267,7 @@ def test_add_to_debt_twice_to_reach_min_int(
     assert_failing_transaction,
 ):
     """We should not be able to overflow the debt by adding twice to it to reach min_int"""
-    max_int = 2 ** 255 - 1
+    max_int = 2**255 - 1
     creditor = accounts[creditor_index]
     debtor = accounts[debtor_index]
     currency_network_contract.functions.testAddToDebt(

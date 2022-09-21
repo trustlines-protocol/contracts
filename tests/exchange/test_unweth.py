@@ -27,7 +27,7 @@ def test_transfer(unweth_contract, web3, accounts):
 def test_deposit_withdraw(unweth_contract, web3, accounts):
     _, A, *rest = accounts
 
-    wei = 10 ** 18
+    wei = 10**18
     balance = web3.eth.getBalance(A)
 
     print(web3.eth.getBalance(A))
@@ -49,7 +49,7 @@ def test_deposit_withdraw(unweth_contract, web3, accounts):
 
 def test_transfer_from(unweth_contract, web3, accounts, assert_failing_transaction):
     A, B, C, *rest = accounts
-    wei = 10 ** 18
+    wei = 10**18
 
     balance = web3.eth.getBalance(B)
     unweth_contract.functions.deposit().transact({"from": A, "value": wei})
