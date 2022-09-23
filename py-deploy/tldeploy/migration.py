@@ -1,10 +1,7 @@
 import collections
 import math
 import os
-from typing import Dict, Set
-
-from eth_abi.packed import encode_abi_packed
-from web3 import Web3
+from typing import Dict, Set, Callable
 
 import click
 from deploy_tools.files import read_addresses_in_csv
@@ -79,6 +76,7 @@ class NetworkMigrationVerifier:
         web3_dest,
         old_currency_network_address: str,
         new_currency_network_address: str,
+        get_migrated_user_address: Callable,
     ):
         old_network_interface = get_contract_interface("CurrencyNetwork")
         self.old_network = web3_source.eth.contract(
@@ -92,6 +90,7 @@ class NetworkMigrationVerifier:
         click.secho(
             f"Found {len(self.old_users)} users in the old currency network", fg="blue"
         )
+        self.get_migrated_user_address = get_migrated_user_address
 
     def verify_migration(self):
         assert (
@@ -212,10 +211,6 @@ class NetworkMigrationVerifier:
         else:
             click.secho("New network owner is zero address")
 
-    def get_migrated_user_address(self, user_address):
-        # TODO: implement
-        return user_address
-
 
 class NetworkMigrater(NetworkMigrationVerifier):
     def __init__(
@@ -224,6 +219,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
         web3_dest,
         old_currency_network_address: str,
         new_currency_network_address: str,
+        get_migrated_user_address: Callable,
         transaction_options_source: Dict = None,
         transaction_options_dest: Dict = None,
         private_key: bytes = None,
@@ -234,6 +230,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
             web3_dest,
             old_currency_network_address,
             new_currency_network_address,
+            get_migrated_user_address,
         )
 
         self.web3_source = web3_source
@@ -510,37 +507,3 @@ def unique_id(user_1: str, user_2: str):
         return user_1 + user_2
     else:
         return user_2 + user_1
-
-
-def gnosis_safe_user_address(
-    proxy_creation_code,
-    master_copy_address,
-    proxy_factory_address,
-    safe_setup_data,
-    salt_nonce=0,
-):
-    proxy_creation_code = bytearray.fromhex(
-        "608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564"  # noqa: E501
-    )
-    master_copy_address = "0x3E5c63644E683549055b9Be8653de26E0B4CD36E"
-    proxy_factory_address = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
-    safe_setup_data = "0xb63e800d0000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000f48f2b2d2a534e402487b3ee7c18c33aec0fe5e400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000002457204275652deb8b9cf02d1fd4fb5dbe9cc9bb0000000000000000000000000000000000000000000000000000000000000000"  # noqa: E501
-    salt_nonce = 1659333098051
-
-    abi_types = ["bytes", "uint256"]
-    to_hash = [Web3.solidityKeccak(["bytes"], [safe_setup_data]), salt_nonce]
-    salt = Web3.solidityKeccak(abi_types, to_hash)
-
-    deployment_data = encode_abi_packed(
-        ["bytes", "uint256"],
-        [proxy_creation_code, int(master_copy_address, 16)],
-    )
-    return build_create2_address(proxy_factory_address, deployment_data, salt)
-
-
-def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
-    hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
-    to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
-    abi_types = ["bytes1", "address", "bytes32", "bytes32"]
-
-    return Web3.toChecksumAddress(Web3.solidityKeccak(abi_types, to_hash)[12:])

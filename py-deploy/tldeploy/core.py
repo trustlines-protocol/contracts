@@ -17,6 +17,7 @@ from web3 import Web3
 from tldeploy.load_contracts import contracts, get_contract_interface
 
 from web3.contract import Contract
+from eth_abi.packed import encode_abi_packed
 
 
 @attr.s
@@ -189,18 +190,6 @@ def deploy_identity(
     return identity
 
 
-def deploy_gnosis_safe_proxy(
-    web3, owner_address, master_copy, transaction_options: Dict = None
-):
-    # TODO: implement
-    return owner_address
-
-
-def calculate_gnosis_proxy_deployment_initializer(web3):
-
-    pass
-
-
 def get_chain_id(web3):
     return int(web3.eth.chainId)
 
@@ -344,6 +333,8 @@ def deploy_and_migrate_networks_from_file(
     web3_dest,
     beacon_address: str,
     owner_address: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
     addresses_file_path: str,
     private_key: bytes = None,
     transaction_options_source: Dict = None,
@@ -369,6 +360,8 @@ def deploy_and_migrate_networks_from_file(
             web3_dest=web3_dest,
             beacon_address=beacon_address,
             owner_address=owner_address,
+            master_copy_address=master_copy_address,
+            proxy_factory_address=proxy_factory_address,
             old_network=old_network,
             private_key=private_key,
             transaction_options_source=transaction_options_source,
@@ -389,6 +382,8 @@ def deploy_and_migrate_network(
     web3_dest,
     beacon_address: str,
     owner_address: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
     old_network: Contract,
     private_key: bytes = None,
     transaction_options_source: Dict = None,
@@ -417,11 +412,20 @@ def deploy_and_migrate_network(
     )
 
     click.secho(f"Migrating {old_network.address} to {new_address}", fg="green")
+
+    def get_migrated_user_address(user_address):
+        return gnosis_safe_user_address(
+            master_copy_address=master_copy_address,
+            proxy_factory_address=proxy_factory_address,
+            user_address=user_address,
+        )
+
     NetworkMigrater(
         web3_source,
         web3_dest,
         old_network.address,
         new_network.address,
+        get_migrated_user_address,
         transaction_options_source,
         transaction_options_dest,
         private_key,
@@ -482,3 +486,60 @@ def remove_owner_of_network(
 class TransactionsFailed(Exception):
     def __init__(self, failed_tx_hashs):
         self.failed_tx_hashs = failed_tx_hashs
+
+
+def gnosis_safe_user_address(
+    master_copy_address,
+    proxy_factory_address,
+    user_address,
+    salt_nonce=0,
+):
+    proxy_creation_code = bytearray.fromhex(
+        "608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564"  # noqa: E501
+    )
+
+    # safe setup selector
+    # owners offset = 9th element
+    # threshold = 1
+    # to = zero_address
+    # calldata offset = 10th element
+    # fallback handler = zero_address
+    # payment token = zero_address
+    # payment = zero
+    # payment receiver = zero_address
+    # owners = length 1
+    # owners = user_address
+    # calldata = zero bytes
+    safe_setup_data = (
+        "0xb63e800d"
+        "0000000000000000000000000000000000000000000000000000000000000100"
+        "0000000000000000000000000000000000000000000000000000000000000001"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000140"
+        "000000000000000000000000f48f2b2d2a534e402487b3ee7c18c33aec0fe5e4"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000001"
+        "000000000000000000000000"
+        + user_address[-40:]
+        + "0000000000000000000000000000000000000000000000000000000000000000"
+    )
+
+    abi_types = ["bytes", "uint256"]
+    to_hash = [Web3.solidityKeccak(["bytes"], [safe_setup_data]), salt_nonce]
+    salt = Web3.solidityKeccak(abi_types, to_hash)
+
+    deployment_data = encode_abi_packed(
+        ["bytes", "uint256"],
+        [proxy_creation_code, int(master_copy_address, 16)],
+    )
+    return build_create2_address(proxy_factory_address, deployment_data, salt)
+
+
+def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
+    hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
+    to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
+    abi_types = ["bytes1", "address", "bytes32", "bytes32"]
+
+    return Web3.toChecksumAddress(Web3.solidityKeccak(abi_types, to_hash)[12:])

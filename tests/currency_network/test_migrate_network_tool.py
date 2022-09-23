@@ -5,6 +5,7 @@ from tldeploy.core import (
     NetworkSettings,
 )
 from tldeploy.migration import NetworkMigrater, get_last_frozen_status_of_account
+from tldeploy.core import gnosis_safe_user_address
 
 from tests.currency_network.conftest import (
     NO_ONBOARDER,
@@ -139,7 +140,7 @@ def new_contract_adapter(new_contract, make_currency_network_adapter):
 
 
 @pytest.fixture(scope="session")
-def assert_accounts_migrated(new_contract, accounts):
+def assert_accounts_migrated(new_contract, accounts, get_migrated_user_address):
     def assert_migrated():
         for (
             first_user,
@@ -156,7 +157,8 @@ def assert_accounts_migrated(new_contract, accounts):
                 effective_is_frozen,
                 *rest,
             ) = new_contract.functions.getAccount(
-                accounts[first_user], accounts[second_user]
+                get_migrated_user_address(accounts[first_user]),
+                get_migrated_user_address(accounts[second_user]),
             ).call()
             assert effective_credit_given == credit_given
             assert effective_credit_received == credit_received
@@ -166,7 +168,9 @@ def assert_accounts_migrated(new_contract, accounts):
 
 
 @pytest.fixture(scope="session")
-def assert_pending_trusltines_migrated(new_contract_adapter, accounts):
+def assert_pending_trusltines_migrated(
+    new_contract_adapter, accounts, web3, get_migrated_user_address
+):
     def assert_migrated():
         # test that the pending trustline updates were properly migrated by accepting them
         assert (
@@ -182,9 +186,13 @@ def assert_pending_trusltines_migrated(new_contract_adapter, accounts):
             interest_BA,
             is_frozen,
         ) in pending_trustlines_requests:
+            # ensure account is funded to send tx
+            web3.eth.sendTransaction(
+                {"to": get_migrated_user_address(accounts[B]), "value": 10**18}
+            )
             new_contract_adapter.update_trustline(
-                accounts[B],
-                accounts[A],
+                get_migrated_user_address(accounts[B]),
+                get_migrated_user_address(accounts[A]),
                 creditline_given=clBA,
                 creditline_received=clAB,
                 interest_rate_given=interest_BA,
@@ -192,8 +200,8 @@ def assert_pending_trusltines_migrated(new_contract_adapter, accounts):
                 is_frozen=is_frozen,
             )
             assert new_contract_adapter.check_account(
-                accounts[A],
-                accounts[B],
+                get_migrated_user_address(accounts[A]),
+                get_migrated_user_address(accounts[B]),
                 clAB,
                 clBA,
                 interest_AB,
@@ -217,10 +225,14 @@ def on_boardees(accounts):
 
 
 @pytest.fixture(scope="session")
-def assert_on_boarders_migrated(new_contract, on_boarders, on_boardees):
+def assert_on_boarders_migrated(
+    new_contract, on_boarders, on_boardees, get_migrated_user_address
+):
     def assert_migrated():
         for (on_boarder, on_boardee) in zip(on_boarders, on_boardees):
-            assert new_contract.functions.onboarder(on_boardee).call() == on_boarder
+            assert new_contract.functions.onboarder(
+                get_migrated_user_address(on_boardee)
+            ).call() == get_migrated_user_address(on_boarder)
 
     return assert_migrated
 
@@ -242,25 +254,52 @@ def debt_values():
 
 @pytest.fixture(scope="session")
 def assert_debts_migrated(
-    new_contract, creditors, debtors, debt_values, make_currency_network_adapter
+    new_contract,
+    creditors,
+    debtors,
+    debt_values,
+    make_currency_network_adapter,
+    get_migrated_user_address,
 ):
     def assert_debt():
         for (creditor, debtor, debt_value) in zip(creditors, debtors, debt_values):
             assert (
-                make_currency_network_adapter(new_contract).get_debt(debtor, creditor)
+                make_currency_network_adapter(new_contract).get_debt(
+                    get_migrated_user_address(debtor),
+                    get_migrated_user_address(creditor),
+                )
                 == debt_value
             )
 
     return assert_debt
 
 
+@pytest.fixture(scope="session")
+def get_migrated_user_address(chain, web3):
+    # Arbitrary function to test the migration of user address.
+    # We deterministically derive a new user address for which the private key is known
+    def f(user_address):
+        private_key = user_address + "0" * 24
+        address = web3.eth.account.from_key(private_key).address
+
+        if address not in chain.get_accounts():
+            chain.add_account(private_key)
+
+        return address
+
+    return f
+
+
 @pytest.fixture()
-def network_migrater(web3, new_contract, owner, old_contract):
+def network_migrater(
+    web3, new_contract, owner, old_contract, get_migrated_user_address
+):
     return NetworkMigrater(
         web3_source=web3,
         web3_dest=web3,
         old_currency_network_address=old_contract.address,
         new_currency_network_address=new_contract.address,
+        get_migrated_user_address=get_migrated_user_address,
         transaction_options_source={"from": owner},
         transaction_options_dest={"from": owner},
     )
@@ -291,6 +330,14 @@ def test_unfreeze_new_network(network_migrater, new_contract):
 def test_remove_owner(network_migrater, new_contract):
     network_migrater.remove_owner()
     assert new_contract.functions.owner().call() == ADDRESS_0
+
+
+def test_migrate_pending_trustline_requests(
+    network_migrater, assert_pending_trusltines_migrated
+):
+    network_migrater.migrate_trustline_update_requests()
+    network_migrater.unfreeze_network()
+    assert_pending_trusltines_migrated()
 
 
 def test_migrate_network_global(
@@ -340,9 +387,14 @@ def test_get_last_frozen_status_of_account(old_contract_adapter, accounts):
         )
 
 
-def test_get_pending_trustline_requests(
-    network_migrater, assert_pending_trusltines_migrated
-):
-    network_migrater.migrate_trustline_update_requests()
-    network_migrater.unfreeze_network()
-    assert_pending_trusltines_migrated()
+def test_gnosis_safe_user_address():
+    # test data taken from https://goerli.etherscan.io/address/0xF421D9c7207A2e2F0Be4F269637eA7DF66F544D5
+    assert (
+        gnosis_safe_user_address(
+            master_copy_address="0x3E5c63644E683549055b9Be8653de26E0B4CD36E",
+            proxy_factory_address="0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+            user_address="0x2457204275652deb8b9cf02d1fd4fb5dbe9cc9bb",
+            salt_nonce=1659333098051,
+        )
+        == "0xF421D9c7207A2e2F0Be4F269637eA7DF66F544D5"
+    )

@@ -606,6 +606,22 @@ def beacon(
 @beacon_address_option
 @proxy_owner_option
 @click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
     "--output",
     "output_file_path",
     help="Path of the file to print the mapping of old network to new network to",
@@ -647,6 +663,8 @@ def deploy_and_migrate(
     output_file_path: str,
     beacon_address: str,
     owner_address: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
     source_rpc: str,
     dest_rpc: str,
     gas_price: int,
@@ -674,6 +692,8 @@ def deploy_and_migrate(
         addresses_file_path=addresses_file_path,
         beacon_address=beacon_address,
         owner_address=owner_address,
+        master_copy_address=master_copy_address,
+        proxy_factory_address=proxy_factory_address,
         private_key=private_key,
         transaction_options_source=transaction_options_source,
         transaction_options_dest=transaction_options_dest,
