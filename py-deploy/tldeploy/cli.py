@@ -433,6 +433,7 @@ def test(
         network_settings,
         currency_network_contract_name=currency_network_contract_name,
         transaction_options=transaction_options,
+        private_key=private_key,
     )
     identity_implementation = deploy_identity_implementation(
         web3=web3, transaction_options=transaction_options, private_key=private_key
