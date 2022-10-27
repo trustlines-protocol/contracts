@@ -262,20 +262,12 @@ class NetworkMigrater(NetworkMigrationVerifier):
             == self.new_network.functions.name().call()
         ), "New and old contracts name do not match"
 
-        self.freeze_old_network()
         self.migrate_accounts()
         self.migrate_trustline_update_requests()
         self.migrate_on_boarders()
         self.migrate_debts()
         self.unfreeze_network()
         self.remove_owner()
-
-    def freeze_old_network(self):
-        # TODO: update, probably can't freeze networks this way anymore
-        if not self.old_network.functions.isNetworkFrozen().call():
-            freeze_network_call = self.old_network.functions.freezeNetwork()
-            self.call_contract_function_with_tx(freeze_network_call)
-            self.wait_for_successfull_txs_in_queue()
 
     def migrate_accounts(self):
         click.secho("Accounts migration")
