@@ -388,13 +388,13 @@ def test_get_last_frozen_status_of_account(old_contract_adapter, accounts):
 
 
 def test_gnosis_safe_user_address():
-    # test data taken from https://goerli.etherscan.io/address/0xF421D9c7207A2e2F0Be4F269637eA7DF66F544D5
+    # test data taken from e2e tests with safe-relay
     assert (
         gnosis_safe_user_address(
-            master_copy_address="0x3E5c63644E683549055b9Be8653de26E0B4CD36E",
-            proxy_factory_address="0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
-            user_address="0x2457204275652deb8b9cf02d1fd4fb5dbe9cc9bb",
-            salt_nonce=1659333098051,
+            master_copy_address="0xea56b73C2FbA87D10913DC721396F1d87ed73A66",
+            proxy_factory_address="0x74bF4E15576B145dfc51de0484d9553c50DF2645",
+            user_address="0xa14Dc7d20F6E35dFfDc741d42E3e75759E930315",
+            salt_nonce=0,
         )
-        == "0xF421D9c7207A2e2F0Be4F269637eA7DF66F544D5"
+        == "0xf6ab4D3509cdF9d4a71AFC3Bae6faa92204fD8fc"
     )
