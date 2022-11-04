@@ -1,7 +1,7 @@
 #! pytest
 import pytest
 import attr
-from web3.exceptions import SolidityError
+from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
 from tldeploy.core import deploy_network, deploy_identity, NetworkSettings
 from tldeploy.identity import (
@@ -70,7 +70,7 @@ def non_payable_contract_inticode(contract_assets):
 
 
 def test_init_already_init(each_identity_contract, accounts):
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         each_identity_contract.functions.init(accounts[0], 0).transact(
             {"from": accounts[0]}
         )
@@ -236,7 +236,7 @@ def test_delegated_transaction_same_tx_fails(each_identity, delegate, accounts, 
     )
     delegate.send_signed_meta_transaction(meta_transaction)
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -251,7 +251,7 @@ def test_delegated_transaction_wrong_from(
         from_=from_, to=to, value=value, nonce=0, chain_id=chain_id
     ).signed(owner_key)
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         each_identity_contract.functions.executeTransaction(
             meta_transaction.to,
             meta_transaction.value,
@@ -278,7 +278,7 @@ def test_delegated_transaction_wrong_signature(
         from_=each_identity.address, to=to, value=value, nonce=0, chain_id=chain_id
     ).signed(account_keys[3])
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -404,7 +404,7 @@ def test_delegated_transaction_same_nonce_fails(
 
     delegate.send_signed_meta_transaction(meta_transaction1)
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction2)
 
 
@@ -421,7 +421,7 @@ def test_delegated_transaction_nonce_gap_fails(each_identity, delegate, web3, ac
 
     delegate.send_signed_meta_transaction(meta_transaction1)
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction2)
 
 
@@ -466,7 +466,7 @@ def test_meta_transaction_time_limit_invalid(each_identity, delegate, web3, acco
         meta_transaction
     )
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -736,7 +736,7 @@ def test_meta_transaction_gas_limit(each_identity, delegate, web3, accounts):
         meta_transaction
     )
 
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -956,7 +956,7 @@ def test_revoke_meta_transaction_hash(each_identity, delegate, test_contract):
     assert events[0]["args"]["hash"] == meta_transaction.hash
 
     assert not delegate.validate_meta_transaction(meta_transaction)
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -1000,7 +1000,7 @@ def test_revoke_meta_transaction_nonce(each_identity, delegate, test_contract):
     delegate.send_signed_meta_transaction(revoke_meta_transaction)
 
     assert not delegate.validate_meta_transaction(meta_transaction)
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -1027,7 +1027,7 @@ def test_reveoke_meta_transaction_nonce_via_hash(
     delegate.send_signed_meta_transaction(revoke_meta_transaction)
 
     assert not delegate.validate_meta_transaction(meta_transaction)
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         delegate.send_signed_meta_transaction(meta_transaction)
 
 
@@ -1056,7 +1056,7 @@ def test_execute_expired_time_limit(owner, accounts, each_identity_contract, web
     recipient = accounts[1]
     transfer_value = 123
     time_limit = web3.eth.getBlock("latest").timestamp - 1
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         each_identity_contract.functions.execute(
             recipient, transfer_value, b"", time_limit, 0
         ).transact({"from": owner})
