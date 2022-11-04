@@ -19,6 +19,8 @@ from tldeploy.load_contracts import contracts, get_contract_interface
 from web3.contract import Contract
 from eth_abi.packed import encode_abi_packed
 
+from eth_abi.exceptions import InsufficientDataBytes
+from web3.exceptions import BadFunctionCallOutput
 
 @attr.s
 class NetworkSettings(object):
@@ -414,11 +416,23 @@ def deploy_and_migrate_network(
     click.secho(f"Migrating {old_network.address} to {new_address}", fg="green")
 
     def get_migrated_user_address(user_address):
-        return gnosis_safe_user_address(
+        identity_interface = get_contract_interface("Identity")
+
+        try:
+            identity_contract = web3_source.eth.contract(
+                address=user_address, abi=identity_interface["abi"]
+            )
+            identity_owner = identity_contract.functions.owner().call()
+        except BadFunctionCallOutput:
+            identity_owner = user_address
+
+        safe_address = gnosis_safe_user_address(
             master_copy_address=master_copy_address,
             proxy_factory_address=proxy_factory_address,
-            user_address=user_address,
+            user_address=identity_owner,
         )
+
+        return safe_address
 
     NetworkMigrater(
         web3_source,
