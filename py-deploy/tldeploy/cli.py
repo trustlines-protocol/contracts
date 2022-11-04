@@ -72,7 +72,7 @@ def cli(ctx, version):
 currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
     help="name of the currency network contract to deploy, "
-    "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
+         "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
     default="CurrencyNetworkV2",
     hidden=False,
 )
@@ -484,16 +484,64 @@ def test(
     default="",
     type=click.Path(dir_okay=False, writable=True),
 )
-@jsonrpc_option
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--source-rpc",
+    help="JsonRPC URL of the source ethereum client, where currency networks are already deployed.",
+    default="http://127.0.0.1:8545",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_SOURCE",
+)
+@click.option(
+    "--dest-rpc",
+    help="JsonRPC URL of the destination ethereum client, where new currency networks will be deployed",
+    default="http://127.0.0.1:8546",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_DEST",
+)
 @gas_price_option
-@nonce_option
+@click.option(
+    "--source-nonce",
+    "nonce_source",
+    help="Nonce of the first transaction to be sent on source chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
+@click.option(
+    "--dest-nonce",
+    "nonce_dest",
+    help="Nonce of the first transaction to be sent on destination chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
 @keystore_option
 def migration(
     old_addresses_file_path: str,
     new_addresses_file_path: str,
-    jsonrpc: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
+    source_rpc: str,
+    dest_rpc: str,
     gas_price: int,
-    nonce: int,
+    nonce_source: int,
+    nonce_dest: int,
     keystore: str,
 ):
     """Used to migrate old currency networks to new ones
@@ -501,18 +549,30 @@ def migration(
     The address files should contain currency network addresses with
     address matching from one file to the other from top to bottom"""
 
-    web3 = connect_to_json_rpc(jsonrpc)
+    web3_source = connect_to_json_rpc(source_rpc)
+    web3_dest = connect_to_json_rpc(dest_rpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
-    transaction_options = build_transaction_options(
-        gas=None, gas_price=gas_price, nonce=nonce
+    nonce_source = get_nonce(
+        web3=web3_source, nonce=nonce_source, private_key=private_key
     )
+    nonce_dest = get_nonce(web3=web3_dest, nonce=nonce_dest, private_key=private_key)
+    transaction_options_source = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_source
+    )
+    transaction_options_dest = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_dest
+    )
+
     migrate_networks(
-        web3,
-        old_addresses_file_path,
-        new_addresses_file_path,
-        transaction_options,
-        private_key,
+        web3_source=web3_source,
+        web3_dest=web3_dest,
+        old_addresses_file_path=old_addresses_file_path,
+        new_addresses_file_path=new_addresses_file_path,
+        master_copy_address=master_copy_address,
+        proxy_factory_address=proxy_factory_address,
+        transaction_options_source=transaction_options_source,
+        transaction_options_dest=transaction_options_dest,
+        private_key=private_key,
     )
 
 
@@ -531,17 +591,67 @@ def migration(
     default="",
     type=click.Path(dir_okay=False, writable=True),
 )
-@jsonrpc_option
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--source-rpc",
+    help="JsonRPC URL of the source ethereum client, where currency networks are already deployed.",
+    default="http://127.0.0.1:8545",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_SOURCE",
+)
+@click.option(
+    "--dest-rpc",
+    help="JsonRPC URL of the destination ethereum client, where new currency networks will be deployed",
+    default="http://127.0.0.1:8546",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_DEST",
+)
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
 def verify_migration(
-    old_addresses_file_path: str, new_addresses_file_path: str, jsonrpc: str
+    old_addresses_file_path: str, new_addresses_file_path: str, source_rpc: str, dest_rpc: str,
+    master_copy_address: str, proxy_factory_address: str
 ):
     """Used to verify migration of old currency networks to new ones
     The address files should contain currency network addresses with
     address matching from one file to the other from top to bottom"""
 
-    web3 = connect_to_json_rpc(jsonrpc)
+    web3_source = connect_to_json_rpc(source_rpc)
+    web3_dest = connect_to_json_rpc(dest_rpc)
 
-    verify_networks_migrations(web3, old_addresses_file_path, new_addresses_file_path)
+    verify_networks_migrations(web3_source, web3_dest, old_addresses_file_path, new_addresses_file_path,
+                               master_copy_address, proxy_factory_address)
 
 
 @cli.command(short_help="Deploy a new beacon contract")

@@ -4,8 +4,7 @@ import pytest
 from tldeploy.core import (
     NetworkSettings,
 )
-from tldeploy.migration import NetworkMigrater, get_last_frozen_status_of_account
-from tldeploy.core import gnosis_safe_user_address
+from tldeploy.migration import NetworkMigrater, get_last_frozen_status_of_account, gnosis_safe_user_address
 
 from tests.currency_network.conftest import (
     NO_ONBOARDER,
