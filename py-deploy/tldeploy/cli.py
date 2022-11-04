@@ -647,12 +647,14 @@ def beacon(
 @gas_price_option
 @click.option(
     "--source-nonce",
+    "nonce_source",
     help="Nonce of the first transaction to be sent on source chain, queried from the pending block if left out",
     type=int,
     default=None,
 )
 @click.option(
     "--dest-nonce",
+    "nonce_dest",
     help="Nonce of the first transaction to be sent on destination chain, queried from the pending block if left out",
     type=int,
     default=None,
