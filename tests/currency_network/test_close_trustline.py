@@ -173,7 +173,7 @@ def test_close_trustline_max_balance(
     currency_network_adapter = make_currency_network_adapter(
         currency_network_contract_with_max_uint_trustlines
     )
-    max_uint64 = 2**64 - 1
+    max_uint64 = 2 ** 64 - 1
     A, B, C, *rest = accounts
 
     currency_network_adapter.set_account(

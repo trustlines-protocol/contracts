@@ -20,7 +20,9 @@ from tldeploy.load_contracts import get_contract_interface
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 
 
-def get_safe_address(user_address, master_copy_address, proxy_factory_address, web3_source):
+def get_safe_address(
+    user_address, master_copy_address, proxy_factory_address, web3_source
+):
     identity_interface = get_contract_interface("Identity")
 
     try:
@@ -40,34 +42,47 @@ def get_safe_address(user_address, master_copy_address, proxy_factory_address, w
     return safe_address
 
 
-def migrate_networks(*,
-                     web3_source,
-                     web3_dest,
-                     old_addresses_file_path: str,
-                     new_addresses_file_path: str,
-                     master_copy_address: str,
-                     proxy_factory_address: str,
-                     transaction_options_source: Dict = None,
-                     transaction_options_dest: Dict = None,
-                     private_key: bytes = None,
-                     ):
+def migrate_networks(
+    *,
+    web3_source,
+    web3_dest,
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
+    transaction_options_source: Dict = None,
+    transaction_options_dest: Dict = None,
+    private_key: bytes = None,
+):
     def get_migrated_user_address(user_address):
-        return get_safe_address(user_address, master_copy_address, proxy_factory_address, web3_source)
+        return get_safe_address(
+            user_address, master_copy_address, proxy_factory_address, web3_source
+        )
 
     for [old_address, new_address] in read_addresses_to_migrate(
         old_addresses_file_path, new_addresses_file_path
     ):
         click.secho(f"Migrating {old_address} to {new_address}", fg="green")
         NetworkMigrater(
-            web3_source, web3_dest, old_address, new_address, get_migrated_user_address, transaction_options_source,
-            transaction_options_dest, private_key
+            web3_source,
+            web3_dest,
+            old_address,
+            new_address,
+            get_migrated_user_address,
+            transaction_options_source,
+            transaction_options_dest,
+            private_key,
         ).migrate_network()
         click.secho(f"Migration of {old_address} to {new_address} complete", fg="green")
 
 
 def verify_networks_migrations(
-    web3_source, web3_dest, old_addresses_file_path: str, new_addresses_file_path: str, master_copy_address: str,
-    proxy_factory_address: str
+    web3_source,
+    web3_dest,
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
 ):
     for [old_address, new_address] in read_addresses_to_migrate(
         old_addresses_file_path, new_addresses_file_path
@@ -77,9 +92,13 @@ def verify_networks_migrations(
         )
 
         def get_migrated_user_address(user_address):
-            return get_safe_address(user_address, master_copy_address, proxy_factory_address, web3_source)
+            return get_safe_address(
+                user_address, master_copy_address, proxy_factory_address, web3_source
+            )
 
-        NetworkMigrationVerifier(web3_source, web3_dest, old_address, new_address, get_migrated_user_address).verify_migration()
+        NetworkMigrationVerifier(
+            web3_source, web3_dest, old_address, new_address, get_migrated_user_address
+        ).verify_migration()
         click.secho(
             f"Verification of migration from {old_address} to {new_address} complete",
             fg="green",
@@ -573,7 +592,7 @@ def gnosis_safe_user_address(
         "000000000000000000000000"
         + user_address[-40:]
         + "0000000000000000000000000000000000000000000000000000000000000000"
-          "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
     )
 
     abi_types = ["bytes", "uint256"]

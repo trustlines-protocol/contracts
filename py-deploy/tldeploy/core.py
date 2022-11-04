@@ -12,13 +12,18 @@ from deploy_tools.transact import (
     wait_for_successful_function_call,
 )
 from deploy_tools.files import read_addresses_in_csv
-from tldeploy.migration import NetworkMigrater, gnosis_safe_user_address, get_safe_address
+from tldeploy.migration import (
+    NetworkMigrater,
+    gnosis_safe_user_address,
+    get_safe_address,
+)
 from web3 import Web3
 from tldeploy.load_contracts import contracts, get_contract_interface
 
 from web3.contract import Contract
 
 from web3.exceptions import BadFunctionCallOutput
+
 
 @attr.s
 class NetworkSettings(object):
@@ -414,7 +419,9 @@ def deploy_and_migrate_network(
     click.secho(f"Migrating {old_network.address} to {new_address}", fg="green")
 
     def get_migrated_user_address(user_address):
-        return get_safe_address(user_address, master_copy_address, proxy_factory_address, web3_source)
+        return get_safe_address(
+            user_address, master_copy_address, proxy_factory_address, web3_source
+        )
 
     NetworkMigrater(
         web3_source,
@@ -482,5 +489,3 @@ def remove_owner_of_network(
 class TransactionsFailed(Exception):
     def __init__(self, failed_tx_hashs):
         self.failed_tx_hashs = failed_tx_hashs
-
-

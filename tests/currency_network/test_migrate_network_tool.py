@@ -4,7 +4,11 @@ import pytest
 from tldeploy.core import (
     NetworkSettings,
 )
-from tldeploy.migration import NetworkMigrater, get_last_frozen_status_of_account, gnosis_safe_user_address
+from tldeploy.migration import (
+    NetworkMigrater,
+    get_last_frozen_status_of_account,
+    gnosis_safe_user_address,
+)
 
 from tests.currency_network.conftest import (
     NO_ONBOARDER,
@@ -187,7 +191,7 @@ def assert_pending_trusltines_migrated(
         ) in pending_trustlines_requests:
             # ensure account is funded to send tx
             web3.eth.sendTransaction(
-                {"to": get_migrated_user_address(accounts[B]), "value": 10**18}
+                {"to": get_migrated_user_address(accounts[B]), "value": 10 ** 18}
             )
             new_contract_adapter.update_trustline(
                 get_migrated_user_address(accounts[B]),

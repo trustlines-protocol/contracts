@@ -72,7 +72,7 @@ def cli(ctx, version):
 currency_network_contract_name_option = click.option(
     "--currency-network-contract-name",
     help="name of the currency network contract to deploy, "
-         "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
+    "(e.g. CurrencyNetworkOwnable, CurrencyNetwork, or  TestCurrencyNetwork)",
     default="CurrencyNetworkV2",
     hidden=False,
 )
@@ -640,8 +640,12 @@ def migration(
     callback=validate_address,
 )
 def verify_migration(
-    old_addresses_file_path: str, new_addresses_file_path: str, source_rpc: str, dest_rpc: str,
-    master_copy_address: str, proxy_factory_address: str
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    source_rpc: str,
+    dest_rpc: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
 ):
     """Used to verify migration of old currency networks to new ones
     The address files should contain currency network addresses with
@@ -650,8 +654,14 @@ def verify_migration(
     web3_source = connect_to_json_rpc(source_rpc)
     web3_dest = connect_to_json_rpc(dest_rpc)
 
-    verify_networks_migrations(web3_source, web3_dest, old_addresses_file_path, new_addresses_file_path,
-                               master_copy_address, proxy_factory_address)
+    verify_networks_migrations(
+        web3_source,
+        web3_dest,
+        old_addresses_file_path,
+        new_addresses_file_path,
+        master_copy_address,
+        proxy_factory_address,
+    )
 
 
 @cli.command(short_help="Deploy a new beacon contract")

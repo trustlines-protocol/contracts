@@ -32,7 +32,7 @@ def calculate_interests(
             intermediate_order
             * internal_interest_rate
             * delta_time_in_seconds
-            / (SECONDS_PER_YEAR * 100 * 10**INTERESTS_DECIMALS * order)
+            / (SECONDS_PER_YEAR * 100 * 10 ** INTERESTS_DECIMALS * order)
         )
 
         if intermediate_order == 0:

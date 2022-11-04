@@ -706,7 +706,7 @@ def test_meta_transaction_gas_fee(
     to = currency_network_contract.address
     base_fee = 123
     effective_gas_price = 1000
-    contract_gas_price_divisor = 10**6
+    contract_gas_price_divisor = 10 ** 6
     gas_price = effective_gas_price * contract_gas_price_divisor
 
     function_call = currency_network_contract.functions.updateCreditlimits(B, 100, 100)
@@ -1070,7 +1070,7 @@ def test_send_same_function_call_twice_without_nonce_tracking(
     argument = 10
     function_call = test_contract.functions.testFunction(argument)
 
-    max_nonce = 2**255
+    max_nonce = 2 ** 255
     random_gap = 123456
 
     meta_transaction = MetaTransaction.from_function_call(
