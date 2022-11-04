@@ -14,15 +14,12 @@ from deploy_tools.transact import (
 from deploy_tools.files import read_addresses_in_csv
 from tldeploy.migration import (
     NetworkMigrater,
-    gnosis_safe_user_address,
     get_safe_address,
 )
 from web3 import Web3
 from tldeploy.load_contracts import contracts, get_contract_interface
 
 from web3.contract import Contract
-
-from web3.exceptions import BadFunctionCallOutput
 
 
 @attr.s
