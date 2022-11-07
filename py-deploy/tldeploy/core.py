@@ -152,12 +152,16 @@ def deploy_networks(
     network_settings,
     currency_network_contract_name=None,
     transaction_options: Dict = None,
+    private_key=None,
 ):
-    exchange = deploy_exchange(web3=web3, transaction_options=transaction_options)
+    exchange = deploy_exchange(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     unw_eth = deploy_unw_eth(
         web3=web3,
         exchange_address=exchange.address,
         transaction_options=transaction_options,
+        private_key=private_key,
     )
 
     networks = [
@@ -167,11 +171,48 @@ def deploy_networks(
             currency_network_contract_name=currency_network_contract_name,
             transaction_options=transaction_options,
             network_settings=network_setting,
+            private_key=private_key,
         )
         for network_setting in network_settings
     ]
 
     return networks, exchange, unw_eth
+
+
+def deploy_gnosis_safe(
+    web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    gnosis_safe = deploy(
+        "GnosisSafeL2",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    return gnosis_safe
+
+
+def deploy_gnosis_safe_proxy_factory(
+    web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    gnosis_safe_proxy_factory = deploy(
+        "GnosisSafeProxyFactory",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    return gnosis_safe_proxy_factory
 
 
 def deploy_identity(

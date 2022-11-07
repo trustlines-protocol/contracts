@@ -11,6 +11,7 @@ from deploy_tools.cli import (
     keystore_option,
     nonce_option,
     retrieve_private_key,
+    decrypt_private_key,
     validate_address,
 )
 from deploy_tools.transact import (
@@ -36,6 +37,8 @@ from .core import (
     deploy_currency_network_proxy,
     unfreeze_owned_network,
     remove_owner_of_network,
+    deploy_gnosis_safe,
+    deploy_gnosis_safe_proxy_factory,
 )
 from tldeploy.migration import migrate_networks, verify_networks_migrations
 
@@ -360,6 +363,9 @@ def identity_proxy_factory(
 @nonce_option
 @keystore_option
 @currency_network_contract_name_option
+@click.option(
+    "--password", help="Password for the keystore file", default=None, type=str
+)
 def test(
     jsonrpc: str,
     file: str,
@@ -368,6 +374,7 @@ def test(
     nonce: int,
     keystore: str,
     currency_network_contract_name: str,
+    password: str,
 ):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     Also deploys an identity proxy factory and an identity implementation contract.
@@ -409,7 +416,13 @@ def test(
     ]
 
     web3 = connect_to_json_rpc(jsonrpc)
-    private_key = retrieve_private_key(keystore)
+
+    if keystore is not None:
+        if password is not None:
+            private_key = decrypt_private_key(keystore, password)
+        else:
+            private_key = retrieve_private_key(keystore)
+
     nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
@@ -419,6 +432,7 @@ def test(
         network_settings,
         currency_network_contract_name=currency_network_contract_name,
         transaction_options=transaction_options,
+        private_key=private_key,
     )
     identity_implementation = deploy_identity_implementation(
         web3=web3, transaction_options=transaction_options, private_key=private_key
@@ -429,6 +443,14 @@ def test(
     identity_proxy_factory = deploy_identity_proxy_factory(
         web3=web3, transaction_options=transaction_options, private_key=private_key
     )
+
+    gnosis_safe = deploy_gnosis_safe(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
+    gnosis_safe_proxy_factory = deploy_gnosis_safe_proxy_factory(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
+
     addresses = dict()
     network_addresses = [network.address for network in networks]
     exchange_address = exchange.address
@@ -443,6 +465,9 @@ def test(
         identity_implementation.address,
         second_identity_implementation.address,
     ]
+
+    addresses["gnosisSafeL2"] = gnosis_safe.address
+    addresses["gnosisSafeProxyFactory"] = gnosis_safe_proxy_factory.address
 
     if file:
         with open(file, "w") as outfile:
@@ -459,6 +484,12 @@ def test(
         "Identity implementations: {} and {}".format(
             to_checksum_address(identity_implementation.address),
             to_checksum_address(second_identity_implementation.address),
+        )
+    )
+    click.echo("GnosisSafeL2: {}".format(to_checksum_address(gnosis_safe.address)))
+    click.echo(
+        "GnosisSafeProxyFactory: {}".format(
+            to_checksum_address(gnosis_safe_proxy_factory.address)
         )
     )
     for settings, address in zip(network_settings, network_addresses):
