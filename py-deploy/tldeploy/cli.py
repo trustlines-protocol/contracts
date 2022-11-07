@@ -417,6 +417,7 @@ def test(
 
     web3 = connect_to_json_rpc(jsonrpc)
 
+    private_key = None
     if keystore is not None:
         if password is not None:
             private_key = decrypt_private_key(keystore, password)
