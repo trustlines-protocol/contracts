@@ -51,4 +51,4 @@ FROM runner
 COPY --from=builder /opt/contracts /opt/contracts
 WORKDIR /opt/contracts
 ENTRYPOINT ["tl-deploy"]
-CMD ["test", "--gas-price", "0"]
+CMD ["test", "--gas-price", "1065625000"]
