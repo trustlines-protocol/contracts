@@ -62,7 +62,7 @@ click==7.1.1
     #   black
     #   contract-deploy-tools
     #   pip-tools
-contract-deploy-tools==0.11.0
+contract-deploy-tools==0.11.1
     # via
     #   -r ./py-deploy/requirements.txt
     #   -r dev-requirements.in
@@ -233,7 +233,7 @@ py-evm==0.5.0a3
     # via
     #   -r ./py-deploy/requirements.txt
     #   eth-tester
-py-solc==3.2.0
+py-solc-x==1.1.1
     # via
     #   -r ./py-deploy/requirements.txt
     #   contract-deploy-tools
@@ -280,6 +280,7 @@ requests==2.25.1
     # via
     #   -r ./py-deploy/requirements.txt
     #   ipfshttpclient
+    #   py-solc-x
     #   web3
 rlp==2.0.1
     # via
@@ -293,7 +294,7 @@ semantic-version==2.8.5
     # via
     #   -r ./py-deploy/requirements.txt
     #   eth-tester
-    #   py-solc
+    #   py-solc-x
 setuptools-scm==5.0.1
     # via -r dev-requirements.in
 six==1.15.0

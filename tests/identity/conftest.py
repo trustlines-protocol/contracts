@@ -18,7 +18,7 @@ def proxy_factory(deploy_contract, contract_assets, web3, chain_id):
     # to make sure the create1 address of the factory does not depend on other tests or fixtures
     aribtrary_key = f"0x{'12345678'*8}"
     new_account = web3.eth.account.from_key(aribtrary_key)
-    assert web3.eth.getTransactionCount(new_account.address) == 0
+    assert web3.eth.get_transaction_count(new_account.address) == 0
     web3.eth.sendTransaction({"to": new_account.address, "value": 1 * 10 ** 18})
 
     proxy_factory = deploy_compiled_contract(

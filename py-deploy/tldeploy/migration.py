@@ -291,7 +291,7 @@ class NetworkMigrater(NetworkMigrationVerifier):
         self.web3_dest = web3_dest
         if private_key is not None:
             for w3 in [web3_source, web3_dest]:
-                w3.eth.defaultAccount = web3_source.eth.account.from_key(
+                w3.eth.default_account = web3_source.eth.account.from_key(
                     private_key=private_key
                 ).address
 

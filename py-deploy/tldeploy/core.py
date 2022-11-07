@@ -234,7 +234,7 @@ def deploy_identity(
 
 
 def get_chain_id(web3):
-    return int(web3.eth.chainId)
+    return int(web3.eth.chain_id)
 
 
 def deploy_beacon(

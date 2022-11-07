@@ -76,7 +76,7 @@ def assert_contract_call_status(
     tx_hash = None
     try:
         tx_hash = contract_call.transact(transaction_options)
-        tx_success = web3.eth.waitForTransactionReceipt(tx_hash, 5).status == 1
+        tx_success = web3.eth.wait_for_transaction_receipt(tx_hash, 5).status == 1
     except ValidationError as e:
         if "Insufficient gas" not in e.args:
             raise e
@@ -133,7 +133,7 @@ def find_gas_values_for_call(web3, contract_call, transaction_options=None):
         transaction_options["gas"] = gas_limit
         try:
             tx_hash = contract_call.transact(transaction_options)
-            tx_success = web3.eth.waitForTransactionReceipt(tx_hash, 5).status == 1
+            tx_success = web3.eth.wait_for_transaction_receipt(tx_hash, 5).status == 1
         except ValidationError as e:
             if "Insufficient gas" not in e.args:
                 raise e

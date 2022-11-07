@@ -34,7 +34,7 @@ click==7.1.1
     #   -r constraints.in
     #   contract-deploy-tools
     #   trustlines-contracts-deploy (setup.py)
-contract-deploy-tools==0.11.0
+contract-deploy-tools==0.11.1
     # via trustlines-contracts-deploy (setup.py)
 cytoolz==0.11.0
     # via
@@ -142,7 +142,7 @@ py-ecc==4.1.0
     # via py-evm
 py-evm==0.5.0a3
     # via eth-tester
-py-solc==3.2.0
+py-solc-x==1.1.1
     # via contract-deploy-tools
 pycryptodome==3.9.9
     # via
@@ -161,6 +161,7 @@ pytzdata==2020.1
 requests==2.25.1
     # via
     #   ipfshttpclient
+    #   py-solc-x
     #   web3
 rlp==2.0.1
     # via
@@ -172,7 +173,7 @@ rlp==2.0.1
 semantic-version==2.8.5
     # via
     #   eth-tester
-    #   py-solc
+    #   py-solc-x
 six==1.15.0
     # via
     #   jsonschema
