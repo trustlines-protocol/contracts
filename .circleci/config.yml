@@ -108,7 +108,7 @@ jobs:
       - run:
           name: Run flake8
           command: |
-            flake8 py-bin py-deploy tests
+            pre-commit run -a flake8
 
   run-black:
     executor: ubuntu-builder
@@ -120,7 +120,7 @@ jobs:
       - run:
           name: Run black
           command: |
-            black --check py-bin py-deploy tests
+            pre-commit run -a black
 
   install-py38:
     executor: ubuntu-builder
@@ -204,7 +204,7 @@ jobs:
       - run:
           name: Run mypy
           command: |
-            mypy --ignore-missing-imports py-deploy/tldeploy tests
+            pre-commit run -a mypy
 
   build-docker-image:
     executor: ubuntu-builder
