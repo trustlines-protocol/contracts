@@ -1,11 +1,12 @@
 import pathlib
 
-from deploy_tools.transact import wait_for_successful_function_call, TransactionFailed
+from deploy_tools.transact import wait_for_successful_function_call
 import pytest
-import eth_tester.backends.pyevm.main
 
 import tldeploy.core
-from web3.exceptions import SolidityError
+import deploy_tools.transact
+import eth_tester.exceptions
+
 
 from tests.utils import (
     find_gas_values_for_call,
@@ -16,17 +17,11 @@ from tests.utils import (
     assert_gas_costs,
 )
 
-# increase eth_tester's GAS_LIMIT
-# Otherwise we can't deploy our contract
-assert eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT < 8 * 10 ** 6
-eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 8 * 10 ** 6
-
-
 EXTRA_DATA = b"\x124Vx\x124Vx\x124Vx\x124Vx"
 EXPIRATION_TIME = 4_102_444_800  # 01/01/2100
 
 
-MAX_UINT_64 = 2 ** 64 - 1
+MAX_UINT_64 = 2**64 - 1
 MAX_FEE = MAX_UINT_64
 
 
@@ -568,7 +563,7 @@ def assert_failing_transaction(web3):
             # We use a gas limit to prevent eth_tester from failing prematurely
             transaction_options["gas"] = 2_000_000
 
-        with pytest.raises(TransactionFailed):
+        with pytest.raises(deploy_tools.transact.TransactionFailed):
             wait_for_successful_function_call(
                 function_transact, web3=web3, transaction_options=transaction_options
             )
@@ -591,7 +586,7 @@ def assert_failing_call(
             # to prevent eth_tester from failing prematurely
             transaction_options["gas"] = 2_000_000
 
-        with pytest.raises(SolidityError):
+        with pytest.raises(eth_tester.exceptions.TransactionFailed):
             function_call.call(transaction_options)
 
     return asserting_function

@@ -7,10 +7,10 @@
 
 set -x
 
-container=$(docker run -d -p 8545:8545 --entrypoint '' --rm parity/parity:v2.6.3-beta bash -c 'echo >/tmp/empty-password; parity --no-color --jsonrpc-apis=all --jsonrpc-hosts=all --jsonrpc-interface 0.0.0.0 --config dev --unlock 0x00a329c0648769a73afac7f9381e08fb43dbea72 --password=/tmp/empty-password')
+docker run -d -p 8545:8545 --name ganache --rm trufflesuite/ganache:latest
 sleep 3
 docker run --net="host" contracts
 retval=$?
-docker logs -t $container
-docker stop $container
+docker logs ganache
+docker stop ganache
 exit $retval

@@ -1,7 +1,7 @@
 import collections
 import math
 import os
-from typing import Dict, Set
+from typing import Dict, Set, Callable
 
 import click
 from deploy_tools.files import read_addresses_in_csv
@@ -10,41 +10,95 @@ from deploy_tools.transact import (
     increase_transaction_options_nonce,
     wait_for_successful_transaction_receipts,
 )
+from eth_abi.packed import encode_abi_packed
+from web3 import Web3
+from web3.exceptions import BadFunctionCallOutput
+
 from tldeploy.interests import balance_with_interests
 from tldeploy.load_contracts import get_contract_interface
-
 
 ADDRESS_0 = "0x0000000000000000000000000000000000000000"
 
 
+def get_safe_address(
+    user_address, master_copy_address, proxy_factory_address, web3_source
+):
+    identity_interface = get_contract_interface("Identity")
+
+    try:
+        identity_contract = web3_source.eth.contract(
+            address=user_address, abi=identity_interface["abi"]
+        )
+        identity_owner = identity_contract.functions.owner().call()
+    except BadFunctionCallOutput:
+        identity_owner = user_address
+
+    safe_address = gnosis_safe_user_address(
+        master_copy_address=master_copy_address,
+        proxy_factory_address=proxy_factory_address,
+        user_address=identity_owner,
+    )
+
+    return safe_address
+
+
 def migrate_networks(
-    web3,
+    *,
+    web3_source,
+    web3_dest,
     old_addresses_file_path: str,
     new_addresses_file_path: str,
-    transaction_options: Dict = None,
+    master_copy_address: str,
+    proxy_factory_address: str,
+    transaction_options_source: Dict = None,
+    transaction_options_dest: Dict = None,
     private_key: bytes = None,
 ):
+    def get_migrated_user_address(user_address):
+        return get_safe_address(
+            user_address, master_copy_address, proxy_factory_address, web3_source
+        )
+
     for [old_address, new_address] in read_addresses_to_migrate(
         old_addresses_file_path, new_addresses_file_path
     ):
         click.secho(f"Migrating {old_address} to {new_address}", fg="green")
         NetworkMigrater(
-            web3, old_address, new_address, transaction_options, private_key
+            web3_source,
+            web3_dest,
+            old_address,
+            new_address,
+            get_migrated_user_address,
+            transaction_options_source,
+            transaction_options_dest,
+            private_key,
         ).migrate_network()
         click.secho(f"Migration of {old_address} to {new_address} complete", fg="green")
 
 
 def verify_networks_migrations(
-    web3, old_addresses_file_path: str, new_addresses_file_path: str
+    web3_source,
+    web3_dest,
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
 ):
-
     for [old_address, new_address] in read_addresses_to_migrate(
         old_addresses_file_path, new_addresses_file_path
     ):
         click.secho(
             f"Verifying migration from {old_address} to {new_address}", fg="green"
         )
-        NetworkMigrationVerifier(web3, old_address, new_address).verify_migration()
+
+        def get_migrated_user_address(user_address):
+            return get_safe_address(
+                user_address, master_copy_address, proxy_factory_address, web3_source
+            )
+
+        NetworkMigrationVerifier(
+            web3_source, web3_dest, old_address, new_address, get_migrated_user_address
+        ).verify_migration()
         click.secho(
             f"Verification of migration from {old_address} to {new_address} complete",
             fg="green",
@@ -71,20 +125,26 @@ def read_addresses_to_migrate(old_addresses_file_path, new_addresses_file_path):
 
 class NetworkMigrationVerifier:
     def __init__(
-        self, web3, old_currency_network_address: str, new_currency_network_address: str
+        self,
+        web3_source,
+        web3_dest,
+        old_currency_network_address: str,
+        new_currency_network_address: str,
+        get_migrated_user_address: Callable,
     ):
         old_network_interface = get_contract_interface("CurrencyNetwork")
-        self.old_network = web3.eth.contract(
+        self.old_network = web3_source.eth.contract(
             address=old_currency_network_address, abi=old_network_interface["abi"]
         )
         new_network_interface = get_contract_interface("CurrencyNetworkOwnable")
-        self.new_network = web3.eth.contract(
+        self.new_network = web3_dest.eth.contract(
             address=new_currency_network_address, abi=new_network_interface["abi"]
         )
-        self.users = set(self.old_network.functions.getUsers().call())
+        self.old_users = set(self.old_network.functions.getUsers().call())
         click.secho(
-            f"Found {len(self.users)} users in the old currency network", fg="blue"
+            f"Found {len(self.old_users)} users in the old currency network", fg="blue"
         )
+        self.get_migrated_user_address = get_migrated_user_address
 
     def verify_migration(self):
         assert (
@@ -102,7 +162,7 @@ class NetworkMigrationVerifier:
         self.verify_owner_removed()
 
     def verify_accounts_migrated(self):
-        for user in self.users:
+        for user in self.old_users:
             friends = set(self.old_network.functions.getFriends(user).call())
             for friend in friends:
                 if not self.is_account_migrated(user, friend):
@@ -127,7 +187,9 @@ class NetworkMigrationVerifier:
             new_is_frozen,
             new_mtime,
             new_balance,
-        ) = self.new_network.functions.getAccount(user, friend).call()
+        ) = self.new_network.functions.getAccount(
+            self.get_migrated_user_address(user), self.get_migrated_user_address(friend)
+        ).call()
 
         if new_mtime < old_mtime:
             # The account was not migrated at all or modified on old network after migration
@@ -159,15 +221,17 @@ class NetworkMigrationVerifier:
         click.secho(f"Account verification failed for {user} - {friend}", fg="red")
 
     def verify_on_boarders_migrated(self):
-        for user in self.users:
+        for user in self.old_users:
             if not self.is_on_boarder_migrated(user):
                 click.secho(f"On boarder verification failed for {user}", fg="red")
         click.secho("On boarder migration verified")
 
     def is_on_boarder_migrated(self, user):
         old_on_boarder = self.old_network.functions.onboarder(user).call()
-        new_on_boarder = self.new_network.functions.onboarder(user).call()
-        return old_on_boarder == new_on_boarder
+        new_on_boarder = self.new_network.functions.onboarder(
+            self.get_migrated_user_address(user)
+        ).call()
+        return self.get_migrated_user_address(old_on_boarder) == new_on_boarder
 
     def verify_debts_migrated(self):
         debts = get_all_debts_of_currency_network(self.old_network)
@@ -182,7 +246,10 @@ class NetworkMigrationVerifier:
 
     def is_debt_migrated(self, debts, debtor, creditor):
         old_debt = debts[debtor][creditor]
-        new_debt = self.new_network.functions.getDebt(debtor, creditor).call()
+        new_debt = self.new_network.functions.getDebt(
+            self.get_migrated_user_address(debtor),
+            self.get_migrated_user_address(creditor),
+        ).call()
         return old_debt == new_debt
 
     def verify_network_unfrozen(self):
@@ -202,30 +269,43 @@ class NetworkMigrationVerifier:
 class NetworkMigrater(NetworkMigrationVerifier):
     def __init__(
         self,
-        web3,
+        web3_source,
+        web3_dest,
         old_currency_network_address: str,
         new_currency_network_address: str,
-        transaction_options: Dict = None,
+        get_migrated_user_address: Callable,
+        transaction_options_source: Dict = None,
+        transaction_options_dest: Dict = None,
         private_key: bytes = None,
         max_tx_queue_size=10,
     ):
         super().__init__(
-            web3, old_currency_network_address, new_currency_network_address
+            web3_source,
+            web3_dest,
+            old_currency_network_address,
+            new_currency_network_address,
+            get_migrated_user_address,
         )
 
-        self.web3 = web3
+        self.web3_source = web3_source
+        self.web3_dest = web3_dest
         if private_key is not None:
-            self.web3.eth.defaultAccount = web3.eth.account.from_key(
-                private_key=private_key
-            ).address
+            for w3 in [web3_source, web3_dest]:
+                w3.eth.default_account = web3_source.eth.account.from_key(
+                    private_key=private_key
+                ).address
 
-        self.transaction_options = transaction_options
-        if transaction_options is None:
-            self.transaction_options = {}
+        self.transaction_options_source = transaction_options_source
+        self.transaction_options_dest = transaction_options_dest
+        if transaction_options_source is None:
+            self.transaction_options_source = {}
+        if transaction_options_dest is None:
+            self.transaction_options_dest = {}
 
         self.private_key = private_key
         self.max_tx_queue_size = max_tx_queue_size
-        self.tx_queue: Set[str] = set()
+        self.tx_queue_source: Set[str] = set()
+        self.tx_queue_dest: Set[str] = set()
 
     def migrate_network(self):
         assert (
@@ -236,7 +316,6 @@ class NetworkMigrater(NetworkMigrationVerifier):
             == self.new_network.functions.name().call()
         ), "New and old contracts name do not match"
 
-        self.freeze_old_network()
         self.migrate_accounts()
         self.migrate_trustline_update_requests()
         self.migrate_on_boarders()
@@ -244,15 +323,9 @@ class NetworkMigrater(NetworkMigrationVerifier):
         self.unfreeze_network()
         self.remove_owner()
 
-    def freeze_old_network(self):
-        if not self.old_network.functions.isNetworkFrozen().call():
-            freeze_network_call = self.old_network.functions.freezeNetwork()
-            self.call_contract_function_with_tx(freeze_network_call)
-            self.wait_for_successfull_txs_in_queue()
-
     def migrate_accounts(self):
         click.secho("Accounts migration")
-        for user in self.users:
+        for user in self.old_users:
             friends = set(self.old_network.functions.getFriends(user).call())
             for friend in friends:
                 if user < friend:
@@ -277,8 +350,8 @@ class NetworkMigrater(NetworkMigrationVerifier):
                 )
 
                 set_account_call = self.new_network.functions.setAccount(
-                    user,
-                    friend,
+                    self.get_migrated_user_address(user),
+                    self.get_migrated_user_address(friend),
                     creditline_ab,
                     creditline_ba,
                     interest_ab,
@@ -293,11 +366,12 @@ class NetworkMigrater(NetworkMigrationVerifier):
 
     def migrate_on_boarders(self):
         click.secho("On boarders migration")
-        for user in self.users:
+        for user in self.old_users:
             if not self.is_on_boarder_migrated(user):
                 on_boarder = self.old_network.functions.onboarder(user).call()
                 set_on_boarder_call = self.new_network.functions.setOnboarder(
-                    user, on_boarder
+                    self.get_migrated_user_address(user),
+                    self.get_migrated_user_address(on_boarder),
                 )
                 self.call_contract_function_with_tx(set_on_boarder_call)
         self.wait_for_successfull_txs_in_queue()
@@ -308,8 +382,12 @@ class NetworkMigrater(NetworkMigrationVerifier):
         debts = get_all_debts_of_currency_network(self.old_network)
         for debtor in debts.keys():
             for creditor in debts[debtor].keys():
+                # Migrating the debt via migrating the user address might not make sense
+                # if one debtor was a delegate and not an identity owner
                 set_debt_call = self.new_network.functions.setDebt(
-                    debtor, creditor, debts[debtor][creditor]
+                    self.get_migrated_user_address(debtor),
+                    self.get_migrated_user_address(creditor),
+                    debts[debtor][creditor],
                 )
                 self.call_contract_function_with_tx(set_debt_call)
         self.wait_for_successfull_txs_in_queue()
@@ -321,8 +399,8 @@ class NetworkMigrater(NetworkMigrationVerifier):
         for request_event in request_events:
             event_args = request_event["args"]
             set_trustline_request_call = self.new_network.functions.setTrustlineRequest(
-                event_args["_creditor"],
-                event_args["_debtor"],
+                self.get_migrated_user_address(event_args["_creditor"]),
+                self.get_migrated_user_address(event_args["_debtor"]),
                 event_args["_creditlineGiven"],
                 event_args["_creditlineReceived"],
                 event_args["_interestRateGiven"],
@@ -345,21 +423,33 @@ class NetworkMigrater(NetworkMigrationVerifier):
         self.wait_for_successfull_txs_in_queue()
 
     def call_contract_function_with_tx(self, function_call):
+        web3 = function_call.web3
+        tx_options = self.transaction_options_source
+        tx_queue = self.tx_queue_source
+        if web3 == self.web3_dest:
+            tx_options = self.transaction_options_dest
+            tx_queue = self.tx_queue_dest
+
         tx_hash = send_function_call_transaction(
             function_call,
-            web3=self.web3,
-            transaction_options=self.transaction_options,
+            web3=function_call.web3,
+            transaction_options=tx_options,
             private_key=self.private_key,
         )
-        increase_transaction_options_nonce(self.transaction_options)
-        self.tx_queue.add(tx_hash)
+        increase_transaction_options_nonce(tx_options)
+        tx_queue.add(tx_hash)
 
-        if len(self.tx_queue) >= self.max_tx_queue_size:
+        if (
+            len(self.tx_queue_source) + len(self.tx_queue_dest)
+            >= self.max_tx_queue_size
+        ):
             self.wait_for_successfull_txs_in_queue()
 
     def wait_for_successfull_txs_in_queue(self):
-        wait_for_successful_transaction_receipts(self.web3, self.tx_queue)
-        self.tx_queue = set()
+        wait_for_successful_transaction_receipts(self.web3_source, self.tx_queue_source)
+        wait_for_successful_transaction_receipts(self.web3_dest, self.tx_queue_dest)
+        self.tx_queue_source = set()
+        self.tx_queue_dest = set()
 
 
 def get_last_frozen_status_of_account(currency_network, user, friend):
@@ -463,3 +553,61 @@ def unique_id(user_1: str, user_2: str):
         return user_1 + user_2
     else:
         return user_2 + user_1
+
+
+def gnosis_safe_user_address(
+    master_copy_address,
+    proxy_factory_address,
+    user_address,
+    salt_nonce=0,
+):
+    proxy_creation_code = bytearray.fromhex(
+        "608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564"  # noqa: E501
+    )
+
+    # safe setup selector
+    # owners offset = 9th element
+    # threshold = 1
+    # to = zero_address
+    # calldata offset = 10th element
+    # fallback handler = zero_address
+    # payment token = zero_address
+    # payment = zero
+    # payment receiver = zero_address
+    # owners = length 1
+    # owners = user_address
+    # calldata = zero bytes
+    safe_setup_data = (
+        "0xb63e800d"
+        "0000000000000000000000000000000000000000000000000000000000000100"
+        "0000000000000000000000000000000000000000000000000000000000000001"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000140"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000001"
+        "000000000000000000000000"
+        + user_address[-40:]
+        + "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+    )
+
+    abi_types = ["bytes", "uint256"]
+    to_hash = [Web3.solidityKeccak(["bytes"], [safe_setup_data]), salt_nonce]
+    salt = Web3.solidityKeccak(abi_types, to_hash)
+
+    deployment_data = encode_abi_packed(
+        ["bytes", "uint256"],
+        [proxy_creation_code, int(master_copy_address, 16)],
+    )
+    return build_create2_address(proxy_factory_address, deployment_data, salt)
+
+
+def build_create2_address(deployer_address, bytecode, salt="0x" + "00" * 32):
+    hashed_bytecode = Web3.solidityKeccak(["bytes"], [bytecode])
+    to_hash = ["0xff", deployer_address, salt, hashed_bytecode]
+    abi_types = ["bytes1", "address", "bytes32", "bytes32"]
+
+    return Web3.toChecksumAddress(Web3.solidityKeccak(abi_types, to_hash)[12:])

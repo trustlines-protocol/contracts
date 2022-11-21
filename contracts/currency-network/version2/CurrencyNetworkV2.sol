@@ -62,7 +62,10 @@ contract CurrencyNetworkV2 is CurrencyNetworkBasicV2, DebtTracking, Onboarding {
         );
     }
 
-    function uniqueIdentifier(address _a, address _b)
+    function uniqueIdentifier(
+        address _a,
+        address _b
+    )
         internal
         pure
         override(CurrencyNetworkBasicV2, DebtTracking)

@@ -3,8 +3,6 @@ import attr
 import pytest
 from tldeploy.core import deploy_network
 
-from web3.exceptions import SolidityError
-
 from tests.conftest import (
     EXTRA_DATA,
     EXPIRATION_TIME,
@@ -15,6 +13,7 @@ from tests.currency_network.conftest import (
     trustlines,
     deploy_test_network,
 )
+from eth_tester.exceptions import TransactionFailed
 
 MAX_CREDITLINE = MAX_UINT_64
 
@@ -60,7 +59,7 @@ def test_default_interests_rates_out_of_bounds(web3, invalid_interest_rate):
     invalid_settings = attr.evolve(
         NETWORK_SETTING, default_interest_rate=invalid_interest_rate
     )
-    with pytest.raises(SolidityError):
+    with pytest.raises(TransactionFailed):
         deploy_test_network(web3, invalid_settings)
 
 

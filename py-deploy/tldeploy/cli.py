@@ -11,6 +11,7 @@ from deploy_tools.cli import (
     keystore_option,
     nonce_option,
     retrieve_private_key,
+    decrypt_private_key,
     validate_address,
 )
 from deploy_tools.transact import (
@@ -36,6 +37,8 @@ from .core import (
     deploy_currency_network_proxy,
     unfreeze_owned_network,
     remove_owner_of_network,
+    deploy_gnosis_safe,
+    deploy_gnosis_safe_proxy_factory,
 )
 from tldeploy.migration import migrate_networks, verify_networks_migrations
 
@@ -360,6 +363,9 @@ def identity_proxy_factory(
 @nonce_option
 @keystore_option
 @currency_network_contract_name_option
+@click.option(
+    "--password", help="Password for the keystore file", default=None, type=str
+)
 def test(
     jsonrpc: str,
     file: str,
@@ -368,6 +374,7 @@ def test(
     nonce: int,
     keystore: str,
     currency_network_contract_name: str,
+    password: str,
 ):
     """Deploy three test currency network contracts connected to an exchange contract and an unwrapping ether contract.
     Also deploys an identity proxy factory and an identity implementation contract.
@@ -409,7 +416,14 @@ def test(
     ]
 
     web3 = connect_to_json_rpc(jsonrpc)
-    private_key = retrieve_private_key(keystore)
+
+    private_key = None
+    if keystore is not None:
+        if password is not None:
+            private_key = decrypt_private_key(keystore, password)
+        else:
+            private_key = retrieve_private_key(keystore)
+
     nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
     transaction_options = build_transaction_options(
         gas=gas, gas_price=gas_price, nonce=nonce
@@ -419,6 +433,7 @@ def test(
         network_settings,
         currency_network_contract_name=currency_network_contract_name,
         transaction_options=transaction_options,
+        private_key=private_key,
     )
     identity_implementation = deploy_identity_implementation(
         web3=web3, transaction_options=transaction_options, private_key=private_key
@@ -429,6 +444,14 @@ def test(
     identity_proxy_factory = deploy_identity_proxy_factory(
         web3=web3, transaction_options=transaction_options, private_key=private_key
     )
+
+    gnosis_safe = deploy_gnosis_safe(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
+    gnosis_safe_proxy_factory = deploy_gnosis_safe_proxy_factory(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
+
     addresses = dict()
     network_addresses = [network.address for network in networks]
     exchange_address = exchange.address
@@ -443,6 +466,9 @@ def test(
         identity_implementation.address,
         second_identity_implementation.address,
     ]
+
+    addresses["gnosisSafeL2"] = gnosis_safe.address
+    addresses["gnosisSafeProxyFactory"] = gnosis_safe_proxy_factory.address
 
     if file:
         with open(file, "w") as outfile:
@@ -459,6 +485,12 @@ def test(
         "Identity implementations: {} and {}".format(
             to_checksum_address(identity_implementation.address),
             to_checksum_address(second_identity_implementation.address),
+        )
+    )
+    click.echo("GnosisSafeL2: {}".format(to_checksum_address(gnosis_safe.address)))
+    click.echo(
+        "GnosisSafeProxyFactory: {}".format(
+            to_checksum_address(gnosis_safe_proxy_factory.address)
         )
     )
     for settings, address in zip(network_settings, network_addresses):
@@ -484,16 +516,64 @@ def test(
     default="",
     type=click.Path(dir_okay=False, writable=True),
 )
-@jsonrpc_option
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--source-rpc",
+    help="JsonRPC URL of the source ethereum client, where currency networks are already deployed.",
+    default="http://127.0.0.1:8545",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_SOURCE",
+)
+@click.option(
+    "--dest-rpc",
+    help="JsonRPC URL of the destination ethereum client, where new currency networks will be deployed",
+    default="http://127.0.0.1:8546",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_DEST",
+)
 @gas_price_option
-@nonce_option
+@click.option(
+    "--source-nonce",
+    "nonce_source",
+    help="Nonce of the first transaction to be sent on source chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
+@click.option(
+    "--dest-nonce",
+    "nonce_dest",
+    help="Nonce of the first transaction to be sent on destination chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
 @keystore_option
 def migration(
     old_addresses_file_path: str,
     new_addresses_file_path: str,
-    jsonrpc: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
+    source_rpc: str,
+    dest_rpc: str,
     gas_price: int,
-    nonce: int,
+    nonce_source: int,
+    nonce_dest: int,
     keystore: str,
 ):
     """Used to migrate old currency networks to new ones
@@ -501,18 +581,30 @@ def migration(
     The address files should contain currency network addresses with
     address matching from one file to the other from top to bottom"""
 
-    web3 = connect_to_json_rpc(jsonrpc)
+    web3_source = connect_to_json_rpc(source_rpc)
+    web3_dest = connect_to_json_rpc(dest_rpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
-    transaction_options = build_transaction_options(
-        gas=None, gas_price=gas_price, nonce=nonce
+    nonce_source = get_nonce(
+        web3=web3_source, nonce=nonce_source, private_key=private_key
     )
+    nonce_dest = get_nonce(web3=web3_dest, nonce=nonce_dest, private_key=private_key)
+    transaction_options_source = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_source
+    )
+    transaction_options_dest = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_dest
+    )
+
     migrate_networks(
-        web3,
-        old_addresses_file_path,
-        new_addresses_file_path,
-        transaction_options,
-        private_key,
+        web3_source=web3_source,
+        web3_dest=web3_dest,
+        old_addresses_file_path=old_addresses_file_path,
+        new_addresses_file_path=new_addresses_file_path,
+        master_copy_address=master_copy_address,
+        proxy_factory_address=proxy_factory_address,
+        transaction_options_source=transaction_options_source,
+        transaction_options_dest=transaction_options_dest,
+        private_key=private_key,
     )
 
 
@@ -531,17 +623,77 @@ def migration(
     default="",
     type=click.Path(dir_okay=False, writable=True),
 )
-@jsonrpc_option
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--source-rpc",
+    help="JsonRPC URL of the source ethereum client, where currency networks are already deployed.",
+    default="http://127.0.0.1:8545",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_SOURCE",
+)
+@click.option(
+    "--dest-rpc",
+    help="JsonRPC URL of the destination ethereum client, where new currency networks will be deployed",
+    default="http://127.0.0.1:8546",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_DEST",
+)
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
 def verify_migration(
-    old_addresses_file_path: str, new_addresses_file_path: str, jsonrpc: str
+    old_addresses_file_path: str,
+    new_addresses_file_path: str,
+    source_rpc: str,
+    dest_rpc: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
 ):
     """Used to verify migration of old currency networks to new ones
     The address files should contain currency network addresses with
     address matching from one file to the other from top to bottom"""
 
-    web3 = connect_to_json_rpc(jsonrpc)
+    web3_source = connect_to_json_rpc(source_rpc)
+    web3_dest = connect_to_json_rpc(dest_rpc)
 
-    verify_networks_migrations(web3, old_addresses_file_path, new_addresses_file_path)
+    verify_networks_migrations(
+        web3_source,
+        web3_dest,
+        old_addresses_file_path,
+        new_addresses_file_path,
+        master_copy_address,
+        proxy_factory_address,
+    )
 
 
 @cli.command(short_help="Deploy a new beacon contract")
@@ -594,17 +746,33 @@ def beacon(
 
 
 @cli.command(
-    short_help="Deploy new currrency networks and migrate old ones to deployed ones."
+    short_help="Deploy new currency networks and migrate old ones to deployed ones."
 )
 @click.option(
     "--addresses-file",
     "addresses_file_path",
-    help="Path to a csv file with addresses of old currency networks, order and number must match with new addresses",
+    help="Path to a csv file with addresses of old currency networks, order and number will match with new addresses",
     default="",
     type=click.Path(dir_okay=False, writable=True),
 )
 @beacon_address_option
 @proxy_owner_option
+@click.option(
+    "--master-copy",
+    "master_copy_address",
+    help="Address of the master copy used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
+@click.option(
+    "--proxy-factory",
+    "proxy_factory_address",
+    help="Address of the proxy factory used to deploy gnosis safes to migrate users",
+    required=True,
+    type=str,
+    callback=validate_address,
+)
 @click.option(
     "--output",
     "output_file_path",
@@ -612,34 +780,77 @@ def beacon(
     default="output.json",
     type=click.Path(dir_okay=False, writable=True),
 )
-@jsonrpc_option
+@click.option(
+    "--source-rpc",
+    help="JsonRPC URL of the source ethereum client, where currency networks are already deployed.",
+    default="http://127.0.0.1:8545",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_SOURCE",
+)
+@click.option(
+    "--dest-rpc",
+    help="JsonRPC URL of the destination ethereum client, where new currency networks will be deployed",
+    default="http://127.0.0.1:8546",
+    show_default=True,
+    metavar="URL",
+    envvar="JSONRPC_DEST",
+)
 @gas_price_option
-@nonce_option
+@click.option(
+    "--source-nonce",
+    "nonce_source",
+    help="Nonce of the first transaction to be sent on source chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
+@click.option(
+    "--dest-nonce",
+    "nonce_dest",
+    help="Nonce of the first transaction to be sent on destination chain, queried from the pending block if left out",
+    type=int,
+    default=None,
+)
 @keystore_option
 def deploy_and_migrate(
     addresses_file_path: str,
     output_file_path: str,
     beacon_address: str,
     owner_address: str,
-    jsonrpc: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
+    source_rpc: str,
+    dest_rpc: str,
     gas_price: int,
-    nonce: int,
+    nonce_source: int,
+    nonce_dest: int,
     keystore: str,
 ):
-    web3 = connect_to_json_rpc(jsonrpc)
+    web3_source = connect_to_json_rpc(source_rpc)
+    web3_dest = connect_to_json_rpc(dest_rpc)
     private_key = retrieve_private_key(keystore)
-    nonce = get_nonce(web3=web3, nonce=nonce, private_key=private_key)
-    transaction_options = build_transaction_options(
-        gas=None, gas_price=gas_price, nonce=nonce
+    nonce_source = get_nonce(
+        web3=web3_source, nonce=nonce_source, private_key=private_key
+    )
+    nonce_dest = get_nonce(web3=web3_dest, nonce=nonce_dest, private_key=private_key)
+    transaction_options_source = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_source
+    )
+    transaction_options_dest = build_transaction_options(
+        gas=None, gas_price=gas_price, nonce=nonce_dest
     )
 
     deploy_and_migrate_networks_from_file(
-        web3=web3,
+        web3_source=web3_source,
+        web3_dest=web3_dest,
         addresses_file_path=addresses_file_path,
         beacon_address=beacon_address,
         owner_address=owner_address,
+        master_copy_address=master_copy_address,
+        proxy_factory_address=proxy_factory_address,
         private_key=private_key,
-        transaction_options=transaction_options,
+        transaction_options_source=transaction_options_source,
+        transaction_options_dest=transaction_options_dest,
         output_file_path=output_file_path,
     )
 

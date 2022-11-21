@@ -12,7 +12,10 @@ from deploy_tools.transact import (
     wait_for_successful_function_call,
 )
 from deploy_tools.files import read_addresses_in_csv
-from tldeploy.migration import NetworkMigrater
+from tldeploy.migration import (
+    NetworkMigrater,
+    get_safe_address,
+)
 from web3 import Web3
 from tldeploy.load_contracts import contracts, get_contract_interface
 
@@ -149,12 +152,16 @@ def deploy_networks(
     network_settings,
     currency_network_contract_name=None,
     transaction_options: Dict = None,
+    private_key=None,
 ):
-    exchange = deploy_exchange(web3=web3, transaction_options=transaction_options)
+    exchange = deploy_exchange(
+        web3=web3, transaction_options=transaction_options, private_key=private_key
+    )
     unw_eth = deploy_unw_eth(
         web3=web3,
         exchange_address=exchange.address,
         transaction_options=transaction_options,
+        private_key=private_key,
     )
 
     networks = [
@@ -164,11 +171,48 @@ def deploy_networks(
             currency_network_contract_name=currency_network_contract_name,
             transaction_options=transaction_options,
             network_settings=network_setting,
+            private_key=private_key,
         )
         for network_setting in network_settings
     ]
 
     return networks, exchange, unw_eth
+
+
+def deploy_gnosis_safe(
+    web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    gnosis_safe = deploy(
+        "GnosisSafeL2",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    return gnosis_safe
+
+
+def deploy_gnosis_safe_proxy_factory(
+    web3,
+    transaction_options: Dict = None,
+    private_key: bytes = None,
+):
+    if transaction_options is None:
+        transaction_options = {}
+
+    gnosis_safe_proxy_factory = deploy(
+        "GnosisSafeProxyFactory",
+        web3=web3,
+        transaction_options=transaction_options,
+        private_key=private_key,
+    )
+    increase_transaction_options_nonce(transaction_options)
+    return gnosis_safe_proxy_factory
 
 
 def deploy_identity(
@@ -190,7 +234,7 @@ def deploy_identity(
 
 
 def get_chain_id(web3):
-    return int(web3.eth.chainId)
+    return int(web3.eth.chain_id)
 
 
 def deploy_beacon(
@@ -328,33 +372,43 @@ def init_currency_network(
 
 def deploy_and_migrate_networks_from_file(
     *,
-    web3,
+    web3_source,
+    web3_dest,
     beacon_address: str,
     owner_address: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
     addresses_file_path: str,
     private_key: bytes = None,
-    transaction_options: Dict = None,
+    transaction_options_source: Dict = None,
+    transaction_options_dest: Dict = None,
     output_file_path: str,
 ):
     """Deploy new owned currency network proxies and migrate old networks to it"""
-    if transaction_options is None:
-        transaction_options = {}
+    if transaction_options_source is None:
+        transaction_options_source = {}
+    if transaction_options_dest is None:
+        transaction_options_dest = {}
 
-    verify_owner_not_deployer(web3, owner_address, private_key)
+    verify_owner_not_deployer(web3_dest, owner_address, private_key)
     currency_network_interface = get_contract_interface("CurrencyNetwork")
     network_addresses_mapping = {}
 
     for old_address in read_addresses_in_csv(addresses_file_path):
-        old_network = web3.eth.contract(
+        old_network = web3_source.eth.contract(
             abi=currency_network_interface["abi"], address=old_address
         )
         new_network = deploy_and_migrate_network(
-            web3=web3,
+            web3_source=web3_source,
+            web3_dest=web3_dest,
             beacon_address=beacon_address,
             owner_address=owner_address,
+            master_copy_address=master_copy_address,
+            proxy_factory_address=proxy_factory_address,
             old_network=old_network,
             private_key=private_key,
-            transaction_options=transaction_options,
+            transaction_options_source=transaction_options_source,
+            transaction_options_dest=transaction_options_dest,
         )
         network_addresses_mapping[old_network.address] = new_network.address
 
@@ -367,27 +421,33 @@ def deploy_and_migrate_networks_from_file(
 
 def deploy_and_migrate_network(
     *,
-    web3,
+    web3_source,
+    web3_dest,
     beacon_address: str,
     owner_address: str,
+    master_copy_address: str,
+    proxy_factory_address: str,
     old_network: Contract,
     private_key: bytes = None,
-    transaction_options: Dict = None,
+    transaction_options_source: Dict = None,
+    transaction_options_dest: Dict = None,
 ):
     """Deploy a new owned currency network proxy and migrate the old networks to it"""
-    if transaction_options is None:
-        transaction_options = {}
+    if transaction_options_source is None:
+        transaction_options_source = {}
+    if transaction_options_dest is None:
+        transaction_options_dest = {}
 
     network_settings = get_network_settings(old_network)
     network_settings.expiration_time = 0
 
     new_network = deploy_currency_network_proxy(
-        web3=web3,
+        web3=web3_dest,
         network_settings=network_settings,
         beacon_address=beacon_address,
         owner_address=owner_address,
         private_key=private_key,
-        transaction_options=transaction_options,
+        transaction_options=transaction_options_dest,
     )
     new_address = new_network.address
     click.secho(
@@ -395,8 +455,21 @@ def deploy_and_migrate_network(
     )
 
     click.secho(f"Migrating {old_network.address} to {new_address}", fg="green")
+
+    def get_migrated_user_address(user_address):
+        return get_safe_address(
+            user_address, master_copy_address, proxy_factory_address, web3_source
+        )
+
     NetworkMigrater(
-        web3, old_network.address, new_network.address, transaction_options, private_key
+        web3_source,
+        web3_dest,
+        old_network.address,
+        new_network.address,
+        get_migrated_user_address,
+        transaction_options_source,
+        transaction_options_dest,
+        private_key,
     ).migrate_network()
     click.secho(
         f"Migration of {old_network.address} to {new_address} complete", fg="green"

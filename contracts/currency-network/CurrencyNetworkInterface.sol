@@ -56,10 +56,10 @@ interface CurrencyNetworkInterface {
      * @param _debtor the debtor of the queried trustline
      * @return credit limit given by creditor to debtor
      */
-    function creditline(address _creditor, address _debtor)
-        external
-        view
-        returns (uint256);
+    function creditline(
+        address _creditor,
+        address _debtor
+    ) external view returns (uint256);
 
     event Transfer(
         address indexed _from,

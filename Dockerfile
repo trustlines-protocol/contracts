@@ -13,7 +13,7 @@
 # docker run --net=host  --rm -it contracts test --file addresses.json
 #
 
-FROM ubuntu:18.04 as builder
+FROM ubuntu:20.04 as builder
 # python needs LANG
 ENV LANG C.UTF-8
 RUN apt-get -y update && \
@@ -39,7 +39,7 @@ RUN make install-non-editable
 RUN python -c 'import pkg_resources; print(pkg_resources.get_distribution("trustlines-contracts-deploy").version)' >/opt/contracts/VERSION
 
 
-FROM ubuntu:18.04 as runner
+FROM ubuntu:20.04 as runner
 ENV LANG C.UTF-8
 ENV PATH "/opt/contracts/bin:${PATH}"
 RUN apt-get -y update && \
@@ -51,4 +51,4 @@ FROM runner
 COPY --from=builder /opt/contracts /opt/contracts
 WORKDIR /opt/contracts
 ENTRYPOINT ["tl-deploy"]
-CMD ["test", "--gas-price", "0"]
+CMD ["test", "--gas-price", "1065625000"]

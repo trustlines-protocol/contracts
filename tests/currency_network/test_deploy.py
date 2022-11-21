@@ -1,5 +1,7 @@
 #! pytest
 import pytest
+
+from tests.currency_network.conftest import ADDRESS_0
 from tldeploy.core import (
     deploy_networks,
     deploy_network,
@@ -157,9 +159,12 @@ def test_deploy_and_migrate_network(
     chain.time_travel(expiration_time + 1)
     chain.mine_block()
     deploy_and_migrate_network(
-        web3=web3,
+        web3_source=web3,
+        web3_dest=web3,
         beacon_address=beacon_with_currency_network.address,
         owner_address=owner,
+        master_copy_address=ADDRESS_0,
+        proxy_factory_address=ADDRESS_0,
         old_network=currency_network_contract_with_trustlines,
         private_key=not_owner_key,
     )

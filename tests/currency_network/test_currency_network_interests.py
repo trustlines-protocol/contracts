@@ -83,16 +83,16 @@ def transfer_function_name(request):
         (1000, 0, SECONDS_PER_YEAR, -1000, 0, 1000 * exp(-0.1)),
         (-1000, 0, SECONDS_PER_YEAR, 0, 1000, -1000 * exp(0.1)),
         (1000, 0, SECONDS_PER_YEAR, 100, 100, 1000 * exp(0.01)),
-        (10 ** 17, 0, SECONDS_PER_YEAR, 200, 200, 10 ** 17 * exp(0.02)),
+        (10**17, 0, SECONDS_PER_YEAR, 200, 200, 10**17 * exp(0.02)),
         (1000, SECONDS_PER_YEAR, 2 * SECONDS_PER_YEAR, 1000, 1000, 1000 * exp(0.1)),
         (MAX_UINT_64, 0, SECONDS_PER_YEAR, 1000, 0, MAX_UINT_64),
         (-MAX_UINT_64, 0, SECONDS_PER_YEAR, 1000, 1000, -MAX_UINT_64),
         (MAX_UINT_64 - 10, 0, SECONDS_PER_YEAR, 1000, 1000, MAX_UINT_64),
         (-MAX_UINT_64 + 10, 0, SECONDS_PER_YEAR, 1000, 1000, -MAX_UINT_64),
-        (1000, 0, 2 ** 32 - 1, 2 ** 15 - 1, 0, MAX_UINT_64),
-        (1000, 0, 2 ** 32 - 1, -(2 ** 15), 0, 0),
-        (-1000, 0, 2 ** 32 - 1, 0, 2 ** 15 - 1, -MAX_UINT_64),
-        (-1000, 0, 2 ** 32 - 1, 0, -(2 ** 15), 0),
+        (1000, 0, 2**32 - 1, 2**15 - 1, 0, MAX_UINT_64),
+        (1000, 0, 2**32 - 1, -(2**15), 0, 0),
+        (-1000, 0, 2**32 - 1, 0, 2**15 - 1, -MAX_UINT_64),
+        (-1000, 0, 2**32 - 1, 0, -(2**15), 0),
         (1000, 1, 0, 1000, 0, None),
     ],
 )
@@ -592,13 +592,13 @@ def test_interests_overflow(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2 ** CREDITLINE_WIDTH - 1,
-        2 ** CREDITLINE_WIDTH - 1,
+        2**CREDITLINE_WIDTH - 1,
+        2**CREDITLINE_WIDTH - 1,
         2 ** (INTEREST_WIDTH - 1) - 1,
         2 ** (INTEREST_WIDTH - 1) - 1,
         False,
         current_time,
-        2 ** CREDITLINE_WIDTH - 1,
+        2**CREDITLINE_WIDTH - 1,
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -609,7 +609,7 @@ def test_interests_overflow(
 
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance + 1 == 2 ** CREDITLINE_WIDTH - 1
+    assert balance + 1 == 2**CREDITLINE_WIDTH - 1
 
 
 def test_interests_underflow(
@@ -625,13 +625,13 @@ def test_interests_underflow(
     contract.functions.setAccount(
         accounts[0],
         accounts[1],
-        2 ** CREDITLINE_WIDTH - 1,
-        2 ** CREDITLINE_WIDTH - 1,
+        2**CREDITLINE_WIDTH - 1,
+        2**CREDITLINE_WIDTH - 1,
         2 ** (INTEREST_WIDTH - 1) - 1,
         2 ** (INTEREST_WIDTH - 1) - 1,
         False,
         current_time,
-        -(2 ** CREDITLINE_WIDTH - 1),
+        -(2**CREDITLINE_WIDTH - 1),
     ).transact()
     # setAccount(address, address, creditLimit, creditLimit, interest, interest, feeOut, feeOut, mtime, balance)
 
@@ -647,7 +647,7 @@ def test_interests_underflow(
     )
     balance = contract.functions.balance(accounts[0], accounts[1]).call()
 
-    assert balance - 1 == -(2 ** CREDITLINE_WIDTH - 1)
+    assert balance - 1 == -(2**CREDITLINE_WIDTH - 1)
 
 
 def test_interests_over_change_in_trustline(
@@ -853,11 +853,11 @@ def test_apply_interests_not_possible_when_frozen(
     "balance",
     [
         1,
-        10 ** 12,
+        10**12,
         MAX_BALANCE - 1,
         MAX_BALANCE,
         -1,
-        -(10 ** 12),
+        -(10**12),
         MIN_BALANCE + 1,
         MIN_BALANCE,
     ],
@@ -915,12 +915,12 @@ ALLOWED_PERCENTAGE = 1
     [
         1,
         1000,
-        10 ** 12,
+        10**12,
         MAX_BALANCE - 1,
         MAX_BALANCE,
         -1,
         -1000,
-        -(10 ** 12),
+        -(10**12),
         MIN_BALANCE + 1,
         MIN_BALANCE,
     ],

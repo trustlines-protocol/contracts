@@ -78,15 +78,15 @@ contract CurrencyNetworkRegistry is ERC165Query {
         return registeredCurrencyNetworks.length;
     }
 
-    function getCurrencyNetworkAddress(uint256 _index)
-        external
-        view
-        returns (address)
-    {
+    function getCurrencyNetworkAddress(
+        uint256 _index
+    ) external view returns (address) {
         return registeredCurrencyNetworks[_index];
     }
 
-    function getCurrencyNetworkMetadata(address _address)
+    function getCurrencyNetworkMetadata(
+        address _address
+    )
         external
         view
         returns (
@@ -104,11 +104,9 @@ contract CurrencyNetworkRegistry is ERC165Query {
         );
     }
 
-    function getCurrencyNetworksRegisteredBy(address _address)
-        external
-        view
-        returns (address[] memory)
-    {
+    function getCurrencyNetworksRegisteredBy(
+        address _address
+    ) external view returns (address[] memory) {
         return currencyNetworksRegisteredBy[_address];
     }
 }
