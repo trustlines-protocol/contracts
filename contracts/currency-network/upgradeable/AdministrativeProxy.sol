@@ -134,11 +134,10 @@ contract AdministrativeProxy {
      *
      * NOTE: Only the admin can call this function. See {ProxyAdmin-upgradeAndCall}.
      */
-    function changeBeaconAndCall(address newBeacon, bytes calldata data)
-        external
-        payable
-        ifAdmin
-    {
+    function changeBeaconAndCall(
+        address newBeacon,
+        bytes calldata data
+    ) external payable ifAdmin {
         emit BeaconChanged(_beacon(), newBeacon);
         _setBeaconAndCall(newBeacon, data);
     }
@@ -164,13 +163,13 @@ contract AdministrativeProxy {
             returndatacopy(0, 0, returndatasize())
 
             switch result
-                // delegatecall returns 0 on error.
-                case 0 {
-                    revert(0, returndatasize())
-                }
-                default {
-                    return(0, returndatasize())
-                }
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
         }
     }
 

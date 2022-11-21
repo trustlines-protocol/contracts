@@ -191,7 +191,7 @@ def assert_pending_trusltines_migrated(
         ) in pending_trustlines_requests:
             # ensure account is funded to send tx
             web3.eth.sendTransaction(
-                {"to": get_migrated_user_address(accounts[B]), "value": 10 ** 18}
+                {"to": get_migrated_user_address(accounts[B]), "value": 10**18}
             )
             new_contract_adapter.update_trustline(
                 get_migrated_user_address(accounts[B]),

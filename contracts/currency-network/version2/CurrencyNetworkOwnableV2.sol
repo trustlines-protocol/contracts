@@ -57,14 +57,13 @@ contract CurrencyNetworkOwnableV2 is CurrencyNetworkV2 {
         // the time at which BalanceUpdate is emitted (e.g. to compute pending interests offchain)
         TrustlineBalances memory trustlineBalances;
         trustlineBalances.mtime = uint32(block.timestamp);
-        int72 balanceWithInterests =
-            calculateBalanceWithInterests(
-                _balance,
-                _mtime,
-                block.timestamp,
-                _interestRateGiven,
-                _interestRateReceived
-            );
+        int72 balanceWithInterests = calculateBalanceWithInterests(
+            _balance,
+            _mtime,
+            block.timestamp,
+            _interestRateGiven,
+            _interestRateReceived
+        );
         trustlineBalances.balance = balanceWithInterests;
 
         _storeTrustlineAgreement(_creditor, _debtor, trustlineAgreement);

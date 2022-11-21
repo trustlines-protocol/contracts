@@ -27,7 +27,7 @@ def test_transfer(unweth_contract, web3, accounts):
 def test_deposit_withdraw(unweth_contract, web3, accounts):
     _, A, *rest = accounts
 
-    wei = 10 ** 18
+    wei = 10**18
     balance = web3.eth.getBalance(A)
 
     print(web3.eth.getBalance(A))
@@ -37,19 +37,19 @@ def test_deposit_withdraw(unweth_contract, web3, accounts):
     print(balance - web3.eth.getBalance(A) - wei)
 
     assert web3.eth.getBalance(A) == pytest.approx(
-        balance - wei, abs=10 ** 15
+        balance - wei, abs=10**15
     )  # approx, because ot gas costs
     assert unweth_contract.functions.balanceOf(A).call() == wei
 
     unweth_contract.functions.withdraw(wei).transact({"from": A})
     assert web3.eth.getBalance(A) == pytest.approx(
-        balance, abs=10 ** 15
+        balance, abs=10**15
     )  # approx, because ot gas costs
 
 
 def test_transfer_from(unweth_contract, web3, accounts, assert_failing_transaction):
     A, B, C, *rest = accounts
-    wei = 10 ** 18
+    wei = 10**18
 
     balance = web3.eth.getBalance(B)
     unweth_contract.functions.deposit().transact({"from": A, "value": wei})

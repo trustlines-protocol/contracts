@@ -35,13 +35,13 @@ contract Proxy is ProxyStorage {
             returndatacopy(ptr, 0, returndatasize())
 
             switch result
-                // delegatecall returns 0 on error.
-                case 0 {
-                    revert(ptr, returndatasize())
-                }
-                default {
-                    return(ptr, returndatasize())
-                }
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(ptr, returndatasize())
+            }
+            default {
+                return(ptr, returndatasize())
+            }
         }
     }
 

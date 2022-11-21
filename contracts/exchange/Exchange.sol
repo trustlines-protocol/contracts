@@ -110,20 +110,19 @@ contract Exchange {
         bytes32 s
     ) public returns (uint256 filledTakerTokenAmount) {
         shouldThrowOnInsufficientBalanceOrAllowance; // This line is just to disable solc warnings
-        Order memory order =
-            Order({
-                maker: orderAddresses[0],
-                taker: orderAddresses[1],
-                makerToken: orderAddresses[2],
-                takerToken: orderAddresses[3],
-                feeRecipient: orderAddresses[4],
-                makerTokenAmount: orderValues[0],
-                takerTokenAmount: orderValues[1],
-                makerFee: orderValues[2],
-                takerFee: orderValues[3],
-                expirationTimestampInSec: orderValues[4],
-                orderHash: getOrderHash(orderAddresses, orderValues)
-            });
+        Order memory order = Order({
+            maker: orderAddresses[0],
+            taker: orderAddresses[1],
+            makerToken: orderAddresses[2],
+            takerToken: orderAddresses[3],
+            feeRecipient: orderAddresses[4],
+            makerTokenAmount: orderValues[0],
+            takerTokenAmount: orderValues[1],
+            makerFee: orderValues[2],
+            takerFee: orderValues[3],
+            expirationTimestampInSec: orderValues[4],
+            orderHash: getOrderHash(orderAddresses, orderValues)
+        });
 
         require(
             order.taker == address(0) || order.taker == msg.sender,
@@ -145,9 +144,8 @@ contract Exchange {
             return 0;
         }
 
-        uint256 remainingTakerTokenAmount =
-            order.takerTokenAmount -
-                getUnavailableTakerTokenAmount(order.orderHash);
+        uint256 remainingTakerTokenAmount = order.takerTokenAmount -
+            getUnavailableTakerTokenAmount(order.orderHash);
         filledTakerTokenAmount = min256(
             fillTakerTokenAmount,
             remainingTakerTokenAmount
@@ -174,12 +172,11 @@ contract Exchange {
             return 0;
         }
 
-        uint256 filledMakerTokenAmount =
-            getPartialAmount(
-                filledTakerTokenAmount,
-                order.takerTokenAmount,
-                order.makerTokenAmount
-            );
+        uint256 filledMakerTokenAmount = getPartialAmount(
+            filledTakerTokenAmount,
+            order.takerTokenAmount,
+            order.makerTokenAmount
+        );
         uint256 paidMakerFee;
         uint256 paidTakerFee;
         filled[order.orderHash] =
@@ -238,20 +235,19 @@ contract Exchange {
         bytes32 r,
         bytes32 s
     ) public returns (uint256 filledTakerTokenAmount) {
-        Order memory order =
-            Order({
-                maker: orderAddresses[0],
-                taker: orderAddresses[1],
-                makerToken: orderAddresses[2],
-                takerToken: orderAddresses[3],
-                feeRecipient: orderAddresses[4],
-                makerTokenAmount: orderValues[0],
-                takerTokenAmount: orderValues[1],
-                makerFee: orderValues[2],
-                takerFee: orderValues[3],
-                expirationTimestampInSec: orderValues[4],
-                orderHash: getOrderHash(orderAddresses, orderValues)
-            });
+        Order memory order = Order({
+            maker: orderAddresses[0],
+            taker: orderAddresses[1],
+            makerToken: orderAddresses[2],
+            takerToken: orderAddresses[3],
+            feeRecipient: orderAddresses[4],
+            makerTokenAmount: orderValues[0],
+            takerTokenAmount: orderValues[1],
+            makerFee: orderValues[2],
+            takerFee: orderValues[3],
+            expirationTimestampInSec: orderValues[4],
+            orderHash: getOrderHash(orderAddresses, orderValues)
+        });
 
         require(
             order.taker == address(0) || order.taker == msg.sender,
@@ -273,9 +269,8 @@ contract Exchange {
             return 0;
         }
 
-        uint256 remainingTakerTokenAmount =
-            order.takerTokenAmount -
-                getUnavailableTakerTokenAmount(order.orderHash);
+        uint256 remainingTakerTokenAmount = order.takerTokenAmount -
+            getUnavailableTakerTokenAmount(order.orderHash);
         filledTakerTokenAmount = min256(
             fillTakerTokenAmount,
             remainingTakerTokenAmount
@@ -302,12 +297,11 @@ contract Exchange {
             return 0;
         }
 
-        uint256 filledMakerTokenAmount =
-            getPartialAmount(
-                filledTakerTokenAmount,
-                order.takerTokenAmount,
-                order.makerTokenAmount
-            );
+        uint256 filledMakerTokenAmount = getPartialAmount(
+            filledTakerTokenAmount,
+            order.takerTokenAmount,
+            order.makerTokenAmount
+        );
         filled[order.orderHash] =
             filled[order.orderHash] +
             filledTakerTokenAmount;
@@ -377,20 +371,19 @@ contract Exchange {
         uint256[6] memory orderValues,
         uint256 cancelTakerTokenAmount
     ) public returns (uint256) {
-        Order memory order =
-            Order({
-                maker: orderAddresses[0],
-                taker: orderAddresses[1],
-                makerToken: orderAddresses[2],
-                takerToken: orderAddresses[3],
-                feeRecipient: orderAddresses[4],
-                makerTokenAmount: orderValues[0],
-                takerTokenAmount: orderValues[1],
-                makerFee: orderValues[2],
-                takerFee: orderValues[3],
-                expirationTimestampInSec: orderValues[4],
-                orderHash: getOrderHash(orderAddresses, orderValues)
-            });
+        Order memory order = Order({
+            maker: orderAddresses[0],
+            taker: orderAddresses[1],
+            makerToken: orderAddresses[2],
+            takerToken: orderAddresses[3],
+            feeRecipient: orderAddresses[4],
+            makerTokenAmount: orderValues[0],
+            takerTokenAmount: orderValues[1],
+            makerFee: orderValues[2],
+            takerFee: orderValues[3],
+            expirationTimestampInSec: orderValues[4],
+            orderHash: getOrderHash(orderAddresses, orderValues)
+        });
 
         require(
             order.maker == msg.sender,
@@ -408,11 +401,12 @@ contract Exchange {
             return 0;
         }
 
-        uint256 remainingTakerTokenAmount =
-            order.takerTokenAmount -
-                getUnavailableTakerTokenAmount(order.orderHash);
-        uint256 cancelledTakerTokenAmount =
-            min256(cancelTakerTokenAmount, remainingTakerTokenAmount);
+        uint256 remainingTakerTokenAmount = order.takerTokenAmount -
+            getUnavailableTakerTokenAmount(order.orderHash);
+        uint256 cancelledTakerTokenAmount = min256(
+            cancelTakerTokenAmount,
+            remainingTakerTokenAmount
+        );
         if (cancelledTakerTokenAmount == 0) {
             emit LogError(
                 uint8(Errors.ORDER_FULLY_FILLED_OR_CANCELLED),
@@ -664,8 +658,8 @@ contract Exchange {
             return false; // No rounding error.
         }
 
-        uint256 errPercentageTimes1000000 =
-            (remainder * 1000000) / (numerator * target);
+        uint256 errPercentageTimes1000000 = (remainder * 1000000) /
+            (numerator * target);
         return errPercentageTimes1000000 > 1000;
     }
 
@@ -685,11 +679,9 @@ contract Exchange {
     /// @dev Calculates the sum of values already filled and cancelled for a given order.
     /// @param orderHash The Keccak-256 hash of the given order.
     /// @return Sum of values already filled and cancelled.
-    function getUnavailableTakerTokenAmount(bytes32 orderHash)
-        public
-        view
-        returns (uint256)
-    {
+    function getUnavailableTakerTokenAmount(
+        bytes32 orderHash
+    ) public view returns (uint256) {
         return filled[orderHash] + cancelled[orderHash];
     }
 
@@ -698,11 +690,10 @@ contract Exchange {
     /// @param token Address of token.
     /// @param owner Address of owner.
     /// @return Token balance of owner.
-    function getBalance(address token, address owner)
-        internal
-        view
-        returns (uint256)
-    {
+    function getBalance(
+        address token,
+        address owner
+    ) internal view returns (uint256) {
         return Token(token).balanceOf{gas: EXTERNAL_QUERY_GAS_LIMIT}(owner); // Limit gas to prevent reentrancy
     }
 
@@ -711,11 +702,10 @@ contract Exchange {
     /// @param token Address of token.
     /// @param owner Address of owner.
     /// @return Allowance of token given to TokenTransferProxy by owner.
-    function getAllowance(address token, address owner)
-        internal
-        view
-        returns (uint256)
-    {
+    function getAllowance(
+        address token,
+        address owner
+    ) internal view returns (uint256) {
         return
             Token(token).allowance{gas: EXTERNAL_QUERY_GAS_LIMIT}(
                 owner,

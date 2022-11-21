@@ -120,11 +120,10 @@ contract TestCurrencyNetwork is CurrencyNetworkOwnable {
             );
     }
 
-    function testImbalanceGenerated(uint64 _value, int72 _balance)
-        public
-        pure
-        returns (uint64)
-    {
+    function testImbalanceGenerated(
+        uint64 _value,
+        int72 _balance
+    ) public pure returns (uint64) {
         return _calculateImbalanceGenerated(_value, _balance);
     }
 

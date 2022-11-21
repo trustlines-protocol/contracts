@@ -3,11 +3,10 @@ pragma solidity ^0.8.0;
 import "./Token.sol";
 
 contract StandardToken is Token {
-    function transfer(address _to, uint256 _value)
-        public
-        override
-        returns (bool)
-    {
+    function transfer(
+        address _to,
+        uint256 _value
+    ) public override returns (bool) {
         //Default assumes totalSupply can't be over max (2^256 - 1).
         if (
             balances[msg.sender] >= _value &&
@@ -46,22 +45,19 @@ contract StandardToken is Token {
         return balances[_owner];
     }
 
-    function approve(address _spender, uint256 _value)
-        public
-        override
-        returns (bool)
-    {
+    function approve(
+        address _spender,
+        uint256 _value
+    ) public override returns (bool) {
         allowed[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
         return true;
     }
 
-    function allowance(address _owner, address _spender)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function allowance(
+        address _owner,
+        address _spender
+    ) public view override returns (uint256) {
         return allowed[_owner][_spender];
     }
 

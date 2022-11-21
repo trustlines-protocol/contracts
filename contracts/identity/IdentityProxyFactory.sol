@@ -64,15 +64,14 @@ contract IdentityProxyFactory {
         address owner,
         bytes memory signature
     ) internal view returns (bool) {
-        bytes32 hash =
-            keccak256(
-                abi.encodePacked(
-                    bytes1(0x19),
-                    bytes1(0),
-                    address(this),
-                    implementationAddress
-                )
-            );
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0),
+                address(this),
+                implementationAddress
+            )
+        );
         address signer = ECDSA.recover(hash, signature);
         return owner == signer;
     }

@@ -19,7 +19,7 @@ def proxy_factory(deploy_contract, contract_assets, web3, chain_id):
     aribtrary_key = f"0x{'12345678'*8}"
     new_account = web3.eth.account.from_key(aribtrary_key)
     assert web3.eth.get_transaction_count(new_account.address) == 0
-    web3.eth.sendTransaction({"to": new_account.address, "value": 1 * 10 ** 18})
+    web3.eth.sendTransaction({"to": new_account.address, "value": 1 * 10**18})
 
     proxy_factory = deploy_compiled_contract(
         abi=contract_assets["IdentityProxyFactory"]["abi"],

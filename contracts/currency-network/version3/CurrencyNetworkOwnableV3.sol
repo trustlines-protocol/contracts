@@ -9,7 +9,6 @@ import "../version2/CurrencyNetworkOwnableV2.sol";
  *
  **/
 contract CurrencyNetworkOwnableV3 is CurrencyNetworkOwnableV2 {
-
     /**
      * A small trick to make the contracts compatible with GnosisSafe
      * delegate payments.

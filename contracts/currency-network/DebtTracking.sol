@@ -34,12 +34,10 @@ contract DebtTracking {
      * @param creditor The address towards which the debtor owes money
      * @return the debt of the debtor to the creditor, equal to the opposite of the debt of the creditor to the debtor
      */
-    function getDebt(address debtor, address creditor)
-        public
-        view
-        virtual
-        returns (int256)
-    {
+    function getDebt(
+        address debtor,
+        address creditor
+    ) public view virtual returns (int256) {
         if (debtor < creditor) {
             return debt[uniqueIdentifier(debtor, creditor)];
         } else {
@@ -59,11 +57,9 @@ contract DebtTracking {
      * @notice returns the list of debtors of a user
      * That is the list of addresses towards with the user has a debt (positive or negative)
      **/
-    function getDebtorsOfUser(address _user)
-        public
-        view
-        returns (address[] memory)
-    {
+    function getDebtorsOfUser(
+        address _user
+    ) public view returns (address[] memory) {
         return debtorsOfGivenAddress[_user].list;
     }
 
@@ -113,12 +109,10 @@ contract DebtTracking {
         );
     }
 
-    function uniqueIdentifier(address _a, address _b)
-        internal
-        pure
-        virtual
-        returns (bytes32)
-    {
+    function uniqueIdentifier(
+        address _a,
+        address _b
+    ) internal pure virtual returns (bytes32) {
         require(_a != _b, "Unique identifiers require different addresses");
         if (_a < _b) {
             return keccak256(abi.encodePacked(_a, _b));

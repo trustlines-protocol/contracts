@@ -21,7 +21,7 @@ contract Identity is ProxyStorage {
     bool public initialised;
 
     mapping(bytes32 => bool) private hashUsed;
-    uint256 public constant maxNonce = 2**255;
+    uint256 public constant maxNonce = 2 ** 255;
     uint256 public lastNonce = 0;
     /// Divides the gas price value to allow for finer range of fee price
     uint256 public constant gasPriceDivisor = 1000000;
@@ -104,20 +104,19 @@ contract Identity is ProxyStorage {
         uint8 operationType,
         bytes memory signature
     ) public {
-        bytes32 hash =
-            transactionHash(
-                to,
-                value,
-                data,
-                baseFee,
-                gasPrice,
-                gasLimit,
-                feeRecipient,
-                currencyNetworkOfFees,
-                nonce,
-                timeLimit,
-                operationType
-            );
+        bytes32 hash = transactionHash(
+            to,
+            value,
+            data,
+            baseFee,
+            gasPrice,
+            gasLimit,
+            feeRecipient,
+            currencyNetworkOfFees,
+            nonce,
+            timeLimit,
+            operationType
+        );
 
         require(validateNonce(nonce, hash), "The transaction nonce is invalid");
         require(validateTimeLimit(timeLimit), "The transaction expired");
@@ -196,8 +195,13 @@ contract Identity is ProxyStorage {
         require(msg.sender == owner, "Only owner can call this");
         require(validateTimeLimit(timeLimit), "The transaction expired");
 
-        bool status =
-            applyOperation(to, value, data, operationType, type(uint256).max);
+        bool status = applyOperation(
+            to,
+            value,
+            data,
+            operationType,
+            type(uint256).max
+        );
 
         require(status, "Transaction execution failed");
     }
@@ -208,11 +212,10 @@ contract Identity is ProxyStorage {
      * @param txHash The hash of the meta-transaction
      * @return True, if the nonce is correct and the txHash is unused, false otherwise
      **/
-    function validateNonce(uint256 nonce, bytes32 txHash)
-        public
-        view
-        returns (bool)
-    {
+    function validateNonce(
+        uint256 nonce,
+        bytes32 txHash
+    ) public view returns (bool) {
         if (nonce == 0 || nonce >= maxNonce) {
             return !hashUsed[txHash];
         } else {
@@ -236,11 +239,10 @@ contract Identity is ProxyStorage {
     /**
      * @dev Validates the signature on a given hash
      **/
-    function validateSignature(bytes32 hash, bytes memory _signature)
-        public
-        view
-        returns (bool)
-    {
+    function validateSignature(
+        bytes32 hash,
+        bytes memory _signature
+    ) public view returns (bool) {
         address signer = ECDSA.recover(hash, _signature);
         return owner == signer;
     }
@@ -263,31 +265,30 @@ contract Identity is ProxyStorage {
         uint256 timeLimit,
         uint8 operationType
     ) public view returns (bytes32) {
-        bytes32 hash =
-            keccak256(
+        bytes32 hash = keccak256(
+            abi.encodePacked(
                 abi.encodePacked(
-                    abi.encodePacked(
-                        bytes1(0x19),
-                        bytes1(0),
-                        address(this),
-                        chainId,
-                        version
-                    ),
-                    abi.encodePacked(
-                        to,
-                        value,
-                        keccak256(data),
-                        baseFee,
-                        gasPrice,
-                        gasLimit,
-                        feeRecipient,
-                        currencyNetworkOfFees,
-                        nonce,
-                        timeLimit,
-                        operationType
-                    )
+                    bytes1(0x19),
+                    bytes1(0),
+                    address(this),
+                    chainId,
+                    version
+                ),
+                abi.encodePacked(
+                    to,
+                    value,
+                    keccak256(data),
+                    baseFee,
+                    gasPrice,
+                    gasLimit,
+                    feeRecipient,
+                    currencyNetworkOfFees,
+                    nonce,
+                    timeLimit,
+                    operationType
                 )
-            );
+            )
+        );
 
         return hash;
     }
