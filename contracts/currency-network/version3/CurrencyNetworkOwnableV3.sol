@@ -2,12 +2,7 @@ pragma solidity ^0.8.0;
 
 import "../version2/CurrencyNetworkOwnableV2.sol";
 
-/**
- * CurrencyNetwork
- *
- * Extends basic currency networks to add debt tracking, debit transfer, and onboarding.
- *
- **/
+
 contract CurrencyNetworkOwnableV3 is CurrencyNetworkOwnableV2 {
     /**
      * A small trick to make the contracts compatible with GnosisSafe
