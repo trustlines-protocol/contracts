@@ -3,7 +3,16 @@ Change Log
 ==========
 `next`_ (unreleased)
 -----------------------
-
+`3.0.0`_ (2022-12-16)
+-----------------------
+* Added: new contracts `CurrencyNetworkV3`, and `CurrencyNetworkOwnableV3`. 
+  They have a new `transfer(address, value)` function abused by Gnosis safes to track delegate debt.
+  This functionally replaces the `increaseDebt(address, value)` function.
+* Updated: migration script to move users from one currency network to another now translates addresses of users
+  from the TL-identity contract to the corresponding Gnosis-safe contract addresses with the same user. Migration script
+  no longer freezes currency networks, as they will not be able to be frozen on tlbc.
+* Added: gnosis safe implementation and proxy factory added to `test` cli used in the TL e2e tests.
+ 
 `2.0.0`_ (2021-04-27)
 -----------------------
 * Added: new contracts `CurrencyNetworkV2`, `CurrencyNetworkOwnableV2` and `CurrencyNetworkBasicV2`.
@@ -318,4 +327,5 @@ The rest of the changes are only interesting for developers:
 .. _1.2.0: https://github.com/trustlines-protocol/contracts/compare/1.1.7...1.2.0
 .. _1.3.0: https://github.com/trustlines-protocol/contracts/compare/1.2.0...1.3.0
 .. _2.0.0: https://github.com/trustlines-protocol/contracts/compare/1.3.0...2.0.0
-.. _next: https://github.com/trustlines-protocol/contracts/compare/2.0.0...master
+.. _3.0.0: https://github.com/trustlines-protocol/contracts/compare/2.0.0...3.0.0
+.. _next: https://github.com/trustlines-protocol/contracts/compare/3.0.0...master
